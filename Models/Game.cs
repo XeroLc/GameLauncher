@@ -11,6 +11,10 @@ namespace GameLauncher.Models
         private string _iconPath = string.Empty;
         private string _description = string.Empty;
         private DateTime _createdAt;
+        private int _launchCount = 0;
+        private long _totalPlayTime = 0;
+        private DateTime? _lastRunTime;
+        private bool _isRunning = false;
 
         public int Id
         {
@@ -86,6 +90,58 @@ namespace GameLauncher.Models
                 {
                     _createdAt = value;
                     OnPropertyChanged(nameof(CreatedAt));
+                }
+            }
+        }
+
+        public int LaunchCount
+        {
+            get => _launchCount;
+            set
+            {
+                if (_launchCount != value)
+                {
+                    _launchCount = value;
+                    OnPropertyChanged(nameof(LaunchCount));
+                }
+            }
+        }
+
+        public long TotalPlayTime
+        {
+            get => _totalPlayTime;
+            set
+            {
+                if (_totalPlayTime != value)
+                {
+                    _totalPlayTime = value;
+                    OnPropertyChanged(nameof(TotalPlayTime));
+                }
+            }
+        }
+
+        public DateTime? LastRunTime
+        {
+            get => _lastRunTime;
+            set
+            {
+                if (_lastRunTime != value)
+                {
+                    _lastRunTime = value;
+                    OnPropertyChanged(nameof(LastRunTime));
+                }
+            }
+        }
+
+        public bool IsRunning
+        {
+            get => _isRunning;
+            set
+            {
+                if (_isRunning != value)
+                {
+                    _isRunning = value;
+                    OnPropertyChanged(nameof(IsRunning));
                 }
             }
         }

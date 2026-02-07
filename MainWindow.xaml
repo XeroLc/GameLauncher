@@ -26,21 +26,50 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <TextBlock Grid.Column="0"
-                       Text="我的游戏"
-                       Style="{StaticResource TitleTextBlockStyle}"
-                       FontSize="28"
-                       VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="0" Spacing="12">
+                <TextBlock Text="我的游戏"
+                           Style="{StaticResource TitleTextBlockStyle}"
+                           FontSize="28"/>
+                <AutoSuggestBox x:Name="SearchBox"
+                                PlaceholderText="搜索游戏..."
+                                Width="400"
+                                TextChanged="SearchBox_TextChanged"/>
+            </StackPanel>
 
-            <Button Grid.Column="1"
-                    x:Name="AddGameButton"
-                    Click="AddGameButton_Click"
-                    Style="{StaticResource AccentButtonStyle}">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE710;"/>
-                    <TextBlock Text="添加游戏"/>
-                </StackPanel>
-            </Button>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <Button x:Name="SelectModeButton"
+                        Click="SelectModeButton_Click"
+                        Style="{StaticResource DefaultButtonStyle}">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <FontIcon Glyph="&#xE762;"/>
+                        <TextBlock Text="批量操作"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="BatchDeleteButton"
+                        Click="BatchDeleteButton_Click"
+                        Style="{StaticResource DefaultButtonStyle}"
+                        Visibility="Collapsed"
+                        IsEnabled="False">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <FontIcon Glyph="&#xE107;"/>
+                        <TextBlock Text="删除选中"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="CancelSelectButton"
+                        Click="CancelSelectButton_Click"
+                        Style="{StaticResource DefaultButtonStyle}"
+                        Visibility="Collapsed">
+                    <TextBlock Text="取消"/>
+                </Button>
+                <Button x:Name="AddGameButton"
+                        Click="AddGameButton_Click"
+                        Style="{StaticResource AccentButtonStyle}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE710;"/>
+                        <TextBlock Text="添加游戏"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
         </Grid>
 
         <ScrollViewer Grid.Row="1"
@@ -48,12 +77,13 @@
                       VerticalScrollBarVisibility="Auto">
             <GridView x:Name="GamesGridView"
                       Padding="24,16"
-                      ItemsSource="{x:Bind Games}"
-                      SelectionMode="None">
+                      ItemsSource="{x:Bind FilteredGames}"
+                      SelectionMode="None"
+                      SelectionChanged="GamesGridView_SelectionChanged">
                 <GridView.ItemTemplate>
-                    <DataTemplate x:DataType="models:Game">
+                    <DataTemplate>
                         <Border Width="200"
-                                Height="280"
+                                Height="320"
                                 CornerRadius="8"
                                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -61,40 +91,75 @@
 
                             <Grid Margin="12">
                                 <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <Image Grid.Row="0"
+                                <Grid Grid.Row="0" Margin="0,0,0,8">
+                                    <TextBlock x:Name="RunningIndicator"
+                                               Text="● 运行中"
+                                               FontSize="12"
+                                               Foreground="{ThemeResource SystemAccentColor}"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+
+                                <Image Grid.Row="1"
+                                       x:Name="GameIcon"
                                        Source="ms-appx:///Assets/StoreLogo.png"
                                        Stretch="Uniform"
-                                       Width="120"
-                                       Height="120"
+                                       Width="100"
+                                       Height="100"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center"
-                                       Margin="0,8,0,8"/>
+                                       Margin="0,4,0,4"
+                                       Loaded="Image_Loaded"/>
 
-                                <TextBlock Grid.Row="1"
-                                           Text="{x:Bind Name}"
+                                <TextBlock Grid.Row="2"
+                                           Text="{Binding Name}"
                                            Style="{StaticResource SubtitleTextBlockStyle}"
                                            TextAlignment="Center"
                                            TextTrimming="CharacterEllipsis"
                                            MaxLines="1"
                                            Margin="0,0,0,4"/>
 
-                                <TextBlock Grid.Row="2"
-                                           Text="{x:Bind Description, FallbackValue='暂无描述'}"
+                                <TextBlock Grid.Row="3"
+                                           Text="{Binding Description, FallbackValue='暂无描述'}"
                                            Style="{StaticResource CaptionTextBlockStyle}"
                                            TextAlignment="Center"
                                            TextTrimming="CharacterEllipsis"
                                            MaxLines="2"
                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                           Margin="0,0,0,8"
-                                           Height="32"/>
+                                           Margin="0,0,0,4"
+                                           Height="28"/>
 
-                                <StackPanel Grid.Row="3" Spacing="8">
+                                <Grid Grid.Row="4" Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                                        <FontIcon Glyph="&#xE768;" FontSize="10" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                        <TextBlock x:Name="LaunchCountText"
+                                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                                   FontSize="10"
+                                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                                   Text="{Binding LaunchCount}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                                        <FontIcon Glyph="&#xE916;" FontSize="10" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                        <TextBlock x:Name="PlayTimeText"
+                                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                                   FontSize="10"
+                                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                                   Text="{Binding TotalPlayTime}"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <StackPanel Grid.Row="5" Spacing="8">
                                     <Button x:Name="LaunchButton"
                                             Click="LaunchButton_Click"
                                             Style="{StaticResource AccentButtonStyle}"

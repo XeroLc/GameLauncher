@@ -91,12 +91,46 @@ namespace GameLauncher.Services
                 };
 
                 Process.Start(startInfo);
+
+                game.LaunchCount++;
+                game.LastRunTime = DateTime.UtcNow;
+                game.IsRunning = true;
+
+                await _repository.UpdateGameAsync(game);
+
                 return true;
             }
             catch (Exception)
             {
                 return false;
             }
+        }
+
+        public async Task<bool> UpdateGamePlayTimeAsync(int gameId, long additionalTime)
+        {
+            var game = await _repository.GetGameByIdAsync(gameId);
+            if (game == null)
+            {
+                return false;
+            }
+
+            game.TotalPlayTime += additionalTime;
+            game.IsRunning = false;
+
+            return await _repository.UpdateGameAsync(game);
+        }
+
+        public async Task<bool> UpdateGameRunningStatusAsync(int gameId, bool isRunning)
+        {
+            var game = await _repository.GetGameByIdAsync(gameId);
+            if (game == null)
+            {
+                return false;
+            }
+
+            game.IsRunning = isRunning;
+
+            return await _repository.UpdateGameAsync(game);
         }
     }
 }

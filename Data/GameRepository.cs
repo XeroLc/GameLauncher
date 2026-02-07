@@ -23,7 +23,11 @@ namespace GameLauncher.Data
             await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
-            command.CommandText = "SELECT Id, Name, ExecutablePath, IconPath, Description, CreatedAt FROM Games ORDER BY CreatedAt DESC";
+            command.CommandText = @"
+                SELECT Id, Name, ExecutablePath, IconPath, Description, CreatedAt, 
+                       LaunchCount, TotalPlayTime, LastRunTime, IsRunning 
+                FROM Games 
+                ORDER BY CreatedAt DESC";
 
             using var reader = await command.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -35,7 +39,11 @@ namespace GameLauncher.Data
                     ExecutablePath = reader.GetString(2),
                     IconPath = reader.IsDBNull(3) ? null : reader.GetString(3),
                     Description = reader.IsDBNull(4) ? null : reader.GetString(4),
-                    CreatedAt = reader.GetDateTime(5)
+                    CreatedAt = reader.GetDateTime(5),
+                    LaunchCount = reader.IsDBNull(6) ? 0 : reader.GetInt32(6),
+                    TotalPlayTime = reader.IsDBNull(7) ? 0 : reader.GetInt64(7),
+                    LastRunTime = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
+                    IsRunning = !reader.IsDBNull(9) && reader.GetInt32(9) == 1
                 });
             }
 
@@ -48,7 +56,11 @@ namespace GameLauncher.Data
             await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
-            command.CommandText = "SELECT Id, Name, ExecutablePath, IconPath, Description, CreatedAt FROM Games WHERE Id = @Id";
+            command.CommandText = @"
+                SELECT Id, Name, ExecutablePath, IconPath, Description, CreatedAt, 
+                       LaunchCount, TotalPlayTime, LastRunTime, IsRunning 
+                FROM Games 
+                WHERE Id = @Id";
             command.Parameters.AddWithValue("@Id", id);
 
             using var reader = await command.ExecuteReaderAsync();
@@ -61,7 +73,11 @@ namespace GameLauncher.Data
                     ExecutablePath = reader.GetString(2),
                     IconPath = reader.IsDBNull(3) ? null : reader.GetString(3),
                     Description = reader.IsDBNull(4) ? null : reader.GetString(4),
-                    CreatedAt = reader.GetDateTime(5)
+                    CreatedAt = reader.GetDateTime(5),
+                    LaunchCount = reader.IsDBNull(6) ? 0 : reader.GetInt32(6),
+                    TotalPlayTime = reader.IsDBNull(7) ? 0 : reader.GetInt64(7),
+                    LastRunTime = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
+                    IsRunning = !reader.IsDBNull(9) && reader.GetInt32(9) == 1
                 };
             }
 
@@ -100,13 +116,21 @@ namespace GameLauncher.Data
                 SET Name = @Name, 
                     ExecutablePath = @ExecutablePath, 
                     IconPath = @IconPath, 
-                    Description = @Description
+                    Description = @Description,
+                    LaunchCount = @LaunchCount,
+                    TotalPlayTime = @TotalPlayTime,
+                    LastRunTime = @LastRunTime,
+                    IsRunning = @IsRunning
                 WHERE Id = @Id";
             
             command.Parameters.AddWithValue("@Name", game.Name);
             command.Parameters.AddWithValue("@ExecutablePath", game.ExecutablePath);
             command.Parameters.AddWithValue("@IconPath", game.IconPath ?? (object)DBNull.Value);
             command.Parameters.AddWithValue("@Description", game.Description ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@LaunchCount", game.LaunchCount);
+            command.Parameters.AddWithValue("@TotalPlayTime", game.TotalPlayTime);
+            command.Parameters.AddWithValue("@LastRunTime", game.LastRunTime ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@IsRunning", game.IsRunning ? 1 : 0);
             command.Parameters.AddWithValue("@Id", game.Id);
 
             int rowsAffected = await command.ExecuteNonQueryAsync();

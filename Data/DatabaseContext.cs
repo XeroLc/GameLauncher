@@ -27,6 +27,8 @@ namespace GameLauncher.Data
 
         public async Task InitializeAsync()
         {
+            var needsNewColumns = false;
+            
             var dir = Path.GetDirectoryName(_databasePath);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             {
@@ -48,10 +50,67 @@ namespace GameLauncher.Data
                         ExecutablePath TEXT NOT NULL,
                         IconPath TEXT,
                         Description TEXT,
-                        CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+                        CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        LaunchCount INTEGER DEFAULT 0,
+                        TotalPlayTime INTEGER DEFAULT 0,
+                        LastRunTime DATETIME,
+                        IsRunning INTEGER DEFAULT 0
                     )";
                 
                 await command.ExecuteNonQueryAsync();
+            }
+            else
+            {
+                using var connection = GetConnection();
+                await connection.OpenAsync();
+
+                using var command = connection.CreateCommand();
+                command.CommandText = "PRAGMA table_info(Games)";
+                
+                using var reader = await command.ExecuteReaderAsync();
+                var columns = new System.Collections.Generic.List<string>();
+                while (await reader.ReadAsync())
+                {
+                    columns.Add(reader.GetString(1));
+                }
+
+                if (!columns.Contains("LaunchCount"))
+                {
+                    needsNewColumns = true;
+                }
+            }
+
+            if (needsNewColumns)
+            {
+                await AddMissingColumnsAsync();
+            }
+        }
+
+        private async System.Threading.Tasks.Task AddMissingColumnsAsync()
+        {
+            using var connection = GetConnection();
+            await connection.OpenAsync();
+
+            var columnsToAdd = new[]
+            {
+                "LaunchCount INTEGER DEFAULT 0",
+                "TotalPlayTime INTEGER DEFAULT 0",
+                "LastRunTime DATETIME",
+                "IsRunning INTEGER DEFAULT 0"
+            };
+
+            foreach (var column in columnsToAdd)
+            {
+                using var command = connection.CreateCommand();
+                command.CommandText = $"ALTER TABLE Games ADD COLUMN {column}";
+                try
+                {
+                    await command.ExecuteNonQueryAsync();
+                }
+                catch
+                {
+                    // Column might already exist
+                }
             }
         }
     }

@@ -26,6 +26,16 @@
             <Button x:Name="BrowseButton" Grid.Column="1" Click="BrowseButton_Click" Content="浏览" Width="80" Height="32"/>
         </Grid>
 
+        <TextBlock Text="游戏图标（可选）"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="IconPathTextBox" Grid.Column="0" PlaceholderText="选择图标文件（PNG、JPG等）" IsReadOnly="True" Margin="0,0,8,0"/>
+            <Button x:Name="BrowseIconButton" Grid.Column="1" Click="BrowseIconButton_Click" Content="浏览" Width="80" Height="32"/>
+        </Grid>
+
         <TextBlock Text="游戏描述（可选）"/>
         <TextBox x:Name="DescriptionTextBox" PlaceholderText="请输入游戏描述" AcceptsReturn="True" TextWrapping="Wrap" Height="80" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
     </StackPanel>
