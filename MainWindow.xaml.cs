@@ -13,6 +13,10 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI; 
+using Microsoft.UI.Windowing;
+using WinRT.Interop;
+
 
 namespace GameLauncher
 {
@@ -23,7 +27,6 @@ namespace GameLauncher
         private readonly GameService _gameService;
         private readonly ObservableCollection<Game> _games;
         private readonly ObservableCollection<Game> _filteredGames;
-        private bool _initialized = false;
         private bool _isClosing = false;
         private DispatcherTimer _statusCheckTimer;
         private readonly Dictionary<int, DateTime> _runningGames = new();
@@ -41,10 +44,25 @@ namespace GameLauncher
             _games = new ObservableCollection<Game>();
             _filteredGames = new ObservableCollection<Game>();
 
+            // 绑定窗口事件，确保每次激活时都刷新数据
+            Activated += MainWindow_Activated;
+
+            // 初始化定时器
             InitializeStatusCheckTimer();
 
-            Activated += MainWindow_Activated;
-            Closed += MainWindow_Closed;
+            // 异步加载数据
+            _ = LoadGamesAsync();
+
+            // --- 设置图标代码开始 ---
+            // 1. 获取窗口的 HWND (窗口句柄)
+            IntPtr hWnd = WindowNative.GetWindowHandle(this);
+            WindowId windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
+            AppWindow appWindow = AppWindow.GetFromWindowId(windowId);
+
+            // 2. 设置图标 (路径要对应你项目中的图标文件)
+            // 注意：如果是非打包应用，通常图标文件需要复制到输出目录
+            appWindow.SetIcon("AppIcon.jpg");
+            // --- 设置图标代码结束 ---
         }
 
         private void InitializeStatusCheckTimer()
@@ -59,7 +77,7 @@ namespace GameLauncher
 
         private void StatusCheckTimer_Tick(object sender, object e)
         {
-            if (!_initialized || _isClosing)
+            if (_isClosing)
             {
                 return;
             }
@@ -204,23 +222,17 @@ namespace GameLauncher
 
         private async void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
         {
-            if (!_initialized)
+            await System.Threading.Tasks.Task.Delay(100);
+            
+            try
             {
-                _initialized = true;
-                Activated -= MainWindow_Activated;
-                
-                await System.Threading.Tasks.Task.Delay(100);
-                
-                try
-                {
-                    var initializer = new DatabaseInitializer(_dbContext);
-                    await initializer.InitializeAsync();
-                    await LoadGamesAsync();
-                }
-                catch (Exception ex)
-                {
-                    await ShowErrorDialog("初始化失败", $"数据库初始化失败：{ex.Message}");
-                }
+                var initializer = new DatabaseInitializer(_dbContext);
+                await initializer.InitializeAsync();
+                await LoadGamesAsync();
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorDialog("初始化失败", $"数据库初始化失败：{ex.Message}");
             }
         }
 

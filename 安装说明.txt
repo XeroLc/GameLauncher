@@ -1,0 +1,43 @@
+GameLauncher v1.0 安装说明
+=========================
+
+系统要求：
+- Windows 10 1809 (10.0.17763.0) 或更高版本
+- Windows 11
+- 64 位系统 (x64)
+
+安装步骤：
+
+1. 安装 Windows App SDK 运行时
+   GameLauncher 使用 WinUI 3 框架，需要先安装 Windows App SDK 1.8 运行时。
+   
+   下载地址：https://aka.ms/windowsappsdk/1.8/windowsappruntimeinstall-x64.exe
+   
+   或者访问 Microsoft 官方网站搜索 "Windows App SDK 1.8"
+   
+   安装步骤：
+   - 下载 windowsappruntimeinstall-x64.exe
+   - 双击运行
+   - 按照提示完成安装
+   - 安装完成后重启计算机（推荐）
+
+2. 运行 GameLauncher
+   - 解压 GameLauncher_v1.0_Windows_x64.zip
+   - 双击 GameLauncher.exe 启动程序
+   - （可选）创建快捷方式到桌面
+
+注意事项：
+- 程序已包含 .NET 8.0 运行时，无需额外安装
+- 程序数据存储在本地，无需联网
+- 如遇到问题，请确保已安装 Windows App SDK 1.8
+
+技术支持：
+如遇到启动问题，请检查：
+1. 是否已安装 Windows App SDK 1.8
+2. Windows 版本是否满足要求
+3. 是否有足够的系统权限
+
+版本信息：
+- 版本：1.0.0.0
+- 发布日期：2026-02-07
+- 框架：.NET 8.0 + WinUI 3 + Windows App SDK 1.8
