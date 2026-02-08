@@ -28,6 +28,8 @@ namespace GameLauncher
         private readonly ObservableCollection<Game> _games;
         private readonly ObservableCollection<Game> _filteredGames;
         private bool _isClosing = false;
+        private bool _isDialogOpen = false;
+        private bool _isBatchSelectionMode = false;
         private DispatcherTimer _statusCheckTimer;
         private readonly Dictionary<int, DateTime> _runningGames = new();
 
@@ -49,9 +51,6 @@ namespace GameLauncher
 
             // 初始化定时器
             InitializeStatusCheckTimer();
-
-            // 异步加载数据
-            _ = LoadGamesAsync();
 
             // --- 设置图标代码开始 ---
             // 1. 获取窗口的 HWND (窗口句柄)
@@ -223,41 +222,67 @@ namespace GameLauncher
         private async void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
         {
             await System.Threading.Tasks.Task.Delay(100);
-            
+
             try
             {
+                System.Diagnostics.Debug.WriteLine("开始初始化数据库...");
                 var initializer = new DatabaseInitializer(_dbContext);
                 await initializer.InitializeAsync();
+                System.Diagnostics.Debug.WriteLine("数据库初始化完成，开始加载游戏数据...");
                 await LoadGamesAsync();
+                System.Diagnostics.Debug.WriteLine("游戏数据加载完成");
+            }
+            catch (Microsoft.Data.Sqlite.SqliteException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"数据库错误: {ex.Message}");
+                await ShowErrorDialog("数据库错误", $"数据库操作失败：{ex.Message}\n\n请尝试删除应用程序数据文件夹中的 games.db 文件后重新启动。");
             }
             catch (Exception ex)
             {
-                await ShowErrorDialog("初始化失败", $"数据库初始化失败：{ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"初始化失败: {ex.Message}");
+                await ShowErrorDialog("初始化失败", $"发生错误：{ex.Message}");
             }
         }
 
         private async Task LoadGamesAsync()
         {
-            var games = await _gameService.GetAllGamesAsync();
-            _games.Clear();
-            _filteredGames.Clear();
-
-            foreach (var game in games)
+            try
             {
-                game.LoadIcon();
-                _games.Add(game);
-                _filteredGames.Add(game);
+                var games = await _gameService.GetAllGamesAsync();
+                _games.Clear();
+                _filteredGames.Clear();
 
-                if (game.IsRunning && !_runningGames.ContainsKey(game.Id))
+                foreach (var game in games)
                 {
-                    _runningGames[game.Id] = DateTime.UtcNow;
-                }
-            }
+                    try
+                    {
+                        game.LoadIcon();
+                        game.LoadImages();
+                        _games.Add(game);
+                        _filteredGames.Add(game);
 
-            UpdateEmptyState();
-            // 延迟更新 UI，确保所有游戏卡片都已经渲染完成
-            await Task.Delay(200);
-            UpdateGameCardStatistics();
+                        if (game.IsRunning && !_runningGames.ContainsKey(game.Id))
+                        {
+                            _runningGames[game.Id] = DateTime.UtcNow;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"加载游戏 {game.Name} 时出错: {ex.Message}");
+                        // 继续加载其他游戏
+                    }
+                }
+
+                UpdateEmptyState();
+                // 延迟更新 UI，确保所有游戏卡片都已经渲染完成
+                await Task.Delay(200);
+                UpdateGameCardStatistics();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"加载游戏数据失败: {ex.Message}");
+                throw;
+            }
         }
 
         private void UpdateEmptyState()
@@ -357,68 +382,16 @@ namespace GameLauncher
 
         private async void AddGameButton_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new AddGameDialog
+            // 检查是否已经有对话框打开
+            if (_isDialogOpen)
             {
-                XamlRoot = Content.XamlRoot
-            };
-
-            var result = await dialog.ShowAsync();
-
-            if (result == ContentDialogResult.Primary)
-            {
-                var newGame = new Game
-                {
-                    Name = dialog.GameName,
-                    ExecutablePath = dialog.ExecutablePath,
-                    IconPath = dialog.IconPath,
-                    Description = dialog.Description
-                };
-
-                newGame.LoadIcon();
-
-                try
-                {
-                    await _gameService.AddGameAsync(newGame);
-                    await LoadGamesAsync();
-                }
-                catch (Exception ex)
-                {
-                    await ShowErrorDialog("添加游戏失败", ex.Message);
-                }
+                return;
             }
-        }
 
-        private async void LaunchButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button button && button.DataContext is Game game)
+            try
             {
-                var success = await _gameService.LaunchGameAsync(game);
-                if (success)
-                {
-                    if (!_runningGames.ContainsKey(game.Id))
-                    {
-                        _runningGames[game.Id] = DateTime.UtcNow;
-                    }
-                    // 确保 UI 反映运行状态
-                    RunOnUi(() => { 
-                        game.IsRunning = true; 
-                    });
-                    // 延迟更新 UI，确保 IsRunning 属性已经生效
-                    await Task.Delay(100);
-                    UpdateGameCardStatistics();
-                }
-                else
-                {
-                    await ShowErrorDialog("启动失败", "无法启动游戏，请检查游戏路径是否正确");
-                }
-            }
-        }
-
-        private async void EditButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button button && button.DataContext is Game game)
-            {
-                var dialog = new AddGameDialog(game)
+                _isDialogOpen = true;
+                var dialog = new AddGameDialog
                 {
                     XamlRoot = Content.XamlRoot
                 };
@@ -427,66 +400,198 @@ namespace GameLauncher
 
                 if (result == ContentDialogResult.Primary)
                 {
-                    game.Name = dialog.GameName;
-                    game.ExecutablePath = dialog.ExecutablePath;
-                    game.IconPath = dialog.IconPath;
-                    game.Description = dialog.Description;
-                    game.LoadIcon();
+                    var newGame = new Game
+                    {
+                        Name = dialog.GameName,
+                        ExecutablePath = dialog.ExecutablePath,
+                        IconPath = dialog.IconPath,
+                        Description = dialog.Description
+                    };
+
+                    // 添加预览图
+                    foreach (var imagePath in dialog.ImagePaths)
+                    {
+                        newGame.ImagePaths.Add(imagePath);
+                    }
+
+                    newGame.LoadIcon();
+                    newGame.LoadImages();
+
                     try
                     {
-                        await _gameService.UpdateGameAsync(game);
+                        await _gameService.AddGameAsync(newGame);
                         await LoadGamesAsync();
                     }
                     catch (Exception ex)
                     {
-                        await ShowErrorDialog("更新游戏失败", ex.Message);
+                        await ShowErrorDialog("添加游戏失败", ex.Message);
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"添加游戏时出错: {ex.Message}");
+                await ShowErrorDialog("错误", $"添加游戏时发生错误：{ex.Message}");
+            }
+            finally
+            {
+                _isDialogOpen = false;
+            }
+        }
+
+        private async void LaunchButton_Click(object sender, RoutedEventArgs e)
+                {
+                    if (sender is Button button && button.DataContext is Game game)
+                    {
+                        var success = await _gameService.LaunchGameAsync(game);
+                        if (success)
+                        {
+                            if (!_runningGames.ContainsKey(game.Id))
+                            {
+                                _runningGames[game.Id] = DateTime.UtcNow;
+                            }
+                            // 确保 UI 反映运行状态
+                            RunOnUi(() => {
+                                game.IsRunning = true;
+                            });
+                            // 延迟更新 UI，确保 IsRunning 属性已经生效
+                            await Task.Delay(100);
+                            UpdateGameCardStatistics();
+                        }
+                        else
+                        {
+                            await ShowErrorDialog("启动失败", "无法启动游戏，请检查游戏路径是否正确");
+                        }
+                    }
+                }
+        private async void EditButton_Click(object sender, RoutedEventArgs e)
+        {
+            // 检查是否已经有对话框打开
+            if (_isDialogOpen)
+            {
+                return;
+            }
+
+            try
+            {
+                _isDialogOpen = true;
+                if (sender is Button button && button.DataContext is Game game)
+                {
+                    var dialog = new AddGameDialog(game)
+                    {
+                        XamlRoot = Content.XamlRoot
+                    };
+
+                    var result = await dialog.ShowAsync();
+
+                    if (result == ContentDialogResult.Primary)
+                    {
+                        game.Name = dialog.GameName;
+                        game.ExecutablePath = dialog.ExecutablePath;
+                        game.IconPath = dialog.IconPath;
+                        game.Description = dialog.Description;
+
+                        // 更新预览图列表
+                        game.ImagePaths.Clear();
+                        foreach (var imagePath in dialog.ImagePaths)
+                        {
+                            game.ImagePaths.Add(imagePath);
+                        }
+
+                        game.LoadIcon();
+                        game.LoadImages();
+
+                        try
+                        {
+                            await _gameService.UpdateGameAsync(game);
+                            await LoadGamesAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            await ShowErrorDialog("更新游戏失败", ex.Message);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"编辑游戏时出错: {ex.Message}");
+                await ShowErrorDialog("错误", $"编辑游戏时发生错误：{ex.Message}");
+            }
+            finally
+            {
+                _isDialogOpen = false;
             }
         }
 
         private async void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button button && button.DataContext is Game game)
+            // 检查是否已经有对话框打开
+            if (_isDialogOpen)
             {
-                var dialog = new ContentDialog
-                {
-                    Title = "确认删除",
-                    Content = $"确定要删除游戏「{game.Name}」吗？",
-                    PrimaryButtonText = "删除",
-                    CloseButtonText = "取消",
-                    XamlRoot = Content.XamlRoot,
-                    DefaultButton = ContentDialogButton.Close
-                };
+                return;
+            }
 
-                var result = await dialog.ShowAsync();
-
-                if (result == ContentDialogResult.Primary)
+            try
+            {
+                _isDialogOpen = true;
+                if (sender is Button button && button.DataContext is Game game)
                 {
-                    var success = await _gameService.DeleteGameAsync(game.Id);
-                    if (success)
+                    var dialog = new ContentDialog
                     {
-                        await LoadGamesAsync();
-                    }
-                    else
+                        Title = "确认删除",
+                        Content = $"确定要删除游戏「{game.Name}」吗？",
+                        PrimaryButtonText = "删除",
+                        CloseButtonText = "取消",
+                        XamlRoot = Content.XamlRoot,
+                        DefaultButton = ContentDialogButton.Close
+                    };
+
+                    var result = await dialog.ShowAsync();
+
+                    if (result == ContentDialogResult.Primary)
                     {
-                        await ShowErrorDialog("删除失败", "删除游戏时发生错误");
+                        var success = await _gameService.DeleteGameAsync(game.Id);
+                        if (success)
+                        {
+                            await LoadGamesAsync();
+                        }
+                        else
+                        {
+                            await ShowErrorDialog("删除失败", "删除游戏时发生错误");
+                        }
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"删除游戏时出错: {ex.Message}");
+                await ShowErrorDialog("错误", $"删除游戏时发生错误：{ex.Message}");
+            }
+            finally
+            {
+                _isDialogOpen = false;
             }
         }
 
         private async System.Threading.Tasks.Task ShowErrorDialog(string title, string message)
         {
-            var dialog = new ContentDialog
+            try
             {
-                Title = title,
-                Content = message,
-                CloseButtonText = "确定",
-                XamlRoot = Content.XamlRoot
-            };
+                var dialog = new ContentDialog
+                {
+                    Title = title,
+                    Content = message,
+                    CloseButtonText = "确定",
+                    XamlRoot = Content.XamlRoot
+                };
 
-            await dialog.ShowAsync();
+                await dialog.ShowAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"显示错误对话框时出错: {ex.Message}");
+            }
         }
 
         private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
@@ -527,21 +632,22 @@ namespace GameLauncher
         private void SelectModeButton_Click(object sender, RoutedEventArgs e)
         {
             if (GamesGridView == null) return;
-            
+
+            _isBatchSelectionMode = true;
             GamesGridView.SelectionMode = ListViewSelectionMode.Multiple;
             GamesGridView.IsItemClickEnabled = false;
             SelectModeButton.Visibility = Visibility.Collapsed;
-            
+
             if (BatchDeleteButton != null)
             {
                 BatchDeleteButton.Visibility = Visibility.Visible;
             }
-            
+
             if (CancelSelectButton != null)
             {
                 CancelSelectButton.Visibility = Visibility.Visible;
             }
-            
+
             AddGameButton.Visibility = Visibility.Collapsed;
         }
 
@@ -605,6 +711,9 @@ namespace GameLauncher
                     {
                         AddGameButton.Visibility = Visibility.Visible;
                     }
+
+                    // 重置批量选择模式标志
+                    _isBatchSelectionMode = false;
                 }
                 catch
                 {
@@ -615,51 +724,179 @@ namespace GameLauncher
 
         private async void BatchDeleteButton_Click(object sender, RoutedEventArgs e)
         {
-            if (GamesGridView == null) return;
-
-            // 按钮点击事件已经在 UI 线程，直接读取 SelectedItems
-            List<int> selectedIds = new List<int>();
-            if (GamesGridView.SelectedItems != null)
-            {
-                selectedIds = GamesGridView.SelectedItems.Cast<Game>().Select(g => g.Id).ToList();
-            }
-
-            if (selectedIds.Count == 0)
+            // 检查是否已经有对话框打开
+            if (_isDialogOpen)
             {
                 return;
             }
 
-            var dialog = new ContentDialog
-            {
-                Title = "确认批量删除",
-                Content = $"确定要删除选中的 {selectedIds.Count} 个游戏吗？",
-                PrimaryButtonText = "删除",
-                CloseButtonText = "取消",
-                XamlRoot = Content.XamlRoot,
-                DefaultButton = ContentDialogButton.Close
-            };
+            if (GamesGridView == null) return;
 
-            var result = await dialog.ShowAsync();
-
-            if (result == ContentDialogResult.Primary)
+            try
             {
-                foreach (var id in selectedIds)
+                _isDialogOpen = true;
+
+                // 按钮点击事件已经在 UI 线程，直接读取 SelectedItems
+                List<int> selectedIds = new List<int>();
+                if (GamesGridView.SelectedItems != null)
                 {
-                    await _gameService.DeleteGameAsync(id);
+                    selectedIds = GamesGridView.SelectedItems.Cast<Game>().Select(g => g.Id).ToList();
                 }
 
-                await LoadGamesAsync();
+                if (selectedIds.Count == 0)
+                {
+                    return;
+                }
 
-                // 取消选择模式
-                CancelSelectButton_Click(sender, e);
+                var dialog = new ContentDialog
+                {
+                    Title = "确认批量删除",
+                    Content = $"确定要删除选中的 {selectedIds.Count} 个游戏吗？",
+                    PrimaryButtonText = "删除",
+                    CloseButtonText = "取消",
+                    XamlRoot = Content.XamlRoot,
+                    DefaultButton = ContentDialogButton.Close
+                };
+
+                var result = await dialog.ShowAsync();
+
+                if (result == ContentDialogResult.Primary)
+                {
+                    foreach (var id in selectedIds)
+                    {
+                        await _gameService.DeleteGameAsync(id);
+                    }
+
+                    await LoadGamesAsync();
+
+                    // 取消选择模式
+                    CancelSelectButton_Click(sender, e);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"批量删除时出错: {ex.Message}");
+                await ShowErrorDialog("错误", $"批量删除时发生错误：{ex.Message}");
+            }
+            finally
+            {
+                _isDialogOpen = false;
             }
         }
 
         private void GamesGridView_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (BatchDeleteButton == null || GamesGridView == null) return;
-            
+
             BatchDeleteButton.IsEnabled = GamesGridView.SelectedItems != null && GamesGridView.SelectedItems.Count > 0;
+        }
+
+        private void GameCard_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            try
+            {
+                if (sender is Border border)
+                {
+                    // 尝试获取资源，如果失败则使用默认值
+                    if (Application.Current.Resources.TryGetValue("SubtleFillColorSecondaryBrush", out var bgResource))
+                    {
+                        border.Background = (Microsoft.UI.Xaml.Media.Brush)bgResource;
+                    }
+                    else
+                    {
+                        border.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.LightGray);
+                    }
+
+                    if (Application.Current.Resources.TryGetValue("SystemAccentColorBrush", out var borderResource))
+                    {
+                        border.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)borderResource;
+                    }
+                    else
+                    {
+                        border.BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Blue);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GameCard_PointerEntered 出错: {ex.Message}");
+            }
+        }
+
+        private void GameCard_PointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            try
+            {
+                if (sender is Border border)
+                {
+                    // 尝试获取资源，如果失败则使用默认值
+                    if (Application.Current.Resources.TryGetValue("CardBackgroundFillColorDefaultBrush", out var bgResource))
+                    {
+                        border.Background = (Microsoft.UI.Xaml.Media.Brush)bgResource;
+                    }
+                    else
+                    {
+                        border.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
+                    }
+
+                    if (Application.Current.Resources.TryGetValue("CardStrokeColorDefaultBrush", out var borderResource))
+                    {
+                        border.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)borderResource;
+                    }
+                    else
+                    {
+                        border.BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.LightGray);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GameCard_PointerExited 出错: {ex.Message}");
+            }
+        }
+
+        private async void GameCard_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            // 检查是否已经有对话框打开
+            if (_isDialogOpen)
+            {
+                return;
+            }
+
+            // 检查是否处于批量选择模式
+            if (_isBatchSelectionMode)
+            {
+                return;
+            }
+
+            try
+            {
+                // 检查原始事件源，如果是按钮点击则不打开详情弹窗
+                if (e.OriginalSource is Button)
+                {
+                    return;
+                }
+
+                if (sender is Border border && border.DataContext is Game game)
+                {
+                    _isDialogOpen = true;
+                    var detailDialog = new Views.GameDetailDialog(game)
+                    {
+                        XamlRoot = Content.XamlRoot
+                    };
+
+                    await detailDialog.ShowAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"打开游戏详情时出错: {ex.Message}");
+                await ShowErrorDialog("错误", $"打开游戏详情时发生错误：{ex.Message}");
+            }
+            finally
+            {
+                _isDialogOpen = false;
+            }
         }
     }
 }

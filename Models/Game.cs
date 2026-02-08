@@ -1,4 +1,5 @@
 using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -18,6 +19,8 @@ namespace GameLauncher.Models
         private DateTime? _lastRunTime;
         private bool _isRunning = false;
         private ImageSource? _iconSource;
+        private ObservableCollection<string> _imagePaths = new ObservableCollection<string>();
+        private ObservableCollection<ImageSource> _imageSources = new ObservableCollection<ImageSource>();
 
         public int Id
         {
@@ -181,6 +184,56 @@ namespace GameLauncher.Models
                 {
                     _isRunning = value;
                     OnPropertyChanged(nameof(IsRunning));
+                }
+            }
+        }
+
+        public ObservableCollection<string> ImagePaths
+        {
+            get => _imagePaths;
+            set
+            {
+                if (_imagePaths != value)
+                {
+                    _imagePaths = value ?? new ObservableCollection<string>();
+                    OnPropertyChanged(nameof(ImagePaths));
+                    LoadImages();
+                }
+            }
+        }
+
+        public ObservableCollection<ImageSource> ImageSources
+        {
+            get => _imageSources;
+            set
+            {
+                if (_imageSources != value)
+                {
+                    _imageSources = value ?? new ObservableCollection<ImageSource>();
+                    OnPropertyChanged(nameof(ImageSources));
+                }
+            }
+        }
+
+        public void LoadImages()
+        {
+            _imageSources.Clear();
+            foreach (var imagePath in _imagePaths)
+            {
+                if (!string.IsNullOrEmpty(imagePath) && System.IO.File.Exists(imagePath))
+                {
+                    try
+                    {
+                        var bitmapImage = new BitmapImage();
+                        bitmapImage.UriSource = new Uri(imagePath);
+                        bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                        _imageSources.Add(bitmapImage);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"加载图片失败: {imagePath}, 错误: {ex.Message}");
+                        // 忽略加载失败的图片
+                    }
                 }
             }
         }

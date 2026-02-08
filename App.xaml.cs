@@ -37,6 +37,25 @@ namespace GameLauncher
         public App()
         {
             InitializeComponent();
+
+            // 添加全局异常处理
+            this.UnhandledException += App_UnhandledException;
+        }
+
+        private void App_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine($"=== 未处理的异常 ===");
+            System.Diagnostics.Debug.WriteLine($"类型: {e.Exception.GetType().FullName}");
+            System.Diagnostics.Debug.WriteLine($"消息: {e.Exception.Message}");
+            System.Diagnostics.Debug.WriteLine($"堆栈跟踪: {e.Exception.StackTrace}");
+
+            if (e.Exception.InnerException != null)
+            {
+                System.Diagnostics.Debug.WriteLine($"内部异常: {e.Exception.InnerException.Message}");
+                System.Diagnostics.Debug.WriteLine($"内部异常堆栈: {e.Exception.InnerException.StackTrace}");
+            }
+
+            e.Handled = true; // 阻止应用程序崩溃
         }
 
         /// <summary>

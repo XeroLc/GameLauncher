@@ -87,7 +87,11 @@
                                 CornerRadius="8"
                                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                BorderThickness="1">
+                                BorderThickness="1"
+                                PointerEntered="GameCard_PointerEntered"
+                                PointerExited="GameCard_PointerExited"
+                                Tapped="GameCard_Tapped"
+                                x:Name="GameCardBorder">
 
                             <Grid Margin="12">
                                 <Grid.RowDefinitions>

@@ -12,31 +12,86 @@
     CloseButtonText="取消"
     DefaultButton="Primary">
 
-    <StackPanel Width="400" Spacing="12">
-        <TextBlock Text="游戏名称"/>
-        <TextBox x:Name="GameNameTextBox" PlaceholderText="请输入游戏名称"/>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="600">
+        <StackPanel Width="450" Spacing="12">
+            <TextBlock Text="游戏名称"/>
+            <TextBox x:Name="GameNameTextBox" PlaceholderText="请输入游戏名称"/>
 
-        <TextBlock Text="游戏路径"/>
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBox x:Name="ExecutablePathTextBox" Grid.Column="0" PlaceholderText="选择游戏可执行文件" IsReadOnly="True" Margin="0,0,8,0"/>
-            <Button x:Name="BrowseButton" Grid.Column="1" Click="BrowseButton_Click" Content="浏览" Width="80" Height="32"/>
-        </Grid>
+            <TextBlock Text="游戏路径"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="ExecutablePathTextBox" Grid.Column="0" PlaceholderText="选择游戏可执行文件" IsReadOnly="True" Margin="0,0,8,0"/>
+                <Button x:Name="BrowseButton" Grid.Column="1" Click="BrowseButton_Click" Content="浏览" Width="80" Height="32"/>
+            </Grid>
 
-        <TextBlock Text="游戏图标（可选）"/>
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBox x:Name="IconPathTextBox" Grid.Column="0" PlaceholderText="选择图标文件（PNG、JPG等）" IsReadOnly="True" Margin="0,0,8,0"/>
-            <Button x:Name="BrowseIconButton" Grid.Column="1" Click="BrowseIconButton_Click" Content="浏览" Width="80" Height="32"/>
-        </Grid>
+            <TextBlock Text="游戏图标（可选）"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="IconPathTextBox" Grid.Column="0" PlaceholderText="选择图标文件（PNG、JPG等）" IsReadOnly="True" Margin="0,0,8,0"/>
+                <Button x:Name="BrowseIconButton" Grid.Column="1" Click="BrowseIconButton_Click" Content="浏览" Width="80" Height="32"/>
+            </Grid>
 
-        <TextBlock Text="游戏描述（可选）"/>
-        <TextBox x:Name="DescriptionTextBox" PlaceholderText="请输入游戏描述" AcceptsReturn="True" TextWrapping="Wrap" Height="80" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
-    </StackPanel>
+            <TextBlock Text="游戏描述（可选）"/>
+            <TextBox x:Name="DescriptionTextBox" PlaceholderText="请输入游戏描述" AcceptsReturn="True" TextWrapping="Wrap" Height="60" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+
+            <StackPanel Spacing="8">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="游戏预览图（可选）"/>
+                    <TextBlock Grid.Column="1" Text="{x:Bind ImageCountDisplay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12" VerticalAlignment="Center"/>
+                </Grid>
+
+                <Button x:Name="AddPreviewImageButton" Click="AddPreviewImageButton_Click" HorizontalAlignment="Stretch" Height="32">
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                        <FontIcon Glyph="&#xE710;" FontSize="14"/>
+                        <TextBlock Text="添加预览图"/>
+                    </StackPanel>
+                </Button>
+
+                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Background="{ThemeResource LayerFillColorDefaultBrush}" CornerRadius="4" MinHeight="120">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <GridView x:Name="PreviewImagesItemsControl"
+                                  MaxWidth="400"
+                                  SelectionMode="None"
+                                  IsItemClickEnabled="False">
+                            <GridView.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="3"/>
+                                </ItemsPanelTemplate>
+                            </GridView.ItemsPanel>
+                            <GridView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Width="120" Height="120" Margin="4">
+                                        <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="4">
+                                            <Image Source="{Binding}" Stretch="UniformToFill"/>
+                                        </Border>
+                                        <Button Click="DeletePreviewImageButton_Click"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Top"
+                                                Width="28"
+                                                Height="28"
+                                                Padding="0"
+                                                Margin="-8,-8,0,0"
+                                                Background="{ThemeResource SystemFillColorAttentionBrush}"
+                                                Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}">
+                                            <FontIcon Glyph="&#xE106;" FontSize="12"/>
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </GridView.ItemTemplate>
+                        </GridView>
+                    </ScrollViewer>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
 </ContentDialog>

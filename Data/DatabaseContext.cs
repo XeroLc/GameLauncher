@@ -37,8 +37,6 @@ namespace GameLauncher.Data
 
         public async Task InitializeAsync()
         {
-            var needsNewColumns = false;
-            
             var dir = Path.GetDirectoryName(_databasePath);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             {
@@ -46,7 +44,7 @@ namespace GameLauncher.Data
             }
 
             var fileExists = await Task.Run(() => File.Exists(_databasePath));
-            
+
             if (!fileExists)
             {
                 using var connection = GetConnection();
@@ -64,33 +62,13 @@ namespace GameLauncher.Data
                         LaunchCount INTEGER DEFAULT 0,
                         TotalPlayTime INTEGER DEFAULT 0,
                         LastRunTime DATETIME,
-                        IsRunning INTEGER DEFAULT 0
+                        IsRunning INTEGER DEFAULT 0,
+                        ImagePaths TEXT
                     )";
-                
+
                 await command.ExecuteNonQueryAsync();
             }
             else
-            {
-                using var connection = GetConnection();
-                await connection.OpenAsync();
-
-                using var command = connection.CreateCommand();
-                command.CommandText = "PRAGMA table_info(Games)";
-                
-                using var reader = await command.ExecuteReaderAsync();
-                var columns = new System.Collections.Generic.List<string>();
-                while (await reader.ReadAsync())
-                {
-                    columns.Add(reader.GetString(1));
-                }
-
-                if (!columns.Contains("LaunchCount"))
-                {
-                    needsNewColumns = true;
-                }
-            }
-
-            if (needsNewColumns)
             {
                 await AddMissingColumnsAsync();
             }
@@ -101,25 +79,44 @@ namespace GameLauncher.Data
             using var connection = GetConnection();
             await connection.OpenAsync();
 
+            // 先获取现有列
+            var existingColumns = new System.Collections.Generic.List<string>();
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "PRAGMA table_info(Games)";
+                using var reader = await command.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    existingColumns.Add(reader.GetString(1));
+                }
+            }
+
+            // 只添加不存在的列
             var columnsToAdd = new[]
             {
-                "LaunchCount INTEGER DEFAULT 0",
-                "TotalPlayTime INTEGER DEFAULT 0",
-                "LastRunTime DATETIME",
-                "IsRunning INTEGER DEFAULT 0"
+                ("LaunchCount", "INTEGER DEFAULT 0"),
+                ("TotalPlayTime", "INTEGER DEFAULT 0"),
+                ("LastRunTime", "DATETIME"),
+                ("IsRunning", "INTEGER DEFAULT 0"),
+                ("ImagePaths", "TEXT")
             };
 
-            foreach (var column in columnsToAdd)
+            foreach (var (columnName, columnDefinition) in columnsToAdd)
             {
-                using var command = connection.CreateCommand();
-                command.CommandText = $"ALTER TABLE Games ADD COLUMN {column}";
-                try
+                if (!existingColumns.Contains(columnName))
                 {
-                    await command.ExecuteNonQueryAsync();
-                }
-                catch
-                {
-                    // Column might already exist
+                    using var command = connection.CreateCommand();
+                    command.CommandText = $"ALTER TABLE Games ADD COLUMN {columnName} {columnDefinition}";
+                    try
+                    {
+                        await command.ExecuteNonQueryAsync();
+                        System.Diagnostics.Debug.WriteLine($"成功添加列: {columnName}");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"添加列 {columnName} 失败: {ex.Message}");
+                        // 忽略错误，列可能已经存在
+                    }
                 }
             }
         }
