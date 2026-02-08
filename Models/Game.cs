@@ -1,5 +1,7 @@
 using System;
 using System.ComponentModel;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace GameLauncher.Models
 {
@@ -15,6 +17,7 @@ namespace GameLauncher.Models
         private long _totalPlayTime = 0;
         private DateTime? _lastRunTime;
         private bool _isRunning = false;
+        private ImageSource? _iconSource;
 
         public int Id
         {
@@ -64,7 +67,43 @@ namespace GameLauncher.Models
                 {
                     _iconPath = value;
                     OnPropertyChanged(nameof(IconPath));
+                    LoadIcon();
                 }
+            }
+        }
+
+        public ImageSource? IconSource
+        {
+            get => _iconSource;
+            set
+            {
+                if (_iconSource != value)
+                {
+                    _iconSource = value;
+                    OnPropertyChanged(nameof(IconSource));
+                }
+            }
+        }
+
+        public void LoadIcon()
+        {
+            if (!string.IsNullOrEmpty(_iconPath) && System.IO.File.Exists(_iconPath))
+            {
+                try
+                {
+                    var bitmapImage = new BitmapImage();
+                    bitmapImage.UriSource = new Uri(_iconPath);
+                    bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                    IconSource = bitmapImage;
+                }
+                catch
+                {
+                    IconSource = null;
+                }
+            }
+            else
+            {
+                IconSource = null;
             }
         }
 

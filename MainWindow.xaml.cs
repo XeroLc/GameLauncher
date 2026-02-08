@@ -241,9 +241,10 @@ namespace GameLauncher
             var games = await _gameService.GetAllGamesAsync();
             _games.Clear();
             _filteredGames.Clear();
-            
+
             foreach (var game in games)
             {
+                game.LoadIcon();
                 _games.Add(game);
                 _filteredGames.Add(game);
 
@@ -257,31 +258,6 @@ namespace GameLauncher
             // 延迟更新 UI，确保所有游戏卡片都已经渲染完成
             await Task.Delay(200);
             UpdateGameCardStatistics();
-        }
-
-        private void Image_Loaded(object sender, RoutedEventArgs e)
-        {
-            if (sender is Image image && image.DataContext is Game game)
-            {
-                if (!string.IsNullOrEmpty(game.IconPath))
-                {
-                    try
-                    {
-                        if (File.Exists(game.IconPath))
-                        {
-                            image.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(game.IconPath));
-                        }
-                    }
-                    catch
-                    {
-                        image.Source = null;
-                    }
-                }
-                else
-                {
-                    image.Source = null;
-                }
-            }
         }
 
         private void UpdateEmptyState()
@@ -398,6 +374,8 @@ namespace GameLauncher
                     Description = dialog.Description
                 };
 
+                newGame.LoadIcon();
+
                 try
                 {
                     await _gameService.AddGameAsync(newGame);
@@ -450,9 +428,10 @@ namespace GameLauncher
                 if (result == ContentDialogResult.Primary)
                 {
                     game.Name = dialog.GameName;
-                                    game.ExecutablePath = dialog.ExecutablePath;
-                                    game.IconPath = dialog.IconPath;
-                                    game.Description = dialog.Description;
+                    game.ExecutablePath = dialog.ExecutablePath;
+                    game.IconPath = dialog.IconPath;
+                    game.Description = dialog.Description;
+                    game.LoadIcon();
                     try
                     {
                         await _gameService.UpdateGameAsync(game);
@@ -638,21 +617,14 @@ namespace GameLauncher
         {
             if (GamesGridView == null) return;
 
-            // 在 UI 线程读取所选项的 ID 列表，避免直接在后台线程或跨线程访问 SelectedItems
-            List<int> selectedIds = null;
-            RunOnUi(() =>
+            // 按钮点击事件已经在 UI 线程，直接读取 SelectedItems
+            List<int> selectedIds = new List<int>();
+            if (GamesGridView.SelectedItems != null)
             {
-                if (GamesGridView.SelectedItems != null)
-                {
-                    selectedIds = GamesGridView.SelectedItems.Cast<Game>().Select(g => g.Id).ToList();
-                }
-                else
-                {
-                    selectedIds = new List<int>();
-                }
-            });
+                selectedIds = GamesGridView.SelectedItems.Cast<Game>().Select(g => g.Id).ToList();
+            }
 
-            if (selectedIds == null || selectedIds.Count == 0)
+            if (selectedIds.Count == 0)
             {
                 return;
             }
@@ -678,8 +650,8 @@ namespace GameLauncher
 
                 await LoadGamesAsync();
 
-                // 使用 UI 线程安全地取消选择模式
-                RunOnUi(() => CancelSelectButton_Click(sender, e));
+                // 取消选择模式
+                CancelSelectButton_Click(sender, e);
             }
         }
 

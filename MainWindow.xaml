@@ -109,14 +109,11 @@
 
                                 <Image Grid.Row="1"
                                        x:Name="GameIcon"
-                                       Source="ms-appx:///Assets/StoreLogo.png"
-                                       Stretch="Uniform"
-                                       Width="100"
-                                       Height="100"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       Margin="0,4,0,4"
-                                       Loaded="Image_Loaded"/>
+                                       Source="{Binding IconSource, FallbackValue=ms-appx:///Assets/StoreLogo.png}"
+                                       Stretch="UniformToFill"
+                                       HorizontalAlignment="Stretch"
+                                       VerticalAlignment="Stretch"
+                                       Margin="0,0,0,0"/>
 
                                 <TextBlock Grid.Row="2"
                                            Text="{Binding Name}"
