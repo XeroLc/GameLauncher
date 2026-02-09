@@ -7,116 +7,111 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Style="{StaticResource DefaultContentDialogStyle}"
-    CloseButtonText="关闭">
+    Title="游戏详情"
+    CloseButtonText="关闭"
+    DefaultButton="Close">
 
-    <Grid Width="800" Height="600">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="300"/>
-        </Grid.ColumnDefinitions>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="600">
+        <StackPanel Width="450" Spacing="16">
 
-        <!-- 左侧：预览图轮播区域 -->
-        <Grid Grid.Column="0" Background="{ThemeResource LayerFillColorDefaultBrush}">
-            <FlipView x:Name="PreviewImagesFlipView"
-                      ItemsSource="{x:Bind ImageSources}"
-                      Background="Transparent">
-                <FlipView.ItemTemplate>
-                    <DataTemplate>
-                        <Image Source="{Binding}"
-                               Stretch="Uniform"
-                               HorizontalAlignment="Center"
+            <StackPanel Spacing="12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="GameNameText" 
+                               Text="{x:Bind GameName}" 
+                               Style="{StaticResource TitleTextBlockStyle}" 
                                VerticalAlignment="Center"/>
-                    </DataTemplate>
-                </FlipView.ItemTemplate>
-            </FlipView>
+                    <Border Grid.Column="1" 
+                        Width="48" 
+                        Height="48" 
+                        CornerRadius="4" 
+                        VerticalAlignment="Center">
+                                        <Image x:Name="GameIcon" 
+                           Source="{x:Bind GameIconSource}" 
+                           Stretch="Uniform"/>
+                    </Border>
+                </Grid>
 
-            <!-- 图片指示器 -->
-            <StackPanel x:Name="ImageIndicators"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Bottom"
-                        Orientation="Horizontal"
-                        Margin="0,0,0,20"
-                        Spacing="8"/>
-
-            <!-- 无图片提示 -->
-            <TextBlock x:Name="NoImagesText"
-                       Text="暂无预览图"
-                       Style="{StaticResource SubtitleTextBlockStyle}"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
-                       Visibility="Collapsed"/>
-        </Grid>
-
-        <!-- 右侧：游戏信息区域 -->
-        <Grid Grid.Column="1" Padding="24">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-
-            <!-- 游戏名称 -->
-            <TextBlock x:Name="GameNameText"
-                       Grid.Row="0"
-                       Text="{x:Bind GameName}"
-                       Style="{StaticResource TitleTextBlockStyle}"
-                       TextWrapping="Wrap"
-                       Margin="0,0,0,12"/>
-
-            <!-- 游戏图标 -->
-            <Image x:Name="GameIcon"
-                   Grid.Row="1"
-                   Source="{x:Bind GameIconSource}"
-                   Width="100"
-                   Height="100"
-                   Stretch="Uniform"
-                   HorizontalAlignment="Left"
-                   Margin="0,0,0,16"/>
-
-            <!-- 游戏描述 -->
-            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-                <TextBlock x:Name="DescriptionText"
-                           Text="{x:Bind GameDescription, FallbackValue='暂无描述'}"
-                           Style="{StaticResource BodyTextBlockStyle}"
-                           TextWrapping="Wrap"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-            </ScrollViewer>
-
-            <!-- 游戏统计信息 -->
-            <StackPanel Grid.Row="3" Spacing="8" Margin="0,16,0,0">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE768;" FontSize="14" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                    <TextBlock Text="启动次数：" Style="{StaticResource CaptionTextBlockStyle}"/>
-                    <TextBlock x:Name="LaunchCountText" Text="{x:Bind LaunchCount}" Style="{StaticResource CaptionTextBlockStyle}"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE916;" FontSize="14" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                    <TextBlock Text="游戏时长：" Style="{StaticResource CaptionTextBlockStyle}"/>
-                    <TextBlock x:Name="PlayTimeText" Text="{x:Bind PlayTimeDisplay}" Style="{StaticResource CaptionTextBlockStyle}"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE8E5;" FontSize="14" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                    <TextBlock Text="添加时间：" Style="{StaticResource CaptionTextBlockStyle}"/>
-                    <TextBlock x:Name="CreatedTimeText" Text="{x:Bind CreatedTimeDisplay}" Style="{StaticResource CaptionTextBlockStyle}"/>
-                </StackPanel>
+                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
             </StackPanel>
 
-            <!-- 启动按钮 -->
-            <Button x:Name="LaunchButton"
-                    Grid.Row="3"
-                    Click="LaunchButton_Click"
-                    Style="{StaticResource AccentButtonStyle}"
-                    HorizontalAlignment="Stretch"
-                    Margin="0,24,0,0"
-                    Height="40">
-                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+            <StackPanel Spacing="8">
+                <TextBlock Text="游戏描述" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
+                <TextBlock x:Name="DescriptionText" 
+                           Text="{x:Bind GameDescription, FallbackValue='暂无描述'}" 
+                           TextWrapping="Wrap" 
+                           Style="{StaticResource BodyTextBlockStyle}"/>
+            </StackPanel>
+
+            <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                    BorderThickness="1" 
+                    Background="{ThemeResource LayerFillColorDefaultBrush}" 
+                    CornerRadius="4" 
+                    Padding="12">
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <FontIcon Glyph="&#xE768;" FontSize="14" Foreground="{ThemeResource SystemAccentColor}"/>
+                        <TextBlock Text="启动次数：" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{x:Bind LaunchCount}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <FontIcon Glyph="&#xE916;" FontSize="14" Foreground="{ThemeResource SystemAccentColor}"/>
+                        <TextBlock Text="游戏时长：" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{x:Bind PlayTimeDisplay}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <FontIcon Glyph="&#xE8E5;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="添加时间：" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{x:Bind CreatedTimeDisplay}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <StackPanel Spacing="8">
+                <TextBlock Text="游戏预览" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
+                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                        BorderThickness="1" 
+                        Background="{ThemeResource LayerFillColorDefaultBrush}" 
+                        CornerRadius="4" 
+                        MinHeight="100">
+                    <GridView x:Name="PreviewImagesItemsControl"
+                              ItemsSource="{x:Bind ImageSources}"
+                              Padding="4"
+                              SelectionMode="None"
+                              IsItemClickEnabled="False">
+                        <GridView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="3"/>
+                            </ItemsPanelTemplate>
+                        </GridView.ItemsPanel>
+                        <GridView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Width="130" Height="80" Margin="4">
+                                    <Border CornerRadius="4" Clip="{Binding ElementName=InnerImage}">
+                                        <Image x:Name="InnerImage" Source="{Binding}" Stretch="UniformToFill"/>
+                                    </Border>
+                                </Grid>
+                            </DataTemplate>
+                        </GridView.ItemTemplate>
+                    </GridView>
+                </Border>
+            </StackPanel>
+
+            <Button x:Name="LaunchButton" 
+                    Click="LaunchButton_Click" 
+                    Style="{StaticResource AccentButtonStyle}" 
+                    HorizontalAlignment="Stretch" 
+                    Height="40"
+                    Margin="0,8,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="8">
                     <FontIcon Glyph="&#xE768;" FontSize="16"/>
                     <TextBlock Text="启动游戏"/>
                 </StackPanel>
             </Button>
-        </Grid>
-    </Grid>
+
+        </StackPanel>
+    </ScrollViewer>
 </ContentDialog>

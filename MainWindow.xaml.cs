@@ -64,6 +64,13 @@ namespace GameLauncher
             // --- 设置图标代码结束 ---
         }
 
+        private void Button_PointerPressed(object sender, PointerRoutedEventArgs e)
+        {
+            // 阻止事件继续向父级（Border）冒泡
+            e.Handled = true;
+        }
+
+
         private void InitializeStatusCheckTimer()
         {
             _statusCheckTimer = new DispatcherTimer
@@ -855,47 +862,43 @@ namespace GameLauncher
             }
         }
 
-        private async void GameCard_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+    private async void GameCard_PointerPressed(
+        object sender,
+        PointerRoutedEventArgs e)
+    {
+        // 如果事件已经被按钮处理过，直接退出
+        if (e.Handled)
+        { 
+            return; 
+        }
+        // 防止重复弹窗
+        if (_isDialogOpen || _isBatchSelectionMode)
         {
-            // 检查是否已经有对话框打开
-            if (_isDialogOpen)
-            {
-                return;
-            }
+            return;
+        }
 
-            // 检查是否处于批量选择模式
-            if (_isBatchSelectionMode)
+        try
+        {
+            if (sender is Border border && border.DataContext is Game game)
             {
-                return;
-            }
+                _isDialogOpen = true;
 
-            try
-            {
-                // 检查原始事件源，如果是按钮点击则不打开详情弹窗
-                if (e.OriginalSource is Button)
+                var detailDialog = new Views.GameDetailDialog(game)
                 {
-                    return;
-                }
+                    XamlRoot = Content.XamlRoot
+                };
 
-                if (sender is Border border && border.DataContext is Game game)
-                {
-                    _isDialogOpen = true;
-                    var detailDialog = new Views.GameDetailDialog(game)
-                    {
-                        XamlRoot = Content.XamlRoot
-                    };
-
-                    await detailDialog.ShowAsync();
-                }
+                await detailDialog.ShowAsync();
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"打开游戏详情时出错: {ex.Message}");
-                await ShowErrorDialog("错误", $"打开游戏详情时发生错误：{ex.Message}");
-            }
-            finally
-            {
-                _isDialogOpen = false;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"打开游戏详情时出错: {ex.Message}");
+            await ShowErrorDialog("错误", $"打开游戏详情时发生错误：{ex.Message}");
+        }
+        finally
+        {
+            _isDialogOpen = false;
             }
         }
     }

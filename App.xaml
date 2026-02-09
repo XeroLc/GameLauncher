@@ -11,6 +11,21 @@
                 <!-- Other merged dictionaries here -->
             </ResourceDictionary.MergedDictionaries>
             <!-- Other app resources here -->
+            
+            <!-- 自定义 ContentDialog 样式 -->
+            <Style x:Key="DefaultContentDialogStyle" TargetType="ContentDialog">
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+                <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorBaseBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="MaxWidth" Value="1000" />
+                <Setter Property="MaxHeight" Value="800" />
+                <Setter Property="PrimaryButtonStyle" Value="{StaticResource AccentButtonStyle}" />
+                <Setter Property="CloseButtonStyle" Value="{StaticResource DefaultButtonStyle}" />
+                <Setter Property="DefaultButton" Value="Primary" />
+                <Setter Property="RequestedTheme" Value="Default" />
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

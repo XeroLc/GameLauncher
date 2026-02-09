@@ -1,27 +1,29 @@
 using GameLauncher.Models;
-using Windows.UI;
+using GameLauncher.Services;
+using GameLauncher.Data;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
-using Microsoft.UI.Xaml.Shapes;
 using System;
 using System.Collections.ObjectModel;
-using System.Linq;
 
 namespace GameLauncher.Views
 {
     public sealed partial class GameDetailDialog : ContentDialog
     {
         private Game _game;
+        private readonly GameService _gameService;
 
+        // 绑定属性
         public string GameName => _game?.Name ?? string.Empty;
         public ImageSource GameIconSource => _game?.IconSource;
         public string GameDescription => _game?.Description ?? string.Empty;
         public int LaunchCount => _game?.LaunchCount ?? 0;
         public string PlayTimeDisplay => FormatPlayTime(_game?.TotalPlayTime ?? 0);
         public string CreatedTimeDisplay => _game?.CreatedAt.ToString("yyyy-MM-dd HH:mm") ?? string.Empty;
+
+        // 预览图集合
         public ObservableCollection<ImageSource> ImageSources => _game?.ImageSources ?? new ObservableCollection<ImageSource>();
 
         public GameDetailDialog(Game game)
@@ -31,68 +33,14 @@ namespace GameLauncher.Views
                 throw new ArgumentNullException(nameof(game));
             }
 
-            InitializeComponent();
             _game = game;
+            var dbContext = new DatabaseContext();
+            var repository = new GameRepository(dbContext);
+            _gameService = new GameService(repository);
 
-            PreviewImagesFlipView.SelectionChanged += (s, e) => UpdateImageIndicators();
-            UpdateImageIndicators();
-        }
-
-        private void UpdateImageIndicators()
-        {
-            try
-            {
-                ImageIndicators.Children.Clear();
-
-                if (_game?.ImageSources == null || _game.ImageSources.Count == 0)
-                {
-                    NoImagesText.Visibility = Visibility.Visible;
-                    PreviewImagesFlipView.Visibility = Visibility.Collapsed;
-                    return;
-                }
-
-                NoImagesText.Visibility = Visibility.Collapsed;
-                PreviewImagesFlipView.Visibility = Visibility.Visible;
-
-                // 创建画刷
-                SolidColorBrush tertiaryBrush = new SolidColorBrush(Microsoft.UI.Colors.Gray);
-                SolidColorBrush accentBrush;
-
-                try
-                {
-                    // 方法一：直接获取系统的画刷资源（推荐）
-                    accentBrush = (SolidColorBrush)Application.Current.Resources["SystemAccentColorBrush"];
-                }
-                catch (Exception ex)
-                {
-                    // 失败时，手动创建画刷
-                    System.Diagnostics.Debug.WriteLine($"获取系统画刷失败: {ex.Message}");
-                    accentBrush = new SolidColorBrush(Microsoft.UI.Colors.LightBlue);
-                }
-
-                for (int i = 0; i < _game.ImageSources.Count; i++)
-                {
-                    var ellipse = new Ellipse
-                    {
-                        Width = 8,
-                        Height = 8,
-                        Fill = tertiaryBrush
-                    };
-
-                    if (i == PreviewImagesFlipView.SelectedIndex)
-                    {
-                        ellipse.Fill = accentBrush;
-                        ellipse.Width = 20;
-                    }
-
-                    ImageIndicators.Children.Add(ellipse);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"更新图片指示器时出错: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"堆栈跟踪: {ex.StackTrace}");
-            }
+            // 注意：InitializeComponent 必须在变量赋值后调用，
+            // 确保 x:Bind 能够正确找到数据
+            this.InitializeComponent();
         }
 
         private string FormatPlayTime(long totalSeconds)
@@ -121,9 +69,29 @@ namespace GameLauncher.Views
             }
         }
 
-        private void LaunchButton_Click(object sender, RoutedEventArgs e)
+        private async void LaunchButton_Click(object sender, RoutedEventArgs e)
         {
-            Hide();
+            if (_game == null)
+            {
+                return;
+            }
+
+            var success = await _gameService.LaunchGameAsync(_game);
+            if (success)
+            {
+                Hide();
+            }
+            else
+            {
+                var errorDialog = new ContentDialog
+                {
+                    Title = "启动失败",
+                    Content = "无法启动游戏，请检查游戏路径是否正确",
+                    CloseButtonText = "确定",
+                    XamlRoot = XamlRoot
+                };
+                await errorDialog.ShowAsync();
+            }
         }
     }
 }
