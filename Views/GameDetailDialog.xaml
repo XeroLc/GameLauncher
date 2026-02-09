@@ -77,26 +77,59 @@
                         Background="{ThemeResource LayerFillColorDefaultBrush}" 
                         CornerRadius="4" 
                         MinHeight="100">
-                    <GridView x:Name="PreviewImagesItemsControl"
-                              ItemsSource="{x:Bind ImageSources}"
-                              Padding="4"
-                              SelectionMode="None"
-                              IsItemClickEnabled="False">
-                        <GridView.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="3"/>
-                            </ItemsPanelTemplate>
-                        </GridView.ItemsPanel>
-                        <GridView.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Width="130" Height="80" Margin="4">
-                                    <Border CornerRadius="4" Clip="{Binding ElementName=InnerImage}">
-                                        <Image x:Name="InnerImage" Source="{Binding}" Stretch="UniformToFill"/>
-                                    </Border>
-                                </Grid>
-                            </DataTemplate>
-                        </GridView.ItemTemplate>
-                    </GridView>
+                    <Grid>
+                        <GridView x:Name="PreviewImagesItemsControl"
+                                  ItemsSource="{x:Bind ImageSources}"
+                                  Padding="4"
+                                  SelectionMode="None"
+                                  IsItemClickEnabled="False">
+                            <GridView.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="3"/>
+                                </ItemsPanelTemplate>
+                            </GridView.ItemsPanel>
+                            <GridView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Width="130" Height="80" Margin="4"
+                                          Tapped="Image_Tapped"
+                                          PointerEntered="Image_PointerEntered"
+                                          PointerExited="Image_PointerExited">
+                                        <Border CornerRadius="4" Clip="{Binding ElementName=InnerImage}"
+                                                Background="{ThemeResource SystemChromeMediumColor}">
+                                            <Image x:Name="InnerImage" Source="{Binding}" Stretch="UniformToFill"/>
+                                        </Border>
+                                        <Border CornerRadius="4" 
+                                                Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
+                                                Opacity="0.8"
+                                                Visibility="Collapsed"
+                                                x:Name="HoverOverlay">
+                                            <Grid>
+                                                <FontIcon Glyph="&#xE8A3;" FontSize="24" 
+                                                          Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                                          HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+                                </DataTemplate>
+                            </GridView.ItemTemplate>
+                        </GridView>
+                        <Border x:Name="LargePreviewBorder"
+                                CornerRadius="8"
+                                Background="{ThemeResource SystemChromeMediumColor}"
+                                Visibility="Collapsed"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                MaxWidth="400"
+                                MaxHeight="300"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                Tapped="LargePreview_Tapped">
+                            <Image x:Name="LargePreviewImage" 
+                                   Source="{x:Bind LargeImageSource, Mode=OneWay}"
+                                   Stretch="Uniform"/>
+                        </Border>
+                    </Grid>
                 </Border>
             </StackPanel>
 

@@ -4,6 +4,7 @@ using GameLauncher.Data;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.ObjectModel;
@@ -26,6 +27,24 @@ namespace GameLauncher.Views
         // 预览图集合
         public ObservableCollection<ImageSource> ImageSources => _game?.ImageSources ?? new ObservableCollection<ImageSource>();
 
+        // 大图预览
+        private ImageSource _largeImageSource;
+        private Image _largePreviewImage;
+        private Border _largePreviewBorder;
+
+        public ImageSource LargeImageSource
+        {
+            get => _largeImageSource;
+            private set
+            {
+                _largeImageSource = value;
+                if (_largePreviewImage != null)
+                {
+                    _largePreviewImage.Source = value;
+                }
+            }
+        }
+
         public GameDetailDialog(Game game)
         {
             if (game == null)
@@ -41,6 +60,62 @@ namespace GameLauncher.Views
             // 注意：InitializeComponent 必须在变量赋值后调用，
             // 确保 x:Bind 能够正确找到数据
             this.InitializeComponent();
+
+            // 获取大图预览控件的引用
+            _largePreviewImage = FindName("LargePreviewImage") as Image;
+            _largePreviewBorder = FindName("LargePreviewBorder") as Border;
+        }
+
+        private void Image_PointerEntered(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is Grid grid)
+            {
+                // 显示悬停覆盖层
+                var overlay = grid.FindName("HoverOverlay") as Border;
+                if (overlay != null)
+                {
+                    overlay.Visibility = Visibility.Visible;
+                }
+            }
+        }
+
+        private void Image_PointerExited(object sender, PointerRoutedEventArgs e)
+        {
+            if (sender is Grid grid)
+            {
+                // 隐藏悬停覆盖层
+                var overlay = grid.FindName("HoverOverlay") as Border;
+                if (overlay != null)
+                {
+                    overlay.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
+
+        private void Image_Tapped(object sender, TappedRoutedEventArgs e)
+        {
+            if (sender is Grid grid && grid.Children.Count > 0)
+            {
+                // 获取图片源并显示大图
+                if (grid.Children[0] is Border border && border.Child is Image image)
+                {
+                    LargeImageSource = image.Source;
+                    if (_largePreviewBorder != null)
+                    {
+                        _largePreviewBorder.Visibility = Visibility.Visible;
+                    }
+                }
+            }
+        }
+
+        private void LargePreview_Tapped(object sender, TappedRoutedEventArgs e)
+        {
+            // 隐藏大图
+            if (_largePreviewBorder != null)
+            {
+                _largePreviewBorder.Visibility = Visibility.Collapsed;
+            }
+            LargeImageSource = null;
         }
 
         private string FormatPlayTime(long totalSeconds)
