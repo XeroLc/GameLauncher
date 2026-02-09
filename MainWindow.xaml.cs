@@ -16,6 +16,8 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI; 
 using Microsoft.UI.Windowing;
 using WinRT.Interop;
+using Windows.Storage;
+using Windows.ApplicationModel.DataTransfer;
 
 
 namespace GameLauncher
@@ -899,6 +901,126 @@ namespace GameLauncher
         finally
         {
             _isDialogOpen = false;
+            }
+        }
+
+        private void GamesGridView_DragOver(object sender, DragEventArgs e)
+        {
+            // 只接受文件
+            if (e.DataView.Contains(StandardDataFormats.StorageItems))
+            {
+                e.AcceptedOperation = DataPackageOperation.Copy;
+                e.DragUIOverride.Caption = "释放以添加游戏";
+            }
+            else
+            {
+                e.AcceptedOperation = DataPackageOperation.None;
+            }
+        }
+
+        private async void GamesGridView_Drop(object sender, DragEventArgs e)
+        {
+            if (!e.DataView.Contains(StandardDataFormats.StorageItems))
+            {
+                return;
+            }
+
+            try
+            {
+                var items = await e.DataView.GetStorageItemsAsync();
+                if (items == null || items.Count == 0u)
+                {
+                    return;
+                }
+
+                foreach (var item in items)
+                {
+                    if (item is IStorageFile file)
+                    {
+                        var extension = Path.GetExtension(file.Path).ToLowerInvariant();
+                        
+                        // 只支持.exe、.bat和.lnk文件
+                        if (extension == ".exe" || extension == ".bat" || extension == ".lnk")
+                        {
+                            await AddGameFromDragDrop(file.Path);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"拖放添加游戏时出错: {ex.Message}");
+                await ShowErrorDialog("错误", $"添加游戏时发生错误：{ex.Message}");
+            }
+        }
+
+        private async System.Threading.Tasks.Task AddGameFromDragDrop(string filePath)
+        {
+            if (_isDialogOpen)
+            {
+                return;
+            }
+
+            try
+            {
+                _isDialogOpen = true;
+                
+                // 检查是否已存在相同路径的游戏
+                var existingGame = _games.FirstOrDefault(g => 
+                    string.Equals(g.ExecutablePath, filePath, StringComparison.OrdinalIgnoreCase));
+                
+                if (existingGame != null)
+                {
+                    var infoDialog = new ContentDialog
+                    {
+                        Title = "游戏已存在",
+                        Content = $"游戏「{existingGame.Name}」已经存在于库中",
+                        CloseButtonText = "确定",
+                        XamlRoot = Content.XamlRoot
+                    };
+                    await infoDialog.ShowAsync();
+                    return;
+                }
+
+                var fileName = Path.GetFileNameWithoutExtension(filePath);
+                var newGame = new Game
+                {
+                    Name = fileName,
+                    ExecutablePath = filePath,
+                    IconPath = string.Empty,
+                    Description = string.Empty
+                };
+
+                newGame.LoadIcon();
+                newGame.LoadImages();
+
+                try
+                {
+                    await _gameService.AddGameAsync(newGame);
+                    await LoadGamesAsync();
+                    
+                    var successDialog = new ContentDialog
+                    {
+                        Title = "添加成功",
+                        Content = $"已成功添加游戏「{fileName}」",
+                        CloseButtonText = "确定",
+                        XamlRoot = Content.XamlRoot
+                    };
+                    await successDialog.ShowAsync();
+                }
+                catch (Exception ex)
+                {
+                    await ShowErrorDialog("添加游戏失败", ex.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"从拖放添加游戏时出错: {ex.Message}");
+                await ShowErrorDialog("错误", $"添加游戏时发生错误：{ex.Message}");
+            }
+            finally
+            {
+                _isDialogOpen = false;
             }
         }
     }

@@ -83,12 +83,33 @@ namespace GameLauncher.Services
                     return false;
                 }
 
-                var startInfo = new ProcessStartInfo
+                var extension = System.IO.Path.GetExtension(game.ExecutablePath).ToLowerInvariant();
+                var workingDirectory = System.IO.Path.GetDirectoryName(game.ExecutablePath);
+                var fileName = System.IO.Path.GetFileName(game.ExecutablePath);
+
+                ProcessStartInfo startInfo;
+
+                // bat文件需要通过cmd.exe启动
+                if (extension == ".bat")
                 {
-                    FileName = game.ExecutablePath,
-                    UseShellExecute = true,
-                    WorkingDirectory = System.IO.Path.GetDirectoryName(game.ExecutablePath)
-                };
+                    startInfo = new ProcessStartInfo
+                    {
+                        FileName = "cmd.exe",
+                        Arguments = $"/c \"{fileName}\"",
+                        UseShellExecute = true,
+                        WorkingDirectory = workingDirectory
+                    };
+                }
+                else
+                {
+                    // exe和lnk文件直接启动
+                    startInfo = new ProcessStartInfo
+                    {
+                        FileName = game.ExecutablePath,
+                        UseShellExecute = true,
+                        WorkingDirectory = workingDirectory
+                    };
+                }
 
                 Process.Start(startInfo);
 

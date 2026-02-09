@@ -65,6 +65,7 @@ namespace GameLauncher.Views
                 InitializeWithWindow.Initialize(picker, hwnd);
 
                 picker.FileTypeFilter.Add(".exe");
+                picker.FileTypeFilter.Add(".bat");
                 picker.FileTypeFilter.Add(".lnk");
 
                 var file = await picker.PickSingleFileAsync();

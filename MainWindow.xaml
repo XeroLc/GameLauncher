@@ -79,7 +79,10 @@
                       Padding="24,16"
                       ItemsSource="{x:Bind FilteredGames}"
                       SelectionMode="None"
-                      SelectionChanged="GamesGridView_SelectionChanged">
+                      SelectionChanged="GamesGridView_SelectionChanged"
+                      AllowDrop="True"
+                      DragOver="GamesGridView_DragOver"
+                      Drop="GamesGridView_Drop">
                 <GridView.ItemTemplate>
                     <DataTemplate>
                         <Border Width="200"
