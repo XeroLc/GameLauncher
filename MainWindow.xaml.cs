@@ -34,6 +34,7 @@ namespace GameLauncher
         private bool _isBatchSelectionMode = false;
         private DispatcherTimer _statusCheckTimer;
         private readonly Dictionary<int, DateTime> _runningGames = new();
+        private SystemTrayService _trayService;
 
         public ObservableCollection<Game> Games => _games;
         public ObservableCollection<Game> FilteredGames => _filteredGames;
@@ -50,6 +51,7 @@ namespace GameLauncher
 
             // 绑定窗口事件，确保每次激活时都刷新数据
             Activated += MainWindow_Activated;
+            Closed += MainWindow_Closed;
 
             // 初始化定时器
             InitializeStatusCheckTimer();
@@ -64,6 +66,10 @@ namespace GameLauncher
             // 注意：如果是非打包应用，通常图标文件需要复制到输出目录
             appWindow.SetIcon("AppIcon.jpg");
             // --- 设置图标代码结束 ---
+
+            // 初始化托盘服务
+            _trayService = new SystemTrayService(this);
+            _trayService.TrayIconClicked += (s, e) => _trayService.RestoreFromTray();
         }
 
         private void Button_PointerPressed(object sender, PointerRoutedEventArgs e)
@@ -126,7 +132,7 @@ namespace GameLauncher
             }
 
             var processes = Process.GetProcesses();
-            var gamesToStop = new List<int>();
+            bool hadRunningGames = _runningGames.Count > 0;
 
             foreach (var kvp in _runningGames.ToList())
             {
@@ -166,6 +172,12 @@ namespace GameLauncher
                         });
                     }
                 }
+            }
+
+            // 如果之前有正在运行的游戏，现在没有了，恢复窗口
+            if (hadRunningGames && _runningGames.Count == 0)
+            {
+                RunOnUi(() => _trayService.RestoreFromTray());
             }
 
             _ = Task.Run(async () =>
@@ -226,6 +238,9 @@ namespace GameLauncher
             }
             
             _runningGames.Clear();
+            
+            // 释放托盘服务资源
+            _trayService?.Dispose();
         }
 
         private async void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
@@ -466,6 +481,8 @@ namespace GameLauncher
                             // 延迟更新 UI，确保 IsRunning 属性已经生效
                             await Task.Delay(100);
                             UpdateGameCardStatistics();
+                            // 最小化到托盘
+                            _trayService.MinimizeToTray();
                         }
                         else
                         {

@@ -2,7 +2,7 @@
 
 一款简洁、高效的游戏启动器，帮助您轻松管理本地游戏。
 
-![Version](https://img.shields.io/badge/version-1.6-blue)
+![Version](https://img.shields.io/badge/version-1.7-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![.NET](https://img.shields.io/badge/.NET-8.0-purple)
 
@@ -15,7 +15,8 @@
 - 🎯 **批量操作** - 支持批量删除游戏
 - 💾 **本地存储** - 所有数据本地存储，无需联网
 - 🎨 **现代界面** - 基于 WinUI 3 打造的现代化用户界面
-
+- 📋 **托盘最小化** - 游戏启动时自动最小化到系统托盘，游戏结束后自动恢复窗口
+ 
 ## 系统要求
 
 - Windows 10 1809 (10.0.17763.0) 或更高版本
@@ -38,7 +39,7 @@ GameLauncher 使用 WinUI 3 框架，需要先安装 Windows App SDK 运行时�
 
 ### 2. 运行 GameLauncher
 
-1. 解压 `GameLauncher_v1.6_Windows_x64.zip`
+1. 解压 `GameLauncher_v1.7_Windows_x64.zip`
 2. 双击 `GameLauncher.exe` 启动程序
 3. （可选）创建快捷方式到桌面
 
@@ -114,9 +115,9 @@ A: 所有游戏数据存储在本地数据库中，位于程序目录下的 Data
 
 ## 项目信息
 
-- **版本**：1.6 正式版
+- **版本**：1.7 正式版
 - **作者**：@XeroLc
-- **发布日期**：2026-02-09
+- **发布日期**：2026-02-15
 - **开发框架**：.NET 8.0 + WinUI 3 + Windows App SDK 1.8
 - **数据库**：SQLite
 
@@ -125,6 +126,12 @@ A: 所有游戏数据存储在本地数据库中，位于程序目录下的 Data
 本项目仅供学习交流使用。
 
 ## 更新日志
+
+### v1.7 (2026-02-15)
+- ✨ 新增游戏启动时自动最小化到系统托盘功能
+- ✨ 新增游戏结束时自动恢复窗口功能
+- ✨ 新增双击托盘图标手动恢复窗口功能
+- 🐛 优化程序资源释放
 
 ### v1.6 (2026-02-09)
 - ✨ 新增游戏详情页面
