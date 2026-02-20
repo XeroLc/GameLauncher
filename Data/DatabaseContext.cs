@@ -63,7 +63,8 @@ namespace GameLauncher.Data
                         TotalPlayTime INTEGER DEFAULT 0,
                         LastRunTime DATETIME,
                         IsRunning INTEGER DEFAULT 0,
-                        ImagePaths TEXT
+                        ImagePaths TEXT,
+                        Tags TEXT
                     )";
 
                 await command.ExecuteNonQueryAsync();
@@ -98,7 +99,8 @@ namespace GameLauncher.Data
                 ("TotalPlayTime", "INTEGER DEFAULT 0"),
                 ("LastRunTime", "DATETIME"),
                 ("IsRunning", "INTEGER DEFAULT 0"),
-                ("ImagePaths", "TEXT")
+                ("ImagePaths", "TEXT"),
+                ("Tags", "TEXT")
             };
 
             foreach (var (columnName, columnDefinition) in columnsToAdd)

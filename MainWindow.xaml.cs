@@ -29,6 +29,8 @@ namespace GameLauncher
         private readonly GameService _gameService;
         private readonly ObservableCollection<Game> _games;
         private readonly ObservableCollection<Game> _filteredGames;
+        private readonly ObservableCollection<string> _allTags;
+        private string? _selectedTagFilter;
         private bool _isClosing = false;
         private bool _isDialogOpen = false;
         private bool _isBatchSelectionMode = false;
@@ -48,6 +50,7 @@ namespace GameLauncher
             _gameService = new GameService(_repository);
             _games = new ObservableCollection<Game>();
             _filteredGames = new ObservableCollection<Game>();
+            _allTags = new ObservableCollection<string>();
 
             // 绑定窗口事件，确保每次激活时都刷新数据
             Activated += MainWindow_Activated;
@@ -275,6 +278,27 @@ namespace GameLauncher
                 var games = await _gameService.GetAllGamesAsync();
                 _games.Clear();
                 _filteredGames.Clear();
+                _allTags.Clear();
+
+                // 收集所有唯一标签
+                var uniqueTags = new HashSet<string>();
+                foreach (var game in games)
+                {
+                    foreach (var tag in game.Tags)
+                    {
+                        uniqueTags.Add(tag);
+                    }
+                }
+
+                // 排序并添加到标签集合
+                var sortedTags = uniqueTags.OrderBy(t => t).ToList();
+                foreach (var tag in sortedTags)
+                {
+                    _allTags.Add(tag);
+                }
+
+                // 更新标签筛选下拉框
+                UpdateTagFilterComboBox();
 
                 foreach (var game in games)
                 {
@@ -297,6 +321,9 @@ namespace GameLauncher
                     }
                 }
 
+                // 应用筛选
+                ApplyFilters();
+
                 UpdateEmptyState();
                 // 延迟更新 UI，确保所有游戏卡片都已经渲染完成
                 await Task.Delay(200);
@@ -307,6 +334,74 @@ namespace GameLauncher
                 System.Diagnostics.Debug.WriteLine($"加载游戏数据失败: {ex.Message}");
                 throw;
             }
+        }
+
+        private void UpdateTagFilterComboBox()
+        {
+            if (TagFilterComboBox == null) return;
+
+            TagFilterComboBox.Items.Clear();
+
+            // 添加"全部标签"选项
+            TagFilterComboBox.Items.Add("全部标签");
+
+            // 添加所有标签
+            foreach (var tag in _allTags)
+            {
+                TagFilterComboBox.Items.Add(tag);
+            }
+
+            // 恢复之前选择的筛选
+            if (_selectedTagFilter != null)
+            {
+                var index = TagFilterComboBox.Items.IndexOf(_selectedTagFilter);
+                if (index >= 0)
+                {
+                    TagFilterComboBox.SelectedIndex = index;
+                }
+                else
+                {
+                    TagFilterComboBox.SelectedIndex = 0;
+                }
+            }
+            else
+            {
+                TagFilterComboBox.SelectedIndex = 0;
+            }
+        }
+
+        private void ApplyFilters()
+        {
+            _filteredGames.Clear();
+
+            foreach (var game in _games)
+            {
+                bool matchesSearch = true;
+                bool matchesTag = true;
+
+                // 搜索筛选
+                var searchText = SearchBox?.Text;
+                if (!string.IsNullOrWhiteSpace(searchText))
+                {
+                    var lowerSearchText = searchText.ToLowerInvariant();
+                    matchesSearch = game.Name.ToLowerInvariant().Contains(lowerSearchText) ||
+                                    (game.Description?.ToLowerInvariant().Contains(lowerSearchText) ?? false) ||
+                                    game.Tags.Any(tag => tag.ToLowerInvariant().Contains(lowerSearchText));
+                }
+
+                // 标签筛选
+                if (_selectedTagFilter != null && _selectedTagFilter != "全部标签")
+                {
+                    matchesTag = game.Tags.Contains(_selectedTagFilter);
+                }
+
+                if (matchesSearch && matchesTag)
+                {
+                    _filteredGames.Add(game);
+                }
+            }
+
+            UpdateEmptyState();
         }
 
         private void UpdateEmptyState()
@@ -420,6 +515,9 @@ namespace GameLauncher
                     XamlRoot = Content.XamlRoot
                 };
 
+                // 设置已有标签
+                dialog.SetExistingTags(_allTags.ToList());
+
                 var result = await dialog.ShowAsync();
 
                 if (result == ContentDialogResult.Primary)
@@ -436,6 +534,12 @@ namespace GameLauncher
                     foreach (var imagePath in dialog.ImagePaths)
                     {
                         newGame.ImagePaths.Add(imagePath);
+                    }
+
+                    // 添加标签
+                    foreach (var tag in dialog.Tags)
+                    {
+                        newGame.Tags.Add(tag);
                     }
 
                     newGame.LoadIcon();
@@ -508,6 +612,9 @@ namespace GameLauncher
                         XamlRoot = Content.XamlRoot
                     };
 
+                    // 设置已有标签
+                    dialog.SetExistingTags(_allTags.ToList());
+
                     var result = await dialog.ShowAsync();
 
                     if (result == ContentDialogResult.Primary)
@@ -522,6 +629,13 @@ namespace GameLauncher
                         foreach (var imagePath in dialog.ImagePaths)
                         {
                             game.ImagePaths.Add(imagePath);
+                        }
+
+                        // 更新标签列表
+                        game.Tags.Clear();
+                        foreach (var tag in dialog.Tags)
+                        {
+                            game.Tags.Add(tag);
                         }
 
                         game.LoadIcon();
@@ -624,35 +738,19 @@ namespace GameLauncher
         {
             if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
             {
-                FilterGames(sender.Text);
+                ApplyFilters();
             }
         }
 
-        private void FilterGames(string searchText)
+        private void TagFilterComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            _filteredGames.Clear();
+            if (TagFilterComboBox == null) return;
 
-            if (string.IsNullOrWhiteSpace(searchText))
+            if (TagFilterComboBox.SelectedItem is string selectedTag)
             {
-                foreach (var game in _games)
-                {
-                    _filteredGames.Add(game);
-                }
+                _selectedTagFilter = selectedTag;
+                ApplyFilters();
             }
-            else
-            {
-                var lowerSearchText = searchText.ToLowerInvariant();
-                foreach (var game in _games)
-                {
-                    if (game.Name.ToLowerInvariant().Contains(lowerSearchText) ||
-                        (game.Description?.ToLowerInvariant().Contains(lowerSearchText) ?? false))
-                    {
-                        _filteredGames.Add(game);
-                    }
-                }
-            }
-
-            UpdateEmptyState();
         }
 
         private void SelectModeButton_Click(object sender, RoutedEventArgs e)

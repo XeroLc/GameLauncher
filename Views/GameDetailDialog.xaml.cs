@@ -27,6 +27,9 @@ namespace GameLauncher.Views
         // 预览图集合
         public ObservableCollection<ImageSource> ImageSources => _game?.ImageSources ?? new ObservableCollection<ImageSource>();
 
+        // 标签集合
+        public ObservableCollection<string> Tags => _game?.Tags ?? new ObservableCollection<string>();
+
         // 大图预览
         private ImageSource _largeImageSource;
         private Image _largePreviewImage;

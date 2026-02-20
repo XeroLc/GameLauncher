@@ -27,7 +27,7 @@ namespace GameLauncher.Data
             using var command = connection.CreateCommand();
             command.CommandText = @"
                 SELECT Id, Name, ExecutablePath, IconPath, Description, CreatedAt,
-                       LaunchCount, TotalPlayTime, LastRunTime, IsRunning, ImagePaths
+                       LaunchCount, TotalPlayTime, LastRunTime, IsRunning, ImagePaths, Tags
                 FROM Games
                 ORDER BY CreatedAt DESC";
 
@@ -70,6 +70,28 @@ namespace GameLauncher.Data
                     }
                 }
 
+                // 反序列化 Tags
+                if (!reader.IsDBNull(11))
+                {
+                    try
+                    {
+                        var tagsJson = reader.GetString(11);
+                        var tags = JsonSerializer.Deserialize<List<string>>(tagsJson);
+                        if (tags != null)
+                        {
+                            foreach (var tag in tags)
+                            {
+                                game.Tags.Add(tag);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"反序列化 Tags 失败: {ex.Message}");
+                        // 忽略反序列化错误
+                    }
+                }
+
                 games.Add(game);
             }
 
@@ -84,7 +106,7 @@ namespace GameLauncher.Data
             using var command = connection.CreateCommand();
             command.CommandText = @"
                 SELECT Id, Name, ExecutablePath, IconPath, Description, CreatedAt,
-                       LaunchCount, TotalPlayTime, LastRunTime, IsRunning, ImagePaths
+                       LaunchCount, TotalPlayTime, LastRunTime, IsRunning, ImagePaths, Tags
                 FROM Games
                 WHERE Id = @Id";
             command.Parameters.AddWithValue("@Id", id);
@@ -128,6 +150,28 @@ namespace GameLauncher.Data
                     }
                 }
 
+                // 反序列化 Tags
+                if (!reader.IsDBNull(11))
+                {
+                    try
+                    {
+                        var tagsJson = reader.GetString(11);
+                        var tags = JsonSerializer.Deserialize<List<string>>(tagsJson);
+                        if (tags != null)
+                        {
+                            foreach (var tag in tags)
+                            {
+                                game.Tags.Add(tag);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"反序列化 Tags 失败: {ex.Message}");
+                        // 忽略反序列化错误
+                    }
+                }
+
                 return game;
             }
 
@@ -141,8 +185,8 @@ namespace GameLauncher.Data
 
             using var command = connection.CreateCommand();
             command.CommandText = @"
-                INSERT INTO Games (Name, ExecutablePath, IconPath, Description, CreatedAt, ImagePaths)
-                VALUES (@Name, @ExecutablePath, @IconPath, @Description, @CreatedAt, @ImagePaths);
+                INSERT INTO Games (Name, ExecutablePath, IconPath, Description, CreatedAt, ImagePaths, Tags)
+                VALUES (@Name, @ExecutablePath, @IconPath, @Description, @CreatedAt, @ImagePaths, @Tags);
                 SELECT last_insert_rowid();";
 
             command.Parameters.AddWithValue("@Name", game.Name);
@@ -166,6 +210,21 @@ namespace GameLauncher.Data
             }
             command.Parameters.AddWithValue("@ImagePaths", string.IsNullOrEmpty(imagePathsJson) ? (object)DBNull.Value : imagePathsJson);
 
+            // 序列化 Tags
+            string tagsJson = string.Empty;
+            if (game.Tags != null && game.Tags.Count > 0)
+            {
+                try
+                {
+                    tagsJson = JsonSerializer.Serialize(game.Tags.ToList());
+                }
+                catch
+                {
+                    // 忽略序列化错误
+                }
+            }
+            command.Parameters.AddWithValue("@Tags", string.IsNullOrEmpty(tagsJson) ? (object)DBNull.Value : tagsJson);
+
             var result = await command.ExecuteScalarAsync();
             return Convert.ToInt32(result);
         }
@@ -186,7 +245,8 @@ namespace GameLauncher.Data
                     TotalPlayTime = @TotalPlayTime,
                     LastRunTime = @LastRunTime,
                     IsRunning = @IsRunning,
-                    ImagePaths = @ImagePaths
+                    ImagePaths = @ImagePaths,
+                    Tags = @Tags
                 WHERE Id = @Id";
 
             command.Parameters.AddWithValue("@Name", game.Name);
@@ -213,6 +273,21 @@ namespace GameLauncher.Data
                 }
             }
             command.Parameters.AddWithValue("@ImagePaths", string.IsNullOrEmpty(imagePathsJson) ? (object)DBNull.Value : imagePathsJson);
+
+            // 序列化 Tags
+            string tagsJson = string.Empty;
+            if (game.Tags != null && game.Tags.Count > 0)
+            {
+                try
+                {
+                    tagsJson = JsonSerializer.Serialize(game.Tags.ToList());
+                }
+                catch
+                {
+                    // 忽略序列化错误
+                }
+            }
+            command.Parameters.AddWithValue("@Tags", string.IsNullOrEmpty(tagsJson) ? (object)DBNull.Value : tagsJson);
 
             int rowsAffected = await command.ExecuteNonQueryAsync();
             return rowsAffected > 0;

@@ -46,6 +46,36 @@
                            Style="{StaticResource BodyTextBlockStyle}"/>
             </StackPanel>
 
+            <StackPanel Spacing="8">
+                <TextBlock Text="游戏标签" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
+                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                        BorderThickness="1" 
+                        Background="{ThemeResource LayerFillColorDefaultBrush}" 
+                        CornerRadius="4" 
+                        MinHeight="40" 
+                        Padding="8">
+                    <ItemsControl x:Name="TagsItemsControl" ItemsSource="{x:Bind Tags}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsWrapGrid Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{ThemeResource SystemAccentColor}" 
+                                        CornerRadius="12" 
+                                        Padding="10,4" 
+                                        Margin="0,0,6,6">
+                                    <TextBlock Text="{Binding}" 
+                                               Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" 
+                                               FontSize="12"/>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+            </StackPanel>
+
             <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
                     BorderThickness="1" 
                     Background="{ThemeResource LayerFillColorDefaultBrush}" 

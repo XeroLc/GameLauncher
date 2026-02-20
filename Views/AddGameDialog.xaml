@@ -41,6 +41,74 @@
             <TextBox x:Name="DescriptionTextBox" PlaceholderText="请输入游戏描述" AcceptsReturn="True" TextWrapping="Wrap" Height="60" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
 
             <StackPanel Spacing="8">
+                <TextBlock Text="游戏标签（可选）"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <AutoSuggestBox x:Name="TagAutoSuggestBox" 
+                                    Grid.Column="0" 
+                                    PlaceholderText="输入标签或从下拉框选择已有标签"
+                                    Margin="0,0,8,0"
+                                    QuerySubmitted="TagAutoSuggestBox_QuerySubmitted"
+                                    SuggestionChosen="TagAutoSuggestBox_SuggestionChosen"
+                                    GotFocus="TagAutoSuggestBox_GotFocus"
+                                    Loaded="TagAutoSuggestBox_Loaded"/>
+                    <Button x:Name="AddTagButton" 
+                            Grid.Column="1" 
+                            Click="AddTagButton_Click" 
+                            Content="添加" 
+                            Width="70" 
+                            Height="32"/>
+                </Grid>
+                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                        BorderThickness="1" 
+                        Background="{ThemeResource LayerFillColorDefaultBrush}" 
+                        CornerRadius="4" 
+                        MinHeight="40" 
+                        Padding="8">
+                    <ItemsControl x:Name="TagsItemsControl">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsWrapGrid Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{ThemeResource SystemAccentColor}" 
+                                        CornerRadius="12" 
+                                        Padding="8,4" 
+                                        Margin="0,0,4,4">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" 
+                                                   Text="{Binding}" 
+                                                   Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" 
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center"/>
+                                        <Button Grid.Column="1" 
+                                                Click="RemoveTagButton_Click"
+                                                Width="20" 
+                                                Height="20" 
+                                                Padding="0" 
+                                                Margin="4,0,0,0"
+                                                Background="Transparent"
+                                                Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}">
+                                            <FontIcon Glyph="&#xE10A;" FontSize="10"/>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Spacing="8">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>

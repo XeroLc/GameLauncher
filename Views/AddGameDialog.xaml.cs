@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -18,18 +19,23 @@ namespace GameLauncher.Views
         private Game? _existingGame;
         private ObservableCollection<string> _imagePaths = new ObservableCollection<string>();
         private ObservableCollection<ImageSource> _imageSources = new ObservableCollection<ImageSource>();
+        private ObservableCollection<string> _tags = new ObservableCollection<string>();
+        private ObservableCollection<string> _allExistingTags = new ObservableCollection<string>();
 
         public string GameName => GameNameTextBox.Text;
         public string ExecutablePath => ExecutablePathTextBox.Text;
         public string IconPath => IconPathTextBox.Text;
         public string Description => DescriptionTextBox.Text;
         public ObservableCollection<string> ImagePaths => _imagePaths;
+        public ObservableCollection<string> Tags => _tags;
         public string ImageCountDisplay => _imagePaths.Count > 0 ? $"已选择 {_imagePaths.Count} 张图片" : "未选择图片";
 
         public AddGameDialog()
         {
             InitializeComponent();
             PreviewImagesItemsControl.ItemsSource = _imageSources;
+            TagsItemsControl.ItemsSource = _tags;
+            TagAutoSuggestBox.TextChanged += TagAutoSuggestBox_TextChanged;
         }
 
         public AddGameDialog(Game game) : this()
@@ -47,6 +53,31 @@ namespace GameLauncher.Views
                 _imagePaths.Add(imagePath);
             }
             LoadImages();
+
+            // 加载已有的标签
+            foreach (var tag in game.Tags)
+            {
+                _tags.Add(tag);
+            }
+        }
+
+        public void SetExistingTags(List<string> existingTags)
+        {
+            _allExistingTags.Clear();
+            foreach (var tag in existingTags)
+            {
+                _allExistingTags.Add(tag);
+            }
+            UpdateTagSuggestions();
+        }
+
+        private void UpdateTagSuggestions()
+        {
+            if (TagAutoSuggestBox != null)
+            {
+                var availableTags = _allExistingTags.Where(tag => !_tags.Contains(tag)).OrderBy(tag => tag).ToList();
+                TagAutoSuggestBox.ItemsSource = availableTags;
+            }
         }
 
         private async void BrowseButton_Click(object sender, RoutedEventArgs e)
@@ -231,6 +262,85 @@ namespace GameLauncher.Views
             // 触发属性变更通知以更新绑定
             var eventArgs = new System.ComponentModel.PropertyChangedEventArgs(propertyName);
             PropertyChanged?.Invoke(this, eventArgs);
+        }
+
+        private void TagAutoSuggestBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+        {
+            if (args.ChosenSuggestion != null)
+            {
+                AddTag(args.ChosenSuggestion.ToString()!);
+            }
+            else
+            {
+                AddTag(args.QueryText);
+            }
+        }
+
+        private void TagAutoSuggestBox_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+        {
+            if (args.SelectedItem != null)
+            {
+                sender.Text = args.SelectedItem.ToString();
+            }
+        }
+
+        private void AddTagButton_Click(object sender, RoutedEventArgs e)
+        {
+            AddTag(TagAutoSuggestBox.Text);
+        }
+
+        private void AddTag(string tagText)
+        {
+            if (!string.IsNullOrWhiteSpace(tagText))
+            {
+                var trimmedTag = tagText.Trim();
+                if (!_tags.Contains(trimmedTag))
+                {
+                    _tags.Add(trimmedTag);
+                }
+                TagAutoSuggestBox.Text = string.Empty;
+                UpdateTagSuggestions();
+            }
+        }
+
+        private void RemoveTagButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.DataContext is string tag)
+            {
+                _tags.Remove(tag);
+                UpdateTagSuggestions();
+            }
+        }
+
+        private void TagAutoSuggestBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+        {
+            if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+            {
+                var inputText = sender.Text?.Trim();
+                if (!string.IsNullOrWhiteSpace(inputText))
+                {
+                    var lowerInput = inputText.ToLowerInvariant();
+                    var suggestions = _allExistingTags
+                        .Where(tag => !_tags.Contains(tag) && tag.ToLowerInvariant().Contains(lowerInput))
+                        .OrderBy(tag => tag)
+                        .ToList();
+                    sender.ItemsSource = suggestions;
+                }
+                else
+                {
+                    UpdateTagSuggestions();
+                }
+            }
+        }
+
+        private void TagAutoSuggestBox_Loaded(object sender, RoutedEventArgs e)
+        {
+            UpdateTagSuggestions();
+        }
+
+        private void TagAutoSuggestBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            UpdateTagSuggestions();
         }
 
         public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;

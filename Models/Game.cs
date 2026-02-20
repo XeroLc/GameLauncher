@@ -21,6 +21,7 @@ namespace GameLauncher.Models
         private ImageSource? _iconSource;
         private ObservableCollection<string> _imagePaths = new ObservableCollection<string>();
         private ObservableCollection<ImageSource> _imageSources = new ObservableCollection<ImageSource>();
+        private ObservableCollection<string> _tags = new ObservableCollection<string>();
 
         public int Id
         {
@@ -211,6 +212,19 @@ namespace GameLauncher.Models
                 {
                     _imageSources = value ?? new ObservableCollection<ImageSource>();
                     OnPropertyChanged(nameof(ImageSources));
+                }
+            }
+        }
+
+        public ObservableCollection<string> Tags
+        {
+            get => _tags;
+            set
+            {
+                if (_tags != value)
+                {
+                    _tags = value ?? new ObservableCollection<string>();
+                    OnPropertyChanged(nameof(Tags));
                 }
             }
         }
