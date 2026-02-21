@@ -37,6 +37,8 @@ namespace GameLauncher
         private DispatcherTimer _statusCheckTimer;
         private readonly Dictionary<int, DateTime> _runningGames = new();
         private SystemTrayService _trayService;
+        private ElementTheme _currentTheme = ElementTheme.Default;
+        private string _currentSortMode = "CreatedAt";
 
         public ObservableCollection<Game> Games => _games;
         public ObservableCollection<Game> FilteredGames => _filteredGames;
@@ -370,39 +372,7 @@ namespace GameLauncher
             }
         }
 
-        private void ApplyFilters()
-        {
-            _filteredGames.Clear();
 
-            foreach (var game in _games)
-            {
-                bool matchesSearch = true;
-                bool matchesTag = true;
-
-                // 搜索筛选
-                var searchText = SearchBox?.Text;
-                if (!string.IsNullOrWhiteSpace(searchText))
-                {
-                    var lowerSearchText = searchText.ToLowerInvariant();
-                    matchesSearch = game.Name.ToLowerInvariant().Contains(lowerSearchText) ||
-                                    (game.Description?.ToLowerInvariant().Contains(lowerSearchText) ?? false) ||
-                                    game.Tags.Any(tag => tag.ToLowerInvariant().Contains(lowerSearchText));
-                }
-
-                // 标签筛选
-                if (_selectedTagFilter != null && _selectedTagFilter != "全部标签")
-                {
-                    matchesTag = game.Tags.Contains(_selectedTagFilter);
-                }
-
-                if (matchesSearch && matchesTag)
-                {
-                    _filteredGames.Add(game);
-                }
-            }
-
-            UpdateEmptyState();
-        }
 
         private void UpdateEmptyState()
         {
@@ -480,10 +450,10 @@ namespace GameLauncher
                             }
 
                             // 更新运行状态指示器
-                            var runningIndicator = root.FindName("RunningIndicator") as TextBlock;
-                            if (runningIndicator != null)
+                            var runningIndicatorGrid = root.FindName("RunningIndicatorGrid") as Grid;
+                            if (runningIndicatorGrid != null)
                             {
-                                runningIndicator.Visibility = game.IsRunning ? Visibility.Visible : Visibility.Collapsed;
+                                runningIndicatorGrid.Visibility = game.IsRunning ? Visibility.Visible : Visibility.Collapsed;
                             }
                         }
                         catch
@@ -1136,6 +1106,86 @@ namespace GameLauncher
             finally
             {
                 _isDialogOpen = false;
+            }
+        }
+
+        private void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (Content is FrameworkElement root)
+            {
+                _currentTheme = _currentTheme == ElementTheme.Dark 
+                    ? ElementTheme.Light 
+                    : ElementTheme.Dark;
+                
+                root.RequestedTheme = _currentTheme;
+                
+                if (ThemeIcon != null)
+                {
+                    ThemeIcon.Glyph = _currentTheme == ElementTheme.Dark ? "\uE706" : "\uE708";
+                }
+            }
+        }
+
+        private void SortComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (SortComboBox == null || SortComboBox.SelectedItem == null || _filteredGames == null || _games == null) return;
+
+            var selectedItem = SortComboBox.SelectedItem as ComboBoxItem;
+            if (selectedItem != null && selectedItem.Tag is string tag)
+            {
+                _currentSortMode = tag;
+                ApplyFilters();
+            }
+        }
+
+        private void ApplyFilters()
+        {
+            if (_filteredGames == null || _games == null) return;
+
+            _filteredGames.Clear();
+
+            IEnumerable<Game> gamesToShow = _games;
+
+            if (!string.IsNullOrWhiteSpace(SearchBox?.Text))
+            {
+                var searchText = SearchBox.Text.ToLowerInvariant();
+                gamesToShow = gamesToShow.Where(g =>
+                    g.Name.ToLowerInvariant().Contains(searchText) ||
+                    (g.Description?.ToLowerInvariant().Contains(searchText) ?? false) ||
+                    g.Tags.Any(tag => tag.ToLowerInvariant().Contains(searchText)));
+            }
+
+            if (_selectedTagFilter != null && _selectedTagFilter != "全部标签")
+            {
+                gamesToShow = gamesToShow.Where(g => g.Tags.Contains(_selectedTagFilter));
+            }
+
+            gamesToShow = SortGames(gamesToShow);
+
+            foreach (var game in gamesToShow)
+            {
+                _filteredGames.Add(game);
+            }
+
+            UpdateEmptyState();
+        }
+
+        private IEnumerable<Game> SortGames(IEnumerable<Game> games)
+        {
+            switch (_currentSortMode)
+            {
+                case "Name":
+                    return games.OrderBy(g => g.Name);
+                case "LaunchCount":
+                    return games.OrderByDescending(g => g.LaunchCount);
+                case "TotalPlayTime":
+                    return games.OrderByDescending(g => g.TotalPlayTime);
+                case "CreatedAt":
+                    return games.OrderByDescending(g => g.CreatedAt);
+                case "LastRunTime":
+                    return games.OrderByDescending(g => g.LastRunTime ?? DateTime.MinValue);
+                default:
+                    return games.OrderByDescending(g => g.CreatedAt);
             }
         }
     }

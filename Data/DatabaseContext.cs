@@ -63,6 +63,7 @@ namespace GameLauncher.Data
                         TotalPlayTime INTEGER DEFAULT 0,
                         LastRunTime DATETIME,
                         IsRunning INTEGER DEFAULT 0,
+                        IsFavorite INTEGER DEFAULT 0,
                         ImagePaths TEXT,
                         Tags TEXT
                     )";
@@ -99,6 +100,7 @@ namespace GameLauncher.Data
                 ("TotalPlayTime", "INTEGER DEFAULT 0"),
                 ("LastRunTime", "DATETIME"),
                 ("IsRunning", "INTEGER DEFAULT 0"),
+                ("IsFavorite", "INTEGER DEFAULT 0"),
                 ("ImagePaths", "TEXT"),
                 ("Tags", "TEXT")
             };

@@ -27,7 +27,7 @@ namespace GameLauncher.Data
             using var command = connection.CreateCommand();
             command.CommandText = @"
                 SELECT Id, Name, ExecutablePath, IconPath, Description, CreatedAt,
-                       LaunchCount, TotalPlayTime, LastRunTime, IsRunning, ImagePaths, Tags
+                       LaunchCount, TotalPlayTime, LastRunTime, IsRunning, IsFavorite, ImagePaths, Tags
                 FROM Games
                 ORDER BY CreatedAt DESC";
 
@@ -45,15 +45,16 @@ namespace GameLauncher.Data
                     LaunchCount = reader.IsDBNull(6) ? 0 : reader.GetInt32(6),
                     TotalPlayTime = reader.IsDBNull(7) ? 0 : reader.GetInt64(7),
                     LastRunTime = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
-                    IsRunning = !reader.IsDBNull(9) && reader.GetInt32(9) == 1
+                    IsRunning = !reader.IsDBNull(9) && reader.GetInt32(9) == 1,
+                    IsFavorite = !reader.IsDBNull(10) && reader.GetInt32(10) == 1
                 };
 
                 // 反序列化 ImagePaths
-                if (!reader.IsDBNull(10))
+                if (!reader.IsDBNull(11))
                 {
                     try
                     {
-                        var imagePathsJson = reader.GetString(10);
+                        var imagePathsJson = reader.GetString(11);
                         var imagePaths = JsonSerializer.Deserialize<List<string>>(imagePathsJson);
                         if (imagePaths != null)
                         {
@@ -71,11 +72,11 @@ namespace GameLauncher.Data
                 }
 
                 // 反序列化 Tags
-                if (!reader.IsDBNull(11))
+                if (!reader.IsDBNull(12))
                 {
                     try
                     {
-                        var tagsJson = reader.GetString(11);
+                        var tagsJson = reader.GetString(12);
                         var tags = JsonSerializer.Deserialize<List<string>>(tagsJson);
                         if (tags != null)
                         {
@@ -106,7 +107,7 @@ namespace GameLauncher.Data
             using var command = connection.CreateCommand();
             command.CommandText = @"
                 SELECT Id, Name, ExecutablePath, IconPath, Description, CreatedAt,
-                       LaunchCount, TotalPlayTime, LastRunTime, IsRunning, ImagePaths, Tags
+                       LaunchCount, TotalPlayTime, LastRunTime, IsRunning, IsFavorite, ImagePaths, Tags
                 FROM Games
                 WHERE Id = @Id";
             command.Parameters.AddWithValue("@Id", id);
@@ -125,15 +126,16 @@ namespace GameLauncher.Data
                     LaunchCount = reader.IsDBNull(6) ? 0 : reader.GetInt32(6),
                     TotalPlayTime = reader.IsDBNull(7) ? 0 : reader.GetInt64(7),
                     LastRunTime = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
-                    IsRunning = !reader.IsDBNull(9) && reader.GetInt32(9) == 1
+                    IsRunning = !reader.IsDBNull(9) && reader.GetInt32(9) == 1,
+                    IsFavorite = !reader.IsDBNull(10) && reader.GetInt32(10) == 1
                 };
 
                 // 反序列化 ImagePaths
-                if (!reader.IsDBNull(10))
+                if (!reader.IsDBNull(11))
                 {
                     try
                     {
-                        var imagePathsJson = reader.GetString(10);
+                        var imagePathsJson = reader.GetString(11);
                         var imagePaths = JsonSerializer.Deserialize<List<string>>(imagePathsJson);
                         if (imagePaths != null)
                         {
@@ -151,11 +153,11 @@ namespace GameLauncher.Data
                 }
 
                 // 反序列化 Tags
-                if (!reader.IsDBNull(11))
+                if (!reader.IsDBNull(12))
                 {
                     try
                     {
-                        var tagsJson = reader.GetString(11);
+                        var tagsJson = reader.GetString(12);
                         var tags = JsonSerializer.Deserialize<List<string>>(tagsJson);
                         if (tags != null)
                         {
@@ -245,6 +247,7 @@ namespace GameLauncher.Data
                     TotalPlayTime = @TotalPlayTime,
                     LastRunTime = @LastRunTime,
                     IsRunning = @IsRunning,
+                    IsFavorite = @IsFavorite,
                     ImagePaths = @ImagePaths,
                     Tags = @Tags
                 WHERE Id = @Id";
@@ -257,6 +260,7 @@ namespace GameLauncher.Data
             command.Parameters.AddWithValue("@TotalPlayTime", game.TotalPlayTime);
             command.Parameters.AddWithValue("@LastRunTime", game.LastRunTime ?? (object)DBNull.Value);
             command.Parameters.AddWithValue("@IsRunning", game.IsRunning ? 1 : 0);
+            command.Parameters.AddWithValue("@IsFavorite", game.IsFavorite ? 1 : 0);
             command.Parameters.AddWithValue("@Id", game.Id);
 
             // 序列化 ImagePaths

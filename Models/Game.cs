@@ -18,6 +18,7 @@ namespace GameLauncher.Models
         private long _totalPlayTime = 0;
         private DateTime? _lastRunTime;
         private bool _isRunning = false;
+        private bool _isFavorite = false;
         private ImageSource? _iconSource;
         private ObservableCollection<string> _imagePaths = new ObservableCollection<string>();
         private ObservableCollection<ImageSource> _imageSources = new ObservableCollection<ImageSource>();
@@ -185,6 +186,19 @@ namespace GameLauncher.Models
                 {
                     _isRunning = value;
                     OnPropertyChanged(nameof(IsRunning));
+                }
+            }
+        }
+
+        public bool IsFavorite
+        {
+            get => _isFavorite;
+            set
+            {
+                if (_isFavorite != value)
+                {
+                    _isFavorite = value;
+                    OnPropertyChanged(nameof(IsFavorite));
                 }
             }
         }

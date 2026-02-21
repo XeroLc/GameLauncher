@@ -10,7 +10,7 @@
   <Identity
     Name="7406011d-cd30-4a1e-a4d4-cd39289d31df"
     Publisher="CN=xerox"
-    Version="1.0.0.0" />
+    Version="2.0.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="7406011d-cd30-4a1e-a4d4-cd39289d31df" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
