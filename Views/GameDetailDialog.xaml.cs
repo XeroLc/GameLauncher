@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
 namespace GameLauncher.Views
@@ -15,6 +16,7 @@ namespace GameLauncher.Views
     {
         private Game _game;
         private readonly GameService _gameService;
+        private readonly List<string> _allExistingTags;
 
         // 绑定属性
         public string GameName => _game?.Name ?? string.Empty;
@@ -48,7 +50,7 @@ namespace GameLauncher.Views
             }
         }
 
-        public GameDetailDialog(Game game)
+        public GameDetailDialog(Game game, List<string>? allExistingTags = null)
         {
             if (game == null)
             {
@@ -56,6 +58,7 @@ namespace GameLauncher.Views
             }
 
             _game = game;
+            _allExistingTags = allExistingTags ?? new List<string>();
             var dbContext = new DatabaseContext();
             var repository = new GameRepository(dbContext);
             _gameService = new GameService(repository);
@@ -145,6 +148,72 @@ namespace GameLauncher.Views
                     return $"{hours}小时";
                 }
             }
+        }
+
+        private async void EditButton_Click(object sender, RoutedEventArgs e)
+        {
+            // WinUI 3 限制同一 XamlRoot 同时只能显示一个 ContentDialog
+            // 必须先关闭当前详情对话框，才能打开编辑对话框
+            Hide();
+
+            var editDialog = new AddGameDialog(_game);
+            editDialog.XamlRoot = XamlRoot;
+            editDialog.SetExistingTags(_allExistingTags);
+
+            var result = await editDialog.ShowAsync();
+
+            if (result == ContentDialogResult.Primary)
+            {
+                _game.Name = editDialog.GameName;
+                _game.ExecutablePath = editDialog.ExecutablePath;
+                _game.IconPath = editDialog.IconPath;
+                _game.Description = editDialog.Description;
+
+                _game.ImagePaths.Clear();
+                foreach (var imagePath in editDialog.ImagePaths)
+                {
+                    _game.ImagePaths.Add(imagePath);
+                }
+
+                _game.Tags.Clear();
+                foreach (var tag in editDialog.Tags)
+                {
+                    _game.Tags.Add(tag);
+                }
+
+                _game.LoadIcon();
+                _game.LoadImages();
+
+                try
+                {
+                    await _gameService.UpdateGameAsync(_game);
+                }
+                catch (Exception ex)
+                {
+                    var errorDialog = new ContentDialog
+                    {
+                        Title = "更新失败",
+                        Content = $"更新游戏失败：{ex.Message}",
+                        CloseButtonText = "确定",
+                        XamlRoot = XamlRoot
+                    };
+                    await errorDialog.ShowAsync();
+                }
+            }
+        }
+
+        private void OnGameDataChanged()
+        {
+            if (GameNameText != null)
+                GameNameText.Text = _game.Name;
+            if (GameIcon != null)
+                GameIcon.Source = _game.IconSource;
+            if (DescriptionText != null)
+                DescriptionText.Text = _game.Description ?? "暂无描述";
+            if (TagsItemsControl != null)
+                TagsItemsControl.ItemsSource = _game.Tags;
+            if (PreviewImagesItemsControl != null)
+                PreviewImagesItemsControl.ItemsSource = _game.ImageSources;
         }
 
         private async void LaunchButton_Click(object sender, RoutedEventArgs e)

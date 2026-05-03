@@ -35,7 +35,6 @@ namespace GameLauncher.Views
             InitializeComponent();
             PreviewImagesItemsControl.ItemsSource = _imageSources;
             TagsItemsControl.ItemsSource = _tags;
-            TagAutoSuggestBox.TextChanged += TagAutoSuggestBox_TextChanged;
         }
 
         public AddGameDialog(Game game) : this()
@@ -68,15 +67,33 @@ namespace GameLauncher.Views
             {
                 _allExistingTags.Add(tag);
             }
-            UpdateTagSuggestions();
+            UpdateTagComboBox();
         }
 
-        private void UpdateTagSuggestions()
+        private void UpdateTagComboBox()
         {
-            if (TagAutoSuggestBox != null)
+            if (TagComboBox != null)
             {
                 var availableTags = _allExistingTags.Where(tag => !_tags.Contains(tag)).OrderBy(tag => tag).ToList();
-                TagAutoSuggestBox.ItemsSource = availableTags;
+                TagComboBox.ItemsSource = availableTags;
+            }
+        }
+
+        private void TagComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (TagComboBox.SelectedItem is string selectedTag)
+            {
+                TagInputTextBox.Text = selectedTag;
+                TagComboBox.SelectedItem = null;
+            }
+        }
+
+        private void TagInputTextBox_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                AddTag(TagInputTextBox.Text);
+                e.Handled = true;
             }
         }
 
@@ -264,29 +281,9 @@ namespace GameLauncher.Views
             PropertyChanged?.Invoke(this, eventArgs);
         }
 
-        private void TagAutoSuggestBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
-        {
-            if (args.ChosenSuggestion != null)
-            {
-                AddTag(args.ChosenSuggestion.ToString()!);
-            }
-            else
-            {
-                AddTag(args.QueryText);
-            }
-        }
-
-        private void TagAutoSuggestBox_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
-        {
-            if (args.SelectedItem != null)
-            {
-                sender.Text = args.SelectedItem.ToString();
-            }
-        }
-
         private void AddTagButton_Click(object sender, RoutedEventArgs e)
         {
-            AddTag(TagAutoSuggestBox.Text);
+            AddTag(TagInputTextBox.Text);
         }
 
         private void AddTag(string tagText)
@@ -298,8 +295,8 @@ namespace GameLauncher.Views
                 {
                     _tags.Add(trimmedTag);
                 }
-                TagAutoSuggestBox.Text = string.Empty;
-                UpdateTagSuggestions();
+                TagInputTextBox.Text = string.Empty;
+                UpdateTagComboBox();
             }
         }
 
@@ -308,39 +305,8 @@ namespace GameLauncher.Views
             if (sender is Button button && button.DataContext is string tag)
             {
                 _tags.Remove(tag);
-                UpdateTagSuggestions();
+                UpdateTagComboBox();
             }
-        }
-
-        private void TagAutoSuggestBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
-        {
-            if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
-            {
-                var inputText = sender.Text?.Trim();
-                if (!string.IsNullOrWhiteSpace(inputText))
-                {
-                    var lowerInput = inputText.ToLowerInvariant();
-                    var suggestions = _allExistingTags
-                        .Where(tag => !_tags.Contains(tag) && tag.ToLowerInvariant().Contains(lowerInput))
-                        .OrderBy(tag => tag)
-                        .ToList();
-                    sender.ItemsSource = suggestions;
-                }
-                else
-                {
-                    UpdateTagSuggestions();
-                }
-            }
-        }
-
-        private void TagAutoSuggestBox_Loaded(object sender, RoutedEventArgs e)
-        {
-            UpdateTagSuggestions();
-        }
-
-        private void TagAutoSuggestBox_GotFocus(object sender, RoutedEventArgs e)
-        {
-            UpdateTagSuggestions();
         }
 
         public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;

@@ -1,4 +1,4 @@
-using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -891,8 +891,7 @@ namespace GameLauncher
             {
                 if (sender is Border border)
                 {
-                    // 尝试获取资源，如果失败则使用默认值
-                    if (Application.Current.Resources.TryGetValue("SubtleFillColorSecondaryBrush", out var bgResource))
+                    if (Application.Current.Resources.TryGetValue("CardBackgroundFillColorSecondaryBrush", out var bgResource))
                     {
                         border.Background = (Microsoft.UI.Xaml.Media.Brush)bgResource;
                     }
@@ -923,24 +922,8 @@ namespace GameLauncher
             {
                 if (sender is Border border)
                 {
-                    // 尝试获取资源，如果失败则使用默认值
-                    if (Application.Current.Resources.TryGetValue("CardBackgroundFillColorDefaultBrush", out var bgResource))
-                    {
-                        border.Background = (Microsoft.UI.Xaml.Media.Brush)bgResource;
-                    }
-                    else
-                    {
-                        border.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
-                    }
-
-                    if (Application.Current.Resources.TryGetValue("CardStrokeColorDefaultBrush", out var borderResource))
-                    {
-                        border.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)borderResource;
-                    }
-                    else
-                    {
-                        border.BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.LightGray);
-                    }
+                    border.ClearValue(Border.BackgroundProperty);
+                    border.ClearValue(Border.BorderBrushProperty);
                 }
             }
             catch (Exception ex)
@@ -970,7 +953,7 @@ namespace GameLauncher
             {
                 _isDialogOpen = true;
 
-                var detailDialog = new Views.GameDetailDialog(game)
+                var detailDialog = new Views.GameDetailDialog(game, _allTags.ToList())
                 {
                     XamlRoot = Content.XamlRoot
                 };
@@ -1187,6 +1170,120 @@ namespace GameLauncher
                 default:
                     return games.OrderByDescending(g => g.CreatedAt);
             }
+        }
+
+        private void VersionWatermark_Click(object sender, RoutedEventArgs e)
+        {
+            ShowChangelogDialog();
+        }
+        private void ShowChangelogDialog()
+        {
+            var sb = new System.Text.StringBuilder();
+            var sep = "----------------------------------";
+            sb.AppendLine("v2.1.1 (2026-02-24)");
+            sb.AppendLine(sep);
+            sb.AppendLine("  黑暗模式弹窗适配");
+            sb.AppendLine("    添加/编辑游戏弹窗完美适配黑暗模式");
+            sb.AppendLine("    背景、文本自动跟随系统主题");
+            sb.AppendLine();
+            sb.AppendLine("  标签下拉菜单优化");
+            sb.AppendLine("    新增独立下拉按钮选择已有标签");
+            sb.AppendLine("    避免输入时自动弹出建议干扰");
+            sb.AppendLine();
+            sb.AppendLine("  游戏卡片高亮修复");
+            sb.AppendLine("    修复黑暗模式下鼠标离开卡片后高亮残留");
+            sb.AppendLine("    悬停状态切换正常");
+            sb.AppendLine();
+            sb.AppendLine("  弹窗滚动功能");
+            sb.AppendLine("    所有弹窗支持垂直滚动");
+            sb.AppendLine("    内容再多也不会溢出重叠");
+            sb.AppendLine();
+            sb.AppendLine("v2.1 (2026-02-23)");
+            sb.AppendLine(sep);
+            sb.AppendLine("  游戏详情页编辑功能");
+            sb.AppendLine("    在游戏详情页面新增编辑按钮");
+            sb.AppendLine("    可直接修改游戏信息");
+            sb.AppendLine();
+            sb.AppendLine("  编辑按钮布局优化");
+            sb.AppendLine("    编辑按钮与启动游戏按钮并排显示");
+            sb.AppendLine();
+            sb.AppendLine("  编辑后数据实时更新");
+            sb.AppendLine("    保存后自动写入数据库");
+            sb.AppendLine();
+            sb.AppendLine("v2.0 (2026-02-21) - 正式版大更新");
+            sb.AppendLine(sep);
+            sb.AppendLine("  全新 UI/UX 设计");
+            sb.AppendLine("  深色/浅色主题切换");
+            sb.AppendLine("  游戏排序功能（5种方式）");
+            sb.AppendLine("  收藏夹功能（数据库支持）");
+            sb.AppendLine("  优化游戏卡片尺寸");
+            sb.AppendLine();
+            sb.AppendLine("v1.8.1 (2026-02-20)");
+            sb.AppendLine(sep);
+            sb.AppendLine("  修复标签输入框第一次点击不显示下拉框");
+            sb.AppendLine();
+            sb.AppendLine("v1.8 (2026-02-20)");
+            sb.AppendLine(sep);
+            sb.AppendLine("  新增标签系统");
+            sb.AppendLine("  新增标签筛选功能");
+            sb.AppendLine("  增强搜索功能（支持标签搜索）");
+            sb.AppendLine();
+            sb.AppendLine("v1.7 (2026-02-15)");
+            sb.AppendLine(sep);
+            sb.AppendLine("  游戏启动时自动最小化到托盘");
+            sb.AppendLine("  游戏结束时自动恢复窗口");
+            sb.AppendLine();
+            sb.AppendLine("v1.6 (2026-02-09)");
+            sb.AppendLine(sep);
+            sb.AppendLine("  新增游戏详情页面");
+            sb.AppendLine("  新增游戏预览图功能");
+            sb.AppendLine("  新增预览图点击放大查看");
+            sb.AppendLine();
+            sb.AppendLine("v1.0 (2026-02-07)");
+            sb.AppendLine(sep);
+            sb.AppendLine("  首个正式版本发布");
+
+            var changelogText = sb.ToString();
+
+            var contentGrid = new Grid();
+            contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            var titleText = new TextBlock
+            {
+                Text = "GameLauncher 更新日志",
+                Style = (Style)App.Current.Resources["TitleTextBlockStyle"],
+                Margin = new Microsoft.UI.Xaml.Thickness(0, 0, 0, 12)
+            };
+            Grid.SetRow(titleText, 0);
+            contentGrid.Children.Add(titleText);
+
+            var scrollViewer = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollMode = ScrollMode.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                MaxHeight = 480,
+                Content = new TextBlock
+                {
+                    Text = changelogText,
+                    FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Microsoft YaHei UI"),
+                    FontSize = 13,
+                    TextWrapping = TextWrapping.Wrap
+                }
+            };
+            Grid.SetRow(scrollViewer, 1);
+            contentGrid.Children.Add(scrollViewer);
+
+            var dialog = new ContentDialog
+            {
+                Title = "更新日志",
+                Content = contentGrid,
+                CloseButtonText = "关闭",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = Content.XamlRoot
+            };
+            dialog.ShowAsync();
         }
     }
 }

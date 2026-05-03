@@ -252,17 +252,19 @@
         </Grid>
 
         <Grid Grid.Row="1" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="24,16">
-            <StackPanel Orientation="Horizontal" Spacing="8" Opacity="0.5">
-                <TextBlock Text="v2.0" 
-                           FontSize="12" 
-                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                <TextBlock Text="|" 
-                           FontSize="12" 
-                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-                <TextBlock Text="@XeroLc" 
-                           FontSize="12" 
-                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
-            </StackPanel>
+            <Button Click="VersionWatermark_Click" Background="Transparent" BorderThickness="0" Padding="8,4" CornerRadius="4">
+                <StackPanel Orientation="Horizontal" Spacing="8" Opacity="0.5">
+                    <TextBlock Text="v2.1.1"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    <TextBlock Text="|"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    <TextBlock Text="@XeroLc"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                </StackPanel>
+            </Button>
         </Grid>
     </Grid>
 </Window>

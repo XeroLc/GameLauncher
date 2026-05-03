@@ -163,17 +163,36 @@
                 </Border>
             </StackPanel>
 
-            <Button x:Name="LaunchButton" 
-                    Click="LaunchButton_Click" 
-                    Style="{StaticResource AccentButtonStyle}" 
-                    HorizontalAlignment="Stretch" 
-                    Height="40"
-                    Margin="0,8,0,0">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE768;" FontSize="16"/>
-                    <TextBlock Text="启动游戏"/>
-                </StackPanel>
-            </Button>
+            <Grid Margin="0,8,0,0" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="EditButton"
+                        Grid.Column="0"
+                        Click="EditButton_Click"
+                        Style="{StaticResource DefaultButtonStyle}"
+                        HorizontalAlignment="Stretch"
+                        Height="40">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE70F;" FontSize="14"/>
+                        <TextBlock Text="编辑"/>
+                    </StackPanel>
+                </Button>
+
+                <Button x:Name="LaunchButton"
+                        Grid.Column="1"
+                        Click="LaunchButton_Click"
+                        Style="{StaticResource AccentButtonStyle}"
+                        HorizontalAlignment="Stretch"
+                        Height="40">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE768;" FontSize="14"/>
+                        <TextBlock Text="启动游戏"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
 
         </StackPanel>
     </ScrollViewer>
