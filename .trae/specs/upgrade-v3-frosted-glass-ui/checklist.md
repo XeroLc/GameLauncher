@@ -1,0 +1,28 @@
+- [x] App.xaml 中定义了完整的磨砂玻璃画刷资源（FrostedGlassBackgroundBrush、FrostedGlassCardBrush、FrostedGlassDialogBrush）
+- [x] App.xaml 中定义了颜色令牌，且区分深色/浅色模式（CloudMistTint、FrostBorderColor 等）
+- [x] App.xaml 中定义了圆角令牌（CardCornerRadius=16、DialogCornerRadius=12、TagCornerRadius=14）
+- [x] App.xaml 中定义了自定义磨砂按钮样式（FrostedDefaultButtonStyle、FrostedAccentButtonStyle）
+- [x] App.xaml 中定义了自定义磨砂标签样式（FrostedTagStyle）
+- [x] App.xaml 中 DefaultContentDialogStyle 已更新为磨砂玻璃风格
+- [x] MainWindow.xaml 使用 DesktopAcrylicBackdrop 替代了 MicaBackdrop
+- [x] MainWindow.xaml 中添加了云雾渐变装饰层（IsHitTestVisible=False）
+- [x] MainWindow.xaml 顶部导航栏使用半透明磨砂背景
+- [x] MainWindow.xaml 游戏卡片使用磨砂玻璃背景、16px 圆角、半透明边框
+- [x] MainWindow.xaml 卡片内启动按钮使用磨砂强调风格
+- [x] MainWindow.xaml 空状态页面使用磨砂玻璃卡片包裹
+- [x] MainWindow.xaml 版本号水印显示为 v3.0
+- [x] MainWindow.xaml 导航栏按钮使用自定义磨砂按钮样式
+- [x] MainWindow.xaml.cs 中 GameCard_PointerEntered/Exited 使用自定义资源而非硬编码颜色
+- [x] MainWindow.xaml.cs 中更新日志包含 v3.0 条目
+- [x] AddGameDialog.xaml 应用了磨砂玻璃弹窗样式
+- [x] AddGameDialog.xaml 标签使用 FrostedTagStyle
+- [x] AddGameDialog.xaml 按钮使用磨砂按钮样式
+- [x] AddGameDialog.xaml 预览图边框为半透明磨砂风格
+- [x] GameDetailDialog.xaml 应用了磨砂玻璃弹窗样式
+- [x] GameDetailDialog.xaml 标签使用 FrostedTagStyle
+- [x] GameDetailDialog.xaml 按钮使用磨砂按钮样式
+- [x] GameDetailDialog.xaml 信息面板边框为半透明磨砂风格
+- [x] GameDetailDialog.xaml 预览图悬停覆盖层为磨砂玻璃效果
+- [x] 项目构建成功，无编译错误
+- [x] 深色模式下磨砂玻璃效果正确显示（通过 ThemeDictionaries Light/Dark 双套画刷实现）
+- [x] 浅色模式下磨砂玻璃效果正确显示（通过 ThemeDictionaries Light/Dark 双套画刷实现）

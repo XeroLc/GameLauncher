@@ -195,7 +195,8 @@ namespace GameLauncher.Views
                         Title = "更新失败",
                         Content = $"更新游戏失败：{ex.Message}",
                         CloseButtonText = "确定",
-                        XamlRoot = XamlRoot
+                        XamlRoot = XamlRoot,
+                        Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
                     };
                     await errorDialog.ShowAsync();
                 }
@@ -235,7 +236,8 @@ namespace GameLauncher.Views
                     Title = "启动失败",
                     Content = "无法启动游戏，请检查游戏路径是否正确",
                     CloseButtonText = "确定",
-                    XamlRoot = XamlRoot
+                    XamlRoot = XamlRoot,
+                    Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
                 };
                 await errorDialog.ShowAsync();
             }

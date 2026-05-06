@@ -8,23 +8,61 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
-                <!-- Other merged dictionaries here -->
             </ResourceDictionary.MergedDictionaries>
-            <!-- Other app resources here -->
-            
-            <!-- 自定义 ContentDialog 样式 -->
+
+            <SolidColorBrush x:Key="FrostedGlassBackgroundBrush" Color="#F3F3F3" Opacity="0.65" />
+            <SolidColorBrush x:Key="FrostedGlassCardBrush" Color="#FFFFFF" Opacity="0.6" />
+            <SolidColorBrush x:Key="FrostedGlassCardHoverBrush" Color="#FFFFFF" Opacity="0.75" />
+            <SolidColorBrush x:Key="FrostedGlassDialogBrush" Color="#FCFCFC" Opacity="0.82" />
+            <SolidColorBrush x:Key="FrostedGlassNavBrush" Color="#F9F9F9" Opacity="0.7" />
+            <SolidColorBrush x:Key="FrostedGlassNavFloatingBrush" Color="#F9F9F9" Opacity="0.55" />
+            <SolidColorBrush x:Key="FrostedGlassNavScrolledBrush" Color="#F9F9F9" Opacity="0.88" />
+            <SolidColorBrush x:Key="FrostedGlassTagBrush" Color="#FFFFFF" Opacity="0.5" />
+            <SolidColorBrush x:Key="FrostBorderBrush" Color="#FFFFFF" Opacity="0.15" />
+            <SolidColorBrush x:Key="FrostAccentBorderBrush" Color="#FFFFFF" Opacity="0.3" />
+
+            <CornerRadius x:Key="CardCornerRadius">16</CornerRadius>
+            <CornerRadius x:Key="DialogCornerRadius">12</CornerRadius>
+            <CornerRadius x:Key="TagCornerRadius">14</CornerRadius>
+
+            <Thickness x:Key="CardPadding">0</Thickness>
+            <Thickness x:Key="SectionSpacing">16</Thickness>
+
+            <Style x:Key="FrostedTagStyle" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource FrostedGlassTagBrush}" />
+                <Setter Property="BorderBrush" Value="{StaticResource FrostBorderBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="14" />
+                <Setter Property="Padding" Value="12,4" />
+            </Style>
+
+            <Style x:Key="FrostedAccentTagStyle" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource FrostedGlassTagBrush}" />
+                <Setter Property="BorderBrush" Value="{StaticResource FrostAccentBorderBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="14" />
+                <Setter Property="Padding" Value="10,4" />
+            </Style>
+
+            <Style x:Key="FrostedDefaultButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                <Setter Property="Background" Value="{StaticResource FrostedGlassCardBrush}" />
+                <Setter Property="BorderBrush" Value="{StaticResource FrostBorderBrush}" />
+                <Setter Property="CornerRadius" Value="8" />
+            </Style>
+
+            <Style x:Key="FrostedAccentButtonStyle" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
+                <Setter Property="CornerRadius" Value="8" />
+            </Style>
+
             <Style x:Key="DefaultContentDialogStyle" TargetType="ContentDialog">
                 <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
-                <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorBaseBrush}" />
-                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="Background" Value="{StaticResource FrostedGlassDialogBrush}" />
+                <Setter Property="BorderBrush" Value="{StaticResource FrostBorderBrush}" />
                 <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="CornerRadius" Value="8" />
-                <Setter Property="MaxWidth" Value="1000" />
-                <Setter Property="MaxHeight" Value="800" />
-                <Setter Property="PrimaryButtonStyle" Value="{StaticResource AccentButtonStyle}" />
-                <Setter Property="CloseButtonStyle" Value="{StaticResource DefaultButtonStyle}" />
+                <Setter Property="CornerRadius" Value="12" />
+                <Setter Property="PrimaryButtonStyle" Value="{StaticResource FrostedAccentButtonStyle}" />
+                <Setter Property="CloseButtonStyle" Value="{StaticResource FrostedDefaultButtonStyle}" />
                 <Setter Property="DefaultButton" Value="Primary" />
-                <Setter Property="RequestedTheme" Value="Default" />
             </Style>
         </ResourceDictionary>
     </Application.Resources>

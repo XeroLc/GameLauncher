@@ -9,7 +9,8 @@
     mc:Ignorable="d"
     Title="游戏详情"
     CloseButtonText="关闭"
-    DefaultButton="Close">
+    DefaultButton="Close"
+    Style="{StaticResource DefaultContentDialogStyle}">
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="600">
         <StackPanel Width="450" Spacing="16">
@@ -20,39 +21,42 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock x:Name="GameNameText" 
-                               Text="{x:Bind GameName}" 
-                               Style="{StaticResource TitleTextBlockStyle}" 
+                    <TextBlock x:Name="GameNameText"
+                               Text="{x:Bind GameName}"
+                               Style="{StaticResource TitleTextBlockStyle}"
                                VerticalAlignment="Center"/>
-                    <Border Grid.Column="1" 
-                        Width="48" 
-                        Height="48" 
-                        CornerRadius="4" 
-                        VerticalAlignment="Center">
-                                        <Image x:Name="GameIcon" 
-                           Source="{x:Bind GameIconSource}" 
+                    <Border Grid.Column="1"
+                        Width="48"
+                        Height="48"
+                        CornerRadius="8"
+                        VerticalAlignment="Center"
+                        Background="{StaticResource FrostedGlassCardBrush}"
+                        BorderBrush="{StaticResource FrostBorderBrush}"
+                        BorderThickness="1">
+                                        <Image x:Name="GameIcon"
+                           Source="{x:Bind GameIconSource}"
                            Stretch="Uniform"/>
                     </Border>
                 </Grid>
 
-                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                <Border Height="1" Background="{StaticResource FrostBorderBrush}"/>
             </StackPanel>
 
             <StackPanel Spacing="8">
                 <TextBlock Text="游戏描述" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
-                <TextBlock x:Name="DescriptionText" 
-                           Text="{x:Bind GameDescription, FallbackValue='暂无描述'}" 
-                           TextWrapping="Wrap" 
+                <TextBlock x:Name="DescriptionText"
+                           Text="{x:Bind GameDescription, FallbackValue='暂无描述'}"
+                           TextWrapping="Wrap"
                            Style="{StaticResource BodyTextBlockStyle}"/>
             </StackPanel>
 
             <StackPanel Spacing="8">
                 <TextBlock Text="游戏标签" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
-                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                        BorderThickness="1" 
-                        Background="{ThemeResource LayerFillColorDefaultBrush}" 
-                        CornerRadius="4" 
-                        MinHeight="40" 
+                <Border BorderBrush="{StaticResource FrostBorderBrush}"
+                        BorderThickness="1"
+                        Background="{StaticResource FrostedGlassCardBrush}"
+                        CornerRadius="8"
+                        MinHeight="40"
                         Padding="8">
                     <ItemsControl x:Name="TagsItemsControl" ItemsSource="{x:Bind Tags}">
                         <ItemsControl.ItemsPanel>
@@ -62,12 +66,10 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="{ThemeResource SystemAccentColor}" 
-                                        CornerRadius="12" 
-                                        Padding="10,4" 
+                                <Border Style="{StaticResource FrostedAccentTagStyle}"
                                         Margin="0,0,6,6">
-                                    <TextBlock Text="{Binding}" 
-                                               Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" 
+                                    <TextBlock Text="{Binding}"
+                                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                                FontSize="12"/>
                                 </Border>
                             </DataTemplate>
@@ -76,10 +78,10 @@
                 </Border>
             </StackPanel>
 
-            <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                    BorderThickness="1" 
-                    Background="{ThemeResource LayerFillColorDefaultBrush}" 
-                    CornerRadius="4" 
+            <Border BorderBrush="{StaticResource FrostBorderBrush}"
+                    BorderThickness="1"
+                    Background="{StaticResource FrostedGlassCardBrush}"
+                    CornerRadius="8"
                     Padding="12">
                 <StackPanel Spacing="8">
                     <StackPanel Orientation="Horizontal" Spacing="12">
@@ -102,10 +104,10 @@
 
             <StackPanel Spacing="8">
                 <TextBlock Text="游戏预览" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
-                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                        BorderThickness="1" 
-                        Background="{ThemeResource LayerFillColorDefaultBrush}" 
-                        CornerRadius="4" 
+                <Border BorderBrush="{StaticResource FrostBorderBrush}"
+                        BorderThickness="1"
+                        Background="{StaticResource FrostedGlassCardBrush}"
+                        CornerRadius="8"
                         MinHeight="100">
                     <Grid>
                         <GridView x:Name="PreviewImagesItemsControl"
@@ -125,16 +127,16 @@
                                           PointerEntered="Image_PointerEntered"
                                           PointerExited="Image_PointerExited">
                                         <Border CornerRadius="4" Clip="{Binding ElementName=InnerImage}"
-                                                Background="{ThemeResource SystemChromeMediumColor}">
+                                                Background="{StaticResource FrostedGlassCardBrush}">
                                             <Image x:Name="InnerImage" Source="{Binding}" Stretch="UniformToFill"/>
                                         </Border>
-                                        <Border CornerRadius="4" 
-                                                Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
-                                                Opacity="0.8"
+                                        <Border CornerRadius="4"
+                                                Background="{StaticResource FrostedGlassCardBrush}"
+                                                Opacity="0.85"
                                                 Visibility="Collapsed"
                                                 x:Name="HoverOverlay">
                                             <Grid>
-                                                <FontIcon Glyph="&#xE8A3;" FontSize="24" 
+                                                <FontIcon Glyph="&#xE8A3;" FontSize="24"
                                                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                                           HorizontalAlignment="Center"
                                                           VerticalAlignment="Center"/>
@@ -146,16 +148,16 @@
                         </GridView>
                         <Border x:Name="LargePreviewBorder"
                                 CornerRadius="8"
-                                Background="{ThemeResource SystemChromeMediumColor}"
+                                Background="{StaticResource FrostedGlassCardBrush}"
                                 Visibility="Collapsed"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 MaxWidth="400"
                                 MaxHeight="300"
-                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderBrush="{StaticResource FrostBorderBrush}"
                                 BorderThickness="1"
                                 Tapped="LargePreview_Tapped">
-                            <Image x:Name="LargePreviewImage" 
+                            <Image x:Name="LargePreviewImage"
                                    Source="{x:Bind LargeImageSource, Mode=OneWay}"
                                    Stretch="Uniform"/>
                         </Border>
@@ -172,7 +174,7 @@
                 <Button x:Name="EditButton"
                         Grid.Column="0"
                         Click="EditButton_Click"
-                        Style="{StaticResource DefaultButtonStyle}"
+                        Style="{StaticResource FrostedDefaultButtonStyle}"
                         HorizontalAlignment="Stretch"
                         Height="40">
                     <StackPanel Orientation="Horizontal" Spacing="6">
@@ -184,7 +186,7 @@
                 <Button x:Name="LaunchButton"
                         Grid.Column="1"
                         Click="LaunchButton_Click"
-                        Style="{StaticResource AccentButtonStyle}"
+                        Style="{StaticResource FrostedAccentButtonStyle}"
                         HorizontalAlignment="Stretch"
                         Height="40">
                     <StackPanel Orientation="Horizontal" Spacing="6">

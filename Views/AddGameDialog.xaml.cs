@@ -135,7 +135,8 @@ namespace GameLauncher.Views
                     Title = "错误",
                     Content = $"选择文件时出错：{ex.Message}",
                     CloseButtonText = "确定",
-                    XamlRoot = XamlRoot
+                    XamlRoot = XamlRoot,
+                    Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
                 };
                 await errorDialog.ShowAsync();
             }
@@ -175,7 +176,8 @@ namespace GameLauncher.Views
                     Title = "错误",
                     Content = $"选择图标时出错：{ex.Message}",
                     CloseButtonText = "确定",
-                    XamlRoot = XamlRoot
+                    XamlRoot = XamlRoot,
+                    Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
                 };
                 await errorDialog.ShowAsync();
             }
@@ -222,7 +224,8 @@ namespace GameLauncher.Views
                     Title = "错误",
                     Content = $"选择预览图时出错：{ex.Message}",
                     CloseButtonText = "确定",
-                    XamlRoot = XamlRoot
+                    XamlRoot = XamlRoot,
+                    Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
                 };
                 await errorDialog.ShowAsync();
             }

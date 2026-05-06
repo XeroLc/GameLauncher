@@ -9,7 +9,8 @@
     Title="添加游戏"
     PrimaryButtonText="保存"
     SecondaryButtonText="取消"
-    DefaultButton="Primary">
+    DefaultButton="Primary"
+    Style="{StaticResource DefaultContentDialogStyle}">
 
     <ScrollViewer VerticalScrollMode="Auto" VerticalScrollBarVisibility="Auto">
         <Grid Padding="8" RowSpacing="16">
@@ -48,11 +49,11 @@
                              Grid.Column="0"
                              PlaceholderText="选择游戏可执行文件"
                              IsReadOnly="True"/>
-                    <Button x:Name="BrowseButton" 
-                            Grid.Column="1" 
-                            Click="BrowseButton_Click" 
+                    <Button x:Name="BrowseButton"
+                            Grid.Column="1"
+                            Click="BrowseButton_Click"
                             ToolTipService.ToolTip="浏览文件"
-                            Style="{ThemeResource DefaultButtonStyle}"
+                            Style="{StaticResource FrostedDefaultButtonStyle}"
                             Content="浏览..."/>
                 </Grid>
             </Grid>
@@ -77,11 +78,11 @@
                              Grid.Column="0"
                              PlaceholderText="选择游戏图标"
                              IsReadOnly="True"/>
-                    <Button x:Name="BrowseIconButton" 
-                            Grid.Column="1" 
+                    <Button x:Name="BrowseIconButton"
+                            Grid.Column="1"
                             Click="BrowseIconButton_Click"
                             ToolTipService.ToolTip="浏览图标"
-                            Style="{ThemeResource DefaultButtonStyle}">
+                            Style="{StaticResource FrostedDefaultButtonStyle}">
                         <FontIcon Glyph="&#xE8B9;" FontSize="16"/>
                     </Button>
                 </Grid>
@@ -137,7 +138,7 @@
                     <Button x:Name="AddTagButton"
                             Grid.Column="1"
                             Click="AddTagButton_Click"
-                            Style="{ThemeResource AccentButtonStyle}"
+                            Style="{StaticResource FrostedAccentButtonStyle}"
                             ToolTipService.ToolTip="添加标签"
                             Height="58"
                             VerticalAlignment="Bottom">
@@ -153,11 +154,7 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="{ThemeResource SystemAccentColorLight2}"
-                                    BorderBrush="{ThemeResource SystemAccentColor}"
-                                    BorderThickness="1"
-                                    CornerRadius="12"
-                                    Padding="12,4"
+                            <Border Style="{StaticResource FrostedAccentTagStyle}"
                                     Margin="0,0,8,4">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <TextBlock Text="{Binding}" 
@@ -201,10 +198,10 @@
                                Text="{x:Bind ImageCountDisplay, Mode=OneWay}" 
                                Style="{ThemeResource BodyTextBlockStyle}"/>
 
-                    <Button x:Name="AddPreviewImageButton" 
-                            Grid.Column="1" 
+                    <Button x:Name="AddPreviewImageButton"
+                            Grid.Column="1"
                             Click="AddPreviewImageButton_Click"
-                            Style="{ThemeResource DefaultButtonStyle}">
+                            Style="{StaticResource FrostedDefaultButtonStyle}">
                         <StackPanel Orientation="Horizontal" Spacing="4">
                             <FontIcon Glyph="&#xE710;" FontSize="14"/>
                             <TextBlock Text="添加图片"/>
@@ -221,8 +218,8 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            <Border Background="{StaticResource FrostedGlassCardBrush}"
+                                    BorderBrush="{StaticResource FrostBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="8"
                                     Padding="8"
