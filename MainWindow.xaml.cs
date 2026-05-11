@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿﻿﻿﻿﻿﻿﻿﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -497,6 +497,78 @@ namespace GameLauncher
             try
             {
                 var games = await _gameService.GetAllGamesAsync();
+
+                // 数据迁移：为缺少.gmd文件的游戏生成.gmd
+                try
+                {
+                    var gmdService = new GmdFileService();
+                    var migrationService = new DataMigrationService(gmdService);
+                    var missingGmdGames = await migrationService.ScanForMissingGmdFilesAsync(games);
+                    if (missingGmdGames.Count > 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"发现 {missingGmdGames.Count} 个游戏缺少.gmd文件，开始迁移...");
+                        var progress = new Progress<MigrationProgress>(p =>
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[迁移进度] {p.Percentage:F0}% - {p.CurrentGameName}");
+                        });
+                        await migrationService.MigrateAllGamesAsync(games, progress);
+                        System.Diagnostics.Debug.WriteLine("数据迁移完成");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"数据迁移失败: {ex.Message}");
+                    // 迁移失败不阻塞游戏加载
+                }
+
+                // 数据一致性校验
+                try
+                {
+                    var gmdService2 = new GmdFileService();
+                    var consistencyService = new DataConsistencyService(gmdService2);
+                    var report = await consistencyService.CheckAllGamesConsistencyAsync(games);
+                    if (report.InconsistentGames > 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"发现 {report.InconsistentGames} 个游戏数据不一致，开始解决...");
+                        // 自动解决冲突
+                        foreach (var detail in report.Details.Where(d => !d.IsConsistent))
+                        {
+                            var game = games.FirstOrDefault(g => g.Id == detail.GameId);
+                            if (game != null && !string.IsNullOrEmpty(game.GmdFilePath))
+                            {
+                                var resolvedGame = await consistencyService.ResolveConflictAsync(game, game.GmdFilePath);
+                                if (resolvedGame != null)
+                                {
+                                    var existingGame = games.FirstOrDefault(g => g.Id == resolvedGame.Id);
+                                    if (existingGame != null)
+                                    {
+                                        existingGame.Name = resolvedGame.Name;
+                                        existingGame.Description = resolvedGame.Description;
+                                        existingGame.LaunchCount = resolvedGame.LaunchCount;
+                                        existingGame.TotalPlayTime = resolvedGame.TotalPlayTime;
+                                        existingGame.IsFavorite = resolvedGame.IsFavorite;
+                                        existingGame.LastRunTime = resolvedGame.LastRunTime;
+                                        existingGame.Tags.Clear();
+                                        foreach (var tag in resolvedGame.Tags)
+                                        {
+                                            if (!existingGame.Tags.Contains(tag))
+                                            {
+                                                existingGame.Tags.Add(tag);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        System.Diagnostics.Debug.WriteLine("数据一致性解决完成");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"数据一致性校验失败: {ex.Message}");
+                    // 一致性校验失败不阻塞游戏加载
+                }
+
                 _games.Clear();
                 _filteredGames.Clear();
                 _allTags.Clear();
@@ -674,6 +746,15 @@ namespace GameLauncher
                             {
                                 runningIndicatorGrid.Visibility = game.IsRunning ? Visibility.Visible : Visibility.Collapsed;
                             }
+
+                            // 更新启动/终止按钮
+                            var launchBtn = root.FindName("LaunchButton") as Button;
+                            var stopBtn = root.FindName("StopButton") as Button;
+                            if (launchBtn != null && stopBtn != null)
+                            {
+                                launchBtn.Visibility = game.IsRunning ? Visibility.Collapsed : Visibility.Visible;
+                                stopBtn.Visibility = game.IsRunning ? Visibility.Visible : Visibility.Collapsed;
+                            }
                         }
                         catch
                         {
@@ -734,13 +815,17 @@ namespace GameLauncher
                     newGame.LoadIcon();
                     newGame.LoadImages();
 
+                    LoadingOverlay.Visibility = Visibility.Visible;
+
                     try
                     {
                         await _gameService.AddGameAsync(newGame);
+                        LoadingOverlay.Visibility = Visibility.Collapsed;
                         await SilentRefreshGamesAsync(forceUiUpdate: true);
                     }
                     catch (Exception ex)
                     {
+                        LoadingOverlay.Visibility = Visibility.Collapsed;
                         await ShowErrorDialog("添加游戏失败", ex.Message);
                     }
                 }
@@ -783,6 +868,22 @@ namespace GameLauncher
                         }
                     }
                 }
+
+        private async void StopButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.DataContext is Game game)
+            {
+                var success = await _gameService.UpdateGameRunningStatusAsync(game.Id, false);
+                if (success)
+                {
+                    RunOnUi(() => {
+                        game.IsRunning = false;
+                    });
+                    await Task.Delay(100);
+                    UpdateGameCardStatistics();
+                }
+            }
+        }
         private async void EditButton_Click(object sender, RoutedEventArgs e)
         {
             // 检查是否已经有对话框打开

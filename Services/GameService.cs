@@ -138,6 +138,16 @@ namespace GameLauncher.Services
             game.TotalPlayTime += additionalTime;
             game.IsRunning = false;
 
+            // 确保.gmd文件路径已设置
+            if (string.IsNullOrEmpty(game.GmdFilePath))
+            {
+                try
+                {
+                    game.GmdFilePath = new GmdFileService().GetGmdFilePath(game.ExecutablePath, game.Name);
+                }
+                catch { }
+            }
+
             return await _repository.UpdateGameAsync(game);
         }
 
@@ -150,6 +160,16 @@ namespace GameLauncher.Services
             }
 
             game.IsRunning = isRunning;
+
+            // 确保.gmd文件路径已设置
+            if (string.IsNullOrEmpty(game.GmdFilePath))
+            {
+                try
+                {
+                    game.GmdFilePath = new GmdFileService().GetGmdFilePath(game.ExecutablePath, game.Name);
+                }
+                catch { }
+            }
 
             return await _repository.UpdateGameAsync(game);
         }

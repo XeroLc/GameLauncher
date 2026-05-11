@@ -1,0 +1,351 @@
+
+“GameLauncher.exe”(CoreCLR: clrhost): 已加载“D:\VS_Project\GameLauncher\bin\x64\Debug\net8.0-windows10.0.19041.0\win-x64\System.Diagnostics.Process.dll”。已跳过加载符号。模块进行了优化，并且调试器选项“仅我的代码”已启用。
+“GameLauncher.exe”(CoreCLR: clrhost): 已加载“D:\VS_Project\GameLauncher\bin\x64\Debug\net8.0-windows10.0.19041.0\win-x64\Microsoft.Win32.Primitives.dll”。已跳过加载符号。模块进行了优化，并且调试器选项“仅我的代码”已启用。
+引发的异常:“System.InvalidOperationException”(位于 WinRT.Runtime.dll 中)
+Error: Converter failed to convert value of type 'Microsoft.UI.Xaml.Controls.Image' to type 'Geometry'; BindingExpression: Path='' DataItem='Microsoft.UI.Xaml.Controls.Image'; target element is 'Microsoft.UI.Xaml.Controls.Border' (Name='null'); target property is 'Clip' (type 'Geometry'). 
+Error: Converter failed to convert value of type 'Microsoft.UI.Xaml.Controls.Image' to type 'Geometry'; BindingExpression: Path='' DataItem='Microsoft.UI.Xaml.Controls.Image'; target element is 'Microsoft.UI.Xaml.Controls.Border' (Name='null'); target property is 'Clip' (type 'Geometry'). 
+Error: Converter failed to convert value of type 'Microsoft.UI.Xaml.Controls.Image' to type 'Geometry'; BindingExpression: Path='' DataItem='Microsoft.UI.Xaml.Controls.Image'; target element is 'Microsoft.UI.Xaml.Controls.Border' (Name='null'); target property is 'Clip' (type 'Geometry'). 
+Error: Converter failed to convert value of type 'Microsoft.UI.Xaml.Controls.Image' to type 'Geometry'; BindingExpression: Path='' DataItem='Microsoft.UI.Xaml.Controls.Image'; target element is 'Microsoft.UI.Xaml.Controls.Border' (Name='null'); target property is 'Clip' (type 'Geometry'). 
+Error: Converter failed to convert value of type 'Microsoft.UI.Xaml.Controls.Image' to type 'Geometry'; BindingExpression: Path='' DataItem='Microsoft.UI.Xaml.Controls.Image'; target element is 'Microsoft.UI.Xaml.Controls.Border' (Name='null'); target property is 'Clip' (type 'Geometry'). 
+开始初始化数据库...
+数据库初始化完成，开始加载游戏数据...
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\夏色四叶草\RJ01600657_img_main.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\夏色四叶草\RJ01600657_img_smp1.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\夏色四叶草\RJ01600657_img_smp2.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\夏色四叶草\RJ01600657_img_smp3.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\夏色四叶草\RJ01600657_img_smp4.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\夏色四叶草\RJ01600657_img_smp5.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\萝莉的健康检查2！\RJ01619395_img_main.png, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\萝莉的健康检查2！\RJ01619395_img_smp2.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\萝莉的健康检查2！\RJ01619395_img_smp3.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\萝莉的健康检查2！\RJ01619395_img_smp4.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\萝莉的健康检查2！\RJ01619395_img_smp7.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\少女妖精弹珠台\photo_2_2025-05-06_03-58-40.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\少女妖精弹珠台\photo_3_2025-05-06_03-58-40.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\少女妖精弹珠台\photo_5_2025-05-06_03-58-40.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\少女妖精弹珠台\photo_6_2025-05-06_03-58-40.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\因循村的祭品 触手触摸模拟\photo_1_2026-03-15_03-06-25.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\因循村的祭品 触手触摸模拟\photo_1_2026-03-15_03-06-33.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\因循村的祭品 触手触摸模拟\photo_2_2026-03-15_03-06-33.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\因循村的祭品 触手触摸模拟\photo_3_2026-03-15_03-06-33.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\魔法高潮～留级魔女与情欲魔手～\3ecibr.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\魔法高潮～留级魔女与情欲魔手～\3eckfn.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\魔法高潮～留级魔女与情欲魔手～\1500x500.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\魔法高潮～留级魔女与情欲魔手～\a57f871d6e8c20d7.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\凉花酱的烦恼\photo_1_2026-04-30_12-10-30.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\凉花酱的烦恼\photo_3_2026-04-30_12-10-30.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\凉花酱的烦恼\photo_4_2026-04-30_12-10-30.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\和妹妹一起的一个月\3-4f52e9333d1119e8b.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\和妹妹一起的一个月\3-50b29d5e266a5bdee.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\和妹妹一起的一个月\2890f11d3c20240714010901.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\和妹妹一起的一个月\08137f4a0a20240714010902.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\哥哥！甜蜜生活版～与最喜欢哥哥的鬼族少女一起甜蜜H生活～\RJ01604220_img_main.png, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\哥哥！甜蜜生活版～与最喜欢哥哥的鬼族少女一起甜蜜H生活～\RJ01604220_img_smp1.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\哥哥！甜蜜生活版～与最喜欢哥哥的鬼族少女一起甜蜜H生活～\RJ01604220_img_smp4.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\爱上死去的女孩\RJ01586313_img_main.png, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\爱上死去的女孩\RJ01586313_img_smp1.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\爱上死去的女孩\RJ01586313_img_smp2.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\爱上死去的女孩\RJ01586313_img_smp4.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\莉莉丝的不可思议神殿\14b88abff4d383586.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\莉莉丝的不可思议神殿\22b0e54052c9c0edb.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\莉莉丝的不可思议神殿\3780a79869dd08620.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\莉莉丝的不可思议神殿\e092bb5785888bf483482733c37ad111.png, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\迷宫回复屋 ～MP恢复触摸模拟～\RJ01536542_img_main.png, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\迷宫回复屋 ～MP恢复触摸模拟～\RJ01536542_img_smp1.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\迷宫回复屋 ～MP恢复触摸模拟～\RJ01536542_img_smp3.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\迷宫回复屋 ～MP恢复触摸模拟～\RJ01536542_img_smp4.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\圣女尤莉亚与恶灵之城\2026_05_08_19_56_12_719_.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\圣女尤莉亚与恶灵之城\RJ01225039_img_main_.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\圣女尤莉亚与恶灵之城\RJ01225039_img_smp2_.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\午后时分，欲求不满的人妻们… 〜雌堕・危险日播种・交尾狂乱〜\53fb045175cb4.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\午后时分，欲求不满的人妻们… 〜雌堕・危险日播种・交尾狂乱〜\308d26d7f4e4e.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\妹妹说要用身体来偿还借的钱\RJ01497297_img_main.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\妹妹说要用身体来偿还借的钱\RJ01497297_img_smp1.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\妹妹说要用身体来偿还借的钱\RJ01497297_img_smp2.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\尼托 -秽染隔离区的坠兔\RJ01619075_img_main.png, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\尼托 -秽染隔离区的坠兔\RJ01619075_img_smp1.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\尼托 -秽染隔离区的坠兔\RJ01619075_img_smp2.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\尼托 -秽染隔离区的坠兔\RJ01619075_img_smp3.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\尼托 -秽染隔离区的坠兔\RJ01619075_img_smp4.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\关于沉默的魅魔和我一起开餐厅的故事\RJ01619530_img_main.png, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\关于沉默的魅魔和我一起开餐厅的故事\RJ01619530_img_smp1.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\关于沉默的魅魔和我一起开餐厅的故事\RJ01619530_img_smp2.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\关于沉默的魅魔和我一起开餐厅的故事\RJ01619530_img_smp3.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\关于沉默的魅魔和我一起开餐厅的故事\RJ01619530_img_smp4.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\爸爸，来色色吧 〜背德情境风俗店〜\e3b0c442_ehjnxtm0.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\爸爸，来色色吧 〜背德情境风俗店〜\e3b0c442_84v0jvt4.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\爸爸，来色色吧 〜背德情境风俗店〜\e3b0c442_3u33ookh.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\爸爸，来色色吧 〜背德情境风俗店〜\e3b0c442_wq9n07hq.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\卡西亚与封闭的研究所\RJ01623955_img_main.png, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\卡西亚与封闭的研究所\RJ01623955_img_smp1.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\卡西亚与封闭的研究所\RJ01623955_img_smp2.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\卡西亚与封闭的研究所\RJ01623955_img_smp4.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\雌小鬼野球拳\yt9yraxl4piz.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\雌小鬼野球拳\yusfqks8sijl.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\监禁女骑士~如果转生了异世界就会被误认为是半兽人的男人\p68oif.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\对不抵抗的NPC做H的事情的游戏\RJ01618882_img_main.png, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\对不抵抗的NPC做H的事情的游戏\RJ01618882_img_smp2.png, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\对不抵抗的NPC做H的事情的游戏\RJ01618882_img_smp3.png, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\对不抵抗的NPC做H的事情的游戏\RJ01618882_img_smp4.png, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\恋足追求\RJ01297746_img_main.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\恋足追求\RJ01297746_img_smp2.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\恋足追求\RJ01297746_img_smp3.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\魅魔咏叹调\a095zgoowux2.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\魅魔咏叹调\u09nocxq62iu.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\魅魔咏叹调\ufsn4q64xjqg.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\离家出走少女的同居日常\1.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\离家出走少女的同居日常\720qy22bajky.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\离家出走少女的同居日常\f18xhn6wdzfn.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\离家出走少女的同居日常\uneed5ahop55.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\禁亲圣交苏菈〜亲女儿萝莉飞机杯挑逗诱惑ADV〜\lp6ovs3enr2b.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\极限快感耐力对决，现在开幕——？ [H版植物大战僵尸]\aylwcotjm1d3.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\极限快感耐力对决，现在开幕——？ [H版植物大战僵尸]\d207inj69dy5.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\极限快感耐力对决，现在开幕——？ [H版植物大战僵尸]\nxtxwjw4ee4k.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\电车\photo_1_2026-01-25_13-17-20.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\电车\photo_2_2026-01-25_13-17-20.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\电车\photo_3_2026-01-25_13-17-20.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\电车\photo_4_2026-01-25_13-17-20.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\彻底沉迷！风俗店体验记\RJ01512681_img_main.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\彻底沉迷！风俗店体验记\RJ01512681_img_smp2.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\彻底沉迷！风俗店体验记\RJ01512681_img_smp3.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\彻底沉迷！风俗店体验记\RJ01512681_img_smp4.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\产卵苗床妻雪江\photo_2_2026-01-05_18-58-28.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\产卵苗床妻雪江\photo_4_2026-01-05_18-58-28.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\产卵苗床妻雪江\photo_6_2026-01-05_18-58-28.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\被淫魔虫玷污的教堂\RJ01471840_img_main.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\被淫魔虫玷污的教堂\RJ01471840_img_smp2.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\被淫魔虫玷污的教堂\RJ01471840_img_smp3.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\DEGRADE -隷属少女-\操作マニュアル.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\A_封面&预览图\DEGRADE -隷属少女-\photo_5_2025-03-12_19-29-00.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\Operation Lovecraft Fallen Doll Playtest\photo_2_2025-05-04_05-29-11.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\Operation Lovecraft Fallen Doll Playtest\photo_3_2025-05-04_05-29-11.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\双人会所_HomeTogether_v0.41\20241121174849311-QQ20240617194223b7e435455f22e2f4.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\双人会所_HomeTogether_v0.41\20241121174856618-QQ20240617193605cc0672ed471dc602.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\双人会所_HomeTogether_v0.41\20241121174908405-QQ20240617193857f738d9ec8a7bcb35.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\面部滋润器TrueFacials_Pro_0.58b\848fp3nr45tu.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\面部滋润器TrueFacials_Pro_0.58b\cx5d2irafvn0.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\面部滋润器TrueFacials_Pro_0.58b\to4dzswsrn2y.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\极品采花郎\muuk43hlmpto.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\极品采花郎\p85h1uiz0ztm.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\极品采花郎\z9ugtbgckpa1.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\TOGETHER BnB\1.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\TOGETHER BnB\2.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\TOGETHER BnB\3.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\TOGETHER BnB\4.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\TOGETHER BnB\5.webp, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\Eternum\2fsyh6m13kcr.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\Eternum\ho1a3eec0pwh.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\Eternum\lh9p4eawbzjj.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\The Secret Atelier 秘密画室 v3.0\dmkwzx07k8wt.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\The Secret Atelier 秘密画室 v3.0\nfazdutkp1di.jpg, 错误: 
+引发的异常:“System.Runtime.InteropServices.COMException”(位于 WinRT.Runtime.dll 中)
+加载图片失败: D:\Games\NotOL\Restricted_Game\The Secret Atelier 秘密画室 v3.0\upichaajr0h9.jpg, 错误: 
+[DataSync] 静默跳过 — 签名匹配，耗时 4229ms
+[DataSync] 同步完成 — 无变化, 耗时 4229ms
+游戏数据加载完成
+程序“[50660] GameLauncher.exe”已退出，返回值为 0 (0x0)。

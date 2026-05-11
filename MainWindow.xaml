@@ -152,18 +152,31 @@
                                         </StackPanel>
                                     </Grid>
 
-                                    <Button x:Name="LaunchButton"
-                                            Grid.Row="3"
-                                            Click="LaunchButton_Click"
-                                            PointerPressed="Button_PointerPressed"
-                                            Style="{StaticResource FrostedAccentButtonStyle}"
-                                            HorizontalAlignment="Stretch"
-                                            Height="36">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <FontIcon Glyph="&#xE768;" FontSize="14"/>
-                                            <TextBlock Text="启动游戏"/>
-                                        </StackPanel>
-                                    </Button>
+                                    <Grid Grid.Row="3">
+                                        <Button x:Name="LaunchButton"
+                                                Click="LaunchButton_Click"
+                                                PointerPressed="Button_PointerPressed"
+                                                Style="{StaticResource FrostedAccentButtonStyle}"
+                                                HorizontalAlignment="Stretch"
+                                                Height="36">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <FontIcon Glyph="&#xE768;" FontSize="14"/>
+                                                <TextBlock Text="启动游戏"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button x:Name="StopButton"
+                                                Click="StopButton_Click"
+                                                PointerPressed="Button_PointerPressed"
+                                                Style="{StaticResource FrostedStopButtonStyle}"
+                                                HorizontalAlignment="Stretch"
+                                                Height="36"
+                                                Visibility="Collapsed">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <FontIcon Glyph="&#xE71A;" FontSize="14"/>
+                                                <TextBlock Text="终止游戏"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
                                 </Grid>
                             </Grid>
                         </Border>
@@ -300,5 +313,32 @@
                 </StackPanel>
             </Grid>
         </Border>
+
+        <Grid x:Name="LoadingOverlay"
+              Visibility="Collapsed"
+              HorizontalAlignment="Stretch"
+              VerticalAlignment="Stretch"
+              Background="#88000000"
+              Canvas.ZIndex="100">
+            <Border HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="{StaticResource FrostedGlassDialogBrush}"
+                    BorderBrush="{StaticResource FrostBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="40,24">
+                <StackPanel Spacing="16" HorizontalAlignment="Center">
+                    <ProgressRing IsActive="True" Width="50" Height="50"
+                                  Foreground="{ThemeResource SystemAccentColor}"/>
+                    <TextBlock Text="正在创建游戏文件"
+                               Style="{StaticResource SubtitleTextBlockStyle}"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="正在生成游戏数据文件，请稍候..."
+                               Style="{StaticResource BodyTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

@@ -90,6 +90,8 @@ namespace GameLauncher.Services
                   .Append("|").Append(game.LastRunTime?.ToString("o") ?? "")
                   .Append("|").Append(game.Description ?? "")
                   .Append("|").Append(game.IconPath ?? "")
+                  .Append("|").Append(game.GmdFilePath ?? "")
+                  .Append("|").Append(game.IsGmdFileReady)
                   .Append("|").Append(string.Join(",", game.Tags.OrderBy(t => t)))
                   .Append("|").Append(string.Join(",", game.ImagePaths.OrderBy(p => p)))
                   .Append(";");
@@ -185,6 +187,12 @@ namespace GameLauncher.Services
 
             if (NormalizeString(existing.IconPath) != NormalizeString(latest.IconPath))
                 changedFields.Add(nameof(Game.IconPath));
+
+            if (NormalizeString(existing.GmdFilePath) != NormalizeString(latest.GmdFilePath))
+                changedFields.Add(nameof(Game.GmdFilePath));
+
+            if (existing.IsGmdFileReady != latest.IsGmdFileReady)
+                changedFields.Add(nameof(Game.IsGmdFileReady));
 
             if (!AreCollectionsEqual(existing.Tags, latest.Tags))
                 changedFields.Add(nameof(Game.Tags));

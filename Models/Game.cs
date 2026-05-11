@@ -12,6 +12,7 @@ namespace GameLauncher.Models
         private string _name = string.Empty;
         private string _executablePath = string.Empty;
         private string _iconPath = string.Empty;
+        private string _gmdFilePath = string.Empty;
         private string _description = string.Empty;
         private DateTime _createdAt;
         private int _launchCount = 0;
@@ -19,6 +20,7 @@ namespace GameLauncher.Models
         private DateTime? _lastRunTime;
         private bool _isRunning = false;
         private bool _isFavorite = false;
+        private bool _isGmdFileReady = false;
         private ImageSource? _iconSource;
         private ObservableCollection<string> _imagePaths = new ObservableCollection<string>();
         private ObservableCollection<ImageSource> _imageSources = new ObservableCollection<ImageSource>();
@@ -77,6 +79,19 @@ namespace GameLauncher.Models
             }
         }
 
+        public string GmdFilePath
+        {
+            get => _gmdFilePath;
+            set
+            {
+                if (_gmdFilePath != value)
+                {
+                    _gmdFilePath = value;
+                    OnPropertyChanged(nameof(GmdFilePath));
+                }
+            }
+        }
+
         public ImageSource? IconSource
         {
             get => _iconSource;
@@ -100,16 +115,34 @@ namespace GameLauncher.Models
                     bitmapImage.UriSource = new Uri(_iconPath);
                     bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
                     IconSource = bitmapImage;
+                    return;
                 }
                 catch
                 {
-                    IconSource = null;
                 }
             }
-            else
+
+            if (!string.IsNullOrEmpty(_gmdFilePath) && System.IO.File.Exists(_gmdFilePath))
             {
-                IconSource = null;
+                try
+                {
+                    var iconPath = Services.GmdFileService.ExtractIconFromGmd(_gmdFilePath);
+                    if (!string.IsNullOrEmpty(iconPath) && System.IO.File.Exists(iconPath))
+                    {
+                        _iconPath = iconPath;
+                        var bitmapImage = new BitmapImage();
+                        bitmapImage.UriSource = new Uri(iconPath);
+                        bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                        IconSource = bitmapImage;
+                        return;
+                    }
+                }
+                catch
+                {
+                }
             }
+
+            IconSource = null;
         }
 
         public string Description
@@ -203,6 +236,19 @@ namespace GameLauncher.Models
             }
         }
 
+        public bool IsGmdFileReady
+        {
+            get => _isGmdFileReady;
+            set
+            {
+                if (_isGmdFileReady != value)
+                {
+                    _isGmdFileReady = value;
+                    OnPropertyChanged(nameof(IsGmdFileReady));
+                }
+            }
+        }
+
         public ObservableCollection<string> ImagePaths
         {
             get => _imagePaths;
@@ -214,6 +260,15 @@ namespace GameLauncher.Models
                     OnPropertyChanged(nameof(ImagePaths));
                     LoadImages();
                 }
+            }
+        }
+
+        public void AddImagePath(string path)
+        {
+            if (!string.IsNullOrEmpty(path) && !_imagePaths.Contains(path))
+            {
+                _imagePaths.Add(path);
+                LoadImages();
             }
         }
 
@@ -246,6 +301,8 @@ namespace GameLauncher.Models
         public void LoadImages()
         {
             _imageSources.Clear();
+            var hasValidImages = false;
+
             foreach (var imagePath in _imagePaths)
             {
                 if (!string.IsNullOrEmpty(imagePath) && System.IO.File.Exists(imagePath))
@@ -256,12 +313,35 @@ namespace GameLauncher.Models
                         bitmapImage.UriSource = new Uri(imagePath);
                         bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
                         _imageSources.Add(bitmapImage);
+                        hasValidImages = true;
                     }
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"加载图片失败: {imagePath}, 错误: {ex.Message}");
-                        // 忽略加载失败的图片
                     }
+                }
+            }
+
+            if (!hasValidImages && !string.IsNullOrEmpty(_gmdFilePath) && System.IO.File.Exists(_gmdFilePath))
+            {
+                try
+                {
+                    var gmdImages = Services.GmdFileService.ExtractImagesFromGmd(_gmdFilePath);
+                    foreach (var imgPath in gmdImages)
+                    {
+                        if (System.IO.File.Exists(imgPath))
+                        {
+                            _imagePaths.Add(imgPath);
+                            var bitmapImage = new BitmapImage();
+                            bitmapImage.UriSource = new Uri(imgPath);
+                            bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                            _imageSources.Add(bitmapImage);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"从.gmd加载图片失败: {ex.Message}");
                 }
             }
         }

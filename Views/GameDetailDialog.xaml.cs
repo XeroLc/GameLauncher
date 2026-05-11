@@ -71,6 +71,18 @@ namespace GameLauncher.Views
             // 获取大图预览控件的引用
             _largePreviewImage = FindName("LargePreviewImage") as Image;
             _largePreviewBorder = FindName("LargePreviewBorder") as Border;
+
+            // 根据游戏运行状态显示正确的按钮
+            if (_game.IsRunning)
+            {
+                LaunchButton.Visibility = Visibility.Collapsed;
+                StopButton.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                LaunchButton.Visibility = Visibility.Visible;
+                StopButton.Visibility = Visibility.Collapsed;
+            }
         }
 
         private void Image_PointerEntered(object sender, PointerRoutedEventArgs e)
@@ -338,7 +350,7 @@ namespace GameLauncher.Views
             var success = await _gameService.LaunchGameAsync(_game);
             if (success)
             {
-                Hide();
+                ShowStopButton();
             }
             else
             {
@@ -352,6 +364,208 @@ namespace GameLauncher.Views
                 };
                 await errorDialog.ShowAsync();
             }
+        }
+
+        private async void StopButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_game == null)
+            {
+                return;
+            }
+
+            var success = await _gameService.UpdateGameRunningStatusAsync(_game.Id, false);
+            if (success)
+            {
+                ShowLaunchButton();
+            }
+        }
+
+        private void ShowStopButton()
+        {
+            if (LaunchButton == null || StopButton == null || LaunchScaleTransform == null || StopScaleTransform == null)
+                return;
+
+            LaunchButton.IsEnabled = false;
+
+            var scaleXOut = new DoubleAnimation
+            {
+                From = 1.0,
+                To = 0.5,
+                Duration = new Duration(TimeSpan.FromMilliseconds(150)),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
+            };
+            Storyboard.SetTarget(scaleXOut, LaunchScaleTransform);
+            Storyboard.SetTargetProperty(scaleXOut, "ScaleX");
+
+            var scaleYOut = new DoubleAnimation
+            {
+                From = 1.0,
+                To = 0.5,
+                Duration = new Duration(TimeSpan.FromMilliseconds(150)),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
+            };
+            Storyboard.SetTarget(scaleYOut, LaunchScaleTransform);
+            Storyboard.SetTargetProperty(scaleYOut, "ScaleY");
+
+            var opacityOut = new DoubleAnimation
+            {
+                From = 1.0,
+                To = 0,
+                Duration = new Duration(TimeSpan.FromMilliseconds(150)),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
+            };
+            Storyboard.SetTarget(opacityOut, LaunchButton);
+            Storyboard.SetTargetProperty(opacityOut, "Opacity");
+
+            var storyboardOut = new Storyboard();
+            storyboardOut.Children.Add(scaleXOut);
+            storyboardOut.Children.Add(scaleYOut);
+            storyboardOut.Children.Add(opacityOut);
+            storyboardOut.Begin();
+
+            storyboardOut.Completed += (s, e) =>
+            {
+                LaunchButton.Visibility = Visibility.Collapsed;
+                StopButton.Visibility = Visibility.Visible;
+
+                StopScaleTransform.ScaleX = 0.5;
+                StopScaleTransform.ScaleY = 0.5;
+
+                var scaleXIn = new DoubleAnimation
+                {
+                    From = 0.5,
+                    To = 1.0,
+                    Duration = new Duration(TimeSpan.FromMilliseconds(150)),
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                };
+                Storyboard.SetTarget(scaleXIn, StopScaleTransform);
+                Storyboard.SetTargetProperty(scaleXIn, "ScaleX");
+
+                var scaleYIn = new DoubleAnimation
+                {
+                    From = 0.5,
+                    To = 1.0,
+                    Duration = new Duration(TimeSpan.FromMilliseconds(150)),
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                };
+                Storyboard.SetTarget(scaleYIn, StopScaleTransform);
+                Storyboard.SetTargetProperty(scaleYIn, "ScaleY");
+
+                var opacityIn = new DoubleAnimation
+                {
+                    From = 0,
+                    To = 1,
+                    Duration = new Duration(TimeSpan.FromMilliseconds(150)),
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                };
+                Storyboard.SetTarget(opacityIn, StopButton);
+                Storyboard.SetTargetProperty(opacityIn, "Opacity");
+
+                var storyboardIn = new Storyboard();
+                storyboardIn.Children.Add(scaleXIn);
+                storyboardIn.Children.Add(scaleYIn);
+                storyboardIn.Children.Add(opacityIn);
+                storyboardIn.Begin();
+
+                storyboardIn.Completed += (s2, e2) =>
+                {
+                    StopButton.IsEnabled = true;
+                };
+            };
+        }
+
+        private void ShowLaunchButton()
+        {
+            if (LaunchButton == null || StopButton == null || LaunchScaleTransform == null || StopScaleTransform == null)
+                return;
+
+            StopButton.IsEnabled = false;
+
+            var scaleXOut = new DoubleAnimation
+            {
+                From = 1.0,
+                To = 0.5,
+                Duration = new Duration(TimeSpan.FromMilliseconds(150)),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
+            };
+            Storyboard.SetTarget(scaleXOut, StopScaleTransform);
+            Storyboard.SetTargetProperty(scaleXOut, "ScaleX");
+
+            var scaleYOut = new DoubleAnimation
+            {
+                From = 1.0,
+                To = 0.5,
+                Duration = new Duration(TimeSpan.FromMilliseconds(150)),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
+            };
+            Storyboard.SetTarget(scaleYOut, StopScaleTransform);
+            Storyboard.SetTargetProperty(scaleYOut, "ScaleY");
+
+            var opacityOut = new DoubleAnimation
+            {
+                From = 1.0,
+                To = 0,
+                Duration = new Duration(TimeSpan.FromMilliseconds(150)),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
+            };
+            Storyboard.SetTarget(opacityOut, StopButton);
+            Storyboard.SetTargetProperty(opacityOut, "Opacity");
+
+            var storyboardOut = new Storyboard();
+            storyboardOut.Children.Add(scaleXOut);
+            storyboardOut.Children.Add(scaleYOut);
+            storyboardOut.Children.Add(opacityOut);
+            storyboardOut.Begin();
+
+            storyboardOut.Completed += (s, e) =>
+            {
+                StopButton.Visibility = Visibility.Collapsed;
+                LaunchButton.Visibility = Visibility.Visible;
+
+                LaunchScaleTransform.ScaleX = 0.5;
+                LaunchScaleTransform.ScaleY = 0.5;
+
+                var scaleXIn = new DoubleAnimation
+                {
+                    From = 0.5,
+                    To = 1.0,
+                    Duration = new Duration(TimeSpan.FromMilliseconds(150)),
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                };
+                Storyboard.SetTarget(scaleXIn, LaunchScaleTransform);
+                Storyboard.SetTargetProperty(scaleXIn, "ScaleX");
+
+                var scaleYIn = new DoubleAnimation
+                {
+                    From = 0.5,
+                    To = 1.0,
+                    Duration = new Duration(TimeSpan.FromMilliseconds(150)),
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                };
+                Storyboard.SetTarget(scaleYIn, LaunchScaleTransform);
+                Storyboard.SetTargetProperty(scaleYIn, "ScaleY");
+
+                var opacityIn = new DoubleAnimation
+                {
+                    From = 0,
+                    To = 1,
+                    Duration = new Duration(TimeSpan.FromMilliseconds(150)),
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                };
+                Storyboard.SetTarget(opacityIn, LaunchButton);
+                Storyboard.SetTargetProperty(opacityIn, "Opacity");
+
+                var storyboardIn = new Storyboard();
+                storyboardIn.Children.Add(scaleXIn);
+                storyboardIn.Children.Add(scaleYIn);
+                storyboardIn.Children.Add(opacityIn);
+                storyboardIn.Begin();
+
+                storyboardIn.Completed += (s2, e2) =>
+                {
+                    LaunchButton.IsEnabled = true;
+                };
+            };
         }
     }
 }

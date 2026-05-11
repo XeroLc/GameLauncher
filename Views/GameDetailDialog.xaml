@@ -194,17 +194,37 @@
                     </StackPanel>
                 </Button>
 
-                <Button x:Name="LaunchButton"
-                        Grid.Column="1"
-                        Click="LaunchButton_Click"
-                        Style="{StaticResource FrostedAccentButtonStyle}"
-                        HorizontalAlignment="Stretch"
-                        Height="40">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <FontIcon Glyph="&#xE768;" FontSize="14"/>
-                        <TextBlock Text="启动游戏"/>
-                    </StackPanel>
-                </Button>
+                <Grid Grid.Column="1" HorizontalAlignment="Stretch" Height="40">
+                    <Button x:Name="LaunchButton"
+                            Click="LaunchButton_Click"
+                            Style="{StaticResource FrostedAccentButtonStyle}"
+                            HorizontalAlignment="Stretch"
+                            RenderTransformOrigin="0.5,0.5"
+                            HorizontalContentAlignment="Center">
+                        <Button.RenderTransform>
+                            <ScaleTransform x:Name="LaunchScaleTransform" ScaleX="1" ScaleY="1"/>
+                        </Button.RenderTransform>
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                            <FontIcon Glyph="&#xE768;" FontSize="14"/>
+                            <TextBlock Text="启动游戏"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="StopButton"
+                            Click="StopButton_Click"
+                            Style="{StaticResource FrostedStopButtonStyle}"
+                            HorizontalAlignment="Stretch"
+                            Visibility="Collapsed"
+                            RenderTransformOrigin="0.5,0.5"
+                            HorizontalContentAlignment="Center">
+                        <Button.RenderTransform>
+                            <ScaleTransform x:Name="StopScaleTransform" ScaleX="0.5" ScaleY="0.5"/>
+                        </Button.RenderTransform>
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                            <FontIcon Glyph="&#xE71A;" FontSize="14"/>
+                            <TextBlock Text="终止游戏"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
             </Grid>
 
         </StackPanel>
