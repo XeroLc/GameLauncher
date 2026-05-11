@@ -1,4 +1,4 @@
-using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -343,7 +343,7 @@ namespace GameLauncher
         /// 静默刷新 — 仅在检测到数据变更时才执行更新
         /// 不会清空现有数据，避免界面闪烁
         /// </summary>
-        private async System.Threading.Tasks.Task<SyncSummary> SilentRefreshGamesAsync()
+        private async System.Threading.Tasks.Task<SyncSummary> SilentRefreshGamesAsync(bool forceUiUpdate = false)
         {
             try
             {
@@ -389,7 +389,7 @@ namespace GameLauncher
                     }
                 );
 
-                if (summary.HasChanges)
+                if (summary.HasChanges || forceUiUpdate)
                 {
                     RunOnUi(() =>
                     {
@@ -737,7 +737,7 @@ namespace GameLauncher
                     try
                     {
                         await _gameService.AddGameAsync(newGame);
-                        await SilentRefreshGamesAsync();
+                        await SilentRefreshGamesAsync(forceUiUpdate: true);
                     }
                     catch (Exception ex)
                     {
@@ -833,7 +833,7 @@ namespace GameLauncher
                         try
                         {
                             await _gameService.UpdateGameAsync(game);
-                            await SilentRefreshGamesAsync();
+                            await SilentRefreshGamesAsync(forceUiUpdate: true);
                         }
                         catch (Exception ex)
                         {
@@ -884,7 +884,7 @@ namespace GameLauncher
                         var success = await _gameService.DeleteGameAsync(game.Id);
                         if (success)
                         {
-                            await SilentRefreshGamesAsync();
+                            await SilentRefreshGamesAsync(forceUiUpdate: true);
                         }
                         else
                         {
@@ -1083,7 +1083,7 @@ namespace GameLauncher
                         await _gameService.DeleteGameAsync(id);
                     }
 
-                    await SilentRefreshGamesAsync();
+                    await SilentRefreshGamesAsync(forceUiUpdate: true);
 
                     // 取消选择模式
                     CancelSelectButton_Click(sender, e);
@@ -1272,7 +1272,7 @@ namespace GameLauncher
                 try
                 {
                     await _gameService.AddGameAsync(newGame);
-                    await SilentRefreshGamesAsync();
+                    await SilentRefreshGamesAsync(forceUiUpdate: true);
                     
                     var successDialog = new ContentDialog
                     {

@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -102,26 +103,136 @@ namespace GameLauncher.Views
         {
             if (sender is Grid grid && grid.Children.Count > 0)
             {
-                // 获取图片源并显示大图
                 if (grid.Children[0] is Border border && border.Child is Image image)
                 {
                     LargeImageSource = image.Source;
-                    if (_largePreviewBorder != null)
-                    {
-                        _largePreviewBorder.Visibility = Visibility.Visible;
-                    }
+                    ShowLargePreview();
                 }
             }
         }
 
-        private void LargePreview_Tapped(object sender, TappedRoutedEventArgs e)
+        private void ImageOverlay_Tapped(object sender, TappedRoutedEventArgs e)
         {
-            // 隐藏大图
-            if (_largePreviewBorder != null)
+            HideLargePreview();
+        }
+
+        private void ShowLargePreview()
+        {
+            if (ImageOverlay == null || LargePreviewBorder == null || PreviewScaleTransform == null)
+                return;
+
+            ImageOverlay.Visibility = Visibility.Visible;
+
+            PreviewScaleTransform.ScaleX = 0.6;
+            PreviewScaleTransform.ScaleY = 0.6;
+            LargePreviewBorder.Opacity = 0;
+
+            var overlayAnim = new DoubleAnimation
             {
-                _largePreviewBorder.Visibility = Visibility.Collapsed;
-            }
-            LargeImageSource = null;
+                From = 0,
+                To = 1,
+                Duration = new Duration(TimeSpan.FromMilliseconds(250)),
+                EasingFunction = new QuadraticEase()
+            };
+            Storyboard.SetTarget(overlayAnim, ImageOverlay);
+            Storyboard.SetTargetProperty(overlayAnim, "Opacity");
+
+            var scaleXAnim = new DoubleAnimation
+            {
+                From = 0.6,
+                To = 1.0,
+                Duration = new Duration(TimeSpan.FromMilliseconds(300)),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            Storyboard.SetTarget(scaleXAnim, PreviewScaleTransform);
+            Storyboard.SetTargetProperty(scaleXAnim, "ScaleX");
+
+            var scaleYAnim = new DoubleAnimation
+            {
+                From = 0.6,
+                To = 1.0,
+                Duration = new Duration(TimeSpan.FromMilliseconds(300)),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            Storyboard.SetTarget(scaleYAnim, PreviewScaleTransform);
+            Storyboard.SetTargetProperty(scaleYAnim, "ScaleY");
+
+            var borderOpacityAnim = new DoubleAnimation
+            {
+                From = 0,
+                To = 1,
+                Duration = new Duration(TimeSpan.FromMilliseconds(200)),
+                EasingFunction = new QuadraticEase()
+            };
+            Storyboard.SetTarget(borderOpacityAnim, LargePreviewBorder);
+            Storyboard.SetTargetProperty(borderOpacityAnim, "Opacity");
+
+            var storyboard = new Storyboard();
+            storyboard.Children.Add(overlayAnim);
+            storyboard.Children.Add(scaleXAnim);
+            storyboard.Children.Add(scaleYAnim);
+            storyboard.Children.Add(borderOpacityAnim);
+            storyboard.Begin();
+        }
+
+        private void HideLargePreview()
+        {
+            if (ImageOverlay == null || LargePreviewBorder == null || PreviewScaleTransform == null)
+                return;
+
+            var overlayAnim = new DoubleAnimation
+            {
+                From = 1,
+                To = 0,
+                Duration = new Duration(TimeSpan.FromMilliseconds(200)),
+                EasingFunction = new QuadraticEase()
+            };
+            Storyboard.SetTarget(overlayAnim, ImageOverlay);
+            Storyboard.SetTargetProperty(overlayAnim, "Opacity");
+
+            var scaleXAnim = new DoubleAnimation
+            {
+                From = 1.0,
+                To = 0.85,
+                Duration = new Duration(TimeSpan.FromMilliseconds(150)),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+            };
+            Storyboard.SetTarget(scaleXAnim, PreviewScaleTransform);
+            Storyboard.SetTargetProperty(scaleXAnim, "ScaleX");
+
+            var scaleYAnim = new DoubleAnimation
+            {
+                From = 1.0,
+                To = 0.85,
+                Duration = new Duration(TimeSpan.FromMilliseconds(150)),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+            };
+            Storyboard.SetTarget(scaleYAnim, PreviewScaleTransform);
+            Storyboard.SetTargetProperty(scaleYAnim, "ScaleY");
+
+            var borderOpacityAnim = new DoubleAnimation
+            {
+                From = 1,
+                To = 0,
+                Duration = new Duration(TimeSpan.FromMilliseconds(150)),
+                EasingFunction = new QuadraticEase()
+            };
+            Storyboard.SetTarget(borderOpacityAnim, LargePreviewBorder);
+            Storyboard.SetTargetProperty(borderOpacityAnim, "Opacity");
+
+            var storyboard = new Storyboard();
+            storyboard.Children.Add(overlayAnim);
+            storyboard.Children.Add(scaleXAnim);
+            storyboard.Children.Add(scaleYAnim);
+            storyboard.Children.Add(borderOpacityAnim);
+
+            storyboard.Completed += (s, e) =>
+            {
+                ImageOverlay.Visibility = Visibility.Collapsed;
+                LargeImageSource = null;
+            };
+
+            storyboard.Begin();
         }
 
         private string FormatPlayTime(long totalSeconds)

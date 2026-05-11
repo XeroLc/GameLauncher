@@ -82,14 +82,14 @@ namespace GameLauncher.Services
             foreach (var game in games.OrderBy(g => g.Id))
             {
                 sb.Append(game.Id)
-                  .Append("|").Append(game.Name)
-                  .Append("|").Append(game.ExecutablePath)
+                  .Append("|").Append(game.Name ?? "")
+                  .Append("|").Append(game.ExecutablePath ?? "")
                   .Append("|").Append(game.LaunchCount)
                   .Append("|").Append(game.TotalPlayTime)
-                  .Append("|").Append(game.IsRunning)
                   .Append("|").Append(game.IsFavorite)
                   .Append("|").Append(game.LastRunTime?.ToString("o") ?? "")
                   .Append("|").Append(game.Description ?? "")
+                  .Append("|").Append(game.IconPath ?? "")
                   .Append("|").Append(string.Join(",", game.Tags.OrderBy(t => t)))
                   .Append("|").Append(string.Join(",", game.ImagePaths.OrderBy(p => p)))
                   .Append(";");
@@ -162,13 +162,13 @@ namespace GameLauncher.Services
         {
             var changedFields = new List<string>();
 
-            if (existing.Name != latest.Name)
+            if (NormalizeString(existing.Name) != NormalizeString(latest.Name))
                 changedFields.Add(nameof(Game.Name));
 
-            if (existing.ExecutablePath != latest.ExecutablePath)
+            if (NormalizeString(existing.ExecutablePath) != NormalizeString(latest.ExecutablePath))
                 changedFields.Add(nameof(Game.ExecutablePath));
 
-            if (existing.Description != latest.Description)
+            if (NormalizeString(existing.Description) != NormalizeString(latest.Description))
                 changedFields.Add(nameof(Game.Description));
 
             if (existing.LaunchCount != latest.LaunchCount)
@@ -177,27 +177,21 @@ namespace GameLauncher.Services
             if (existing.TotalPlayTime != latest.TotalPlayTime)
                 changedFields.Add(nameof(Game.TotalPlayTime));
 
-            if (existing.IsRunning != latest.IsRunning)
-                changedFields.Add(nameof(Game.IsRunning));
-
             if (existing.IsFavorite != latest.IsFavorite)
                 changedFields.Add(nameof(Game.IsFavorite));
 
             if (existing.LastRunTime != latest.LastRunTime)
                 changedFields.Add(nameof(Game.LastRunTime));
 
-            if (existing.IconPath != latest.IconPath)
+            if (NormalizeString(existing.IconPath) != NormalizeString(latest.IconPath))
                 changedFields.Add(nameof(Game.IconPath));
 
-            // 对比 Tags 集合
             if (!AreCollectionsEqual(existing.Tags, latest.Tags))
                 changedFields.Add(nameof(Game.Tags));
 
-            // 对比 ImagePaths 集合
             if (!AreCollectionsEqual(existing.ImagePaths, latest.ImagePaths))
                 changedFields.Add(nameof(Game.ImagePaths));
 
-            // 执行自定义对比规则
             foreach (var comparer in _customComparers)
             {
                 var customChanges = comparer(existing, latest);
@@ -208,6 +202,11 @@ namespace GameLauncher.Services
             }
 
             return changedFields;
+        }
+
+        private static string NormalizeString(string? value)
+        {
+            return string.IsNullOrEmpty(value) ? string.Empty : value;
         }
 
         /// <summary>

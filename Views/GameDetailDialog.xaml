@@ -109,61 +109,72 @@
                         Background="{StaticResource FrostedGlassCardBrush}"
                         CornerRadius="8"
                         MinHeight="100">
-                    <Grid>
-                        <GridView x:Name="PreviewImagesItemsControl"
-                                  ItemsSource="{x:Bind ImageSources}"
-                                  Padding="4"
-                                  SelectionMode="None"
-                                  IsItemClickEnabled="False">
-                            <GridView.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="3"/>
-                                </ItemsPanelTemplate>
-                            </GridView.ItemsPanel>
-                            <GridView.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Width="130" Height="80" Margin="4"
-                                          Tapped="Image_Tapped"
-                                          PointerEntered="Image_PointerEntered"
-                                          PointerExited="Image_PointerExited">
-                                        <Border CornerRadius="4" Clip="{Binding ElementName=InnerImage}"
-                                                Background="{StaticResource FrostedGlassCardBrush}">
-                                            <Image x:Name="InnerImage" Source="{Binding}" Stretch="UniformToFill"/>
-                                        </Border>
-                                        <Border CornerRadius="4"
-                                                Background="{StaticResource FrostedGlassCardBrush}"
-                                                Opacity="0.85"
-                                                Visibility="Collapsed"
-                                                x:Name="HoverOverlay">
-                                            <Grid>
-                                                <FontIcon Glyph="&#xE8A3;" FontSize="24"
-                                                          Foreground="{ThemeResource TextFillColorPrimaryBrush}"
-                                                          HorizontalAlignment="Center"
-                                                          VerticalAlignment="Center"/>
-                                            </Grid>
-                                        </Border>
-                                    </Grid>
-                                </DataTemplate>
-                            </GridView.ItemTemplate>
-                        </GridView>
-                        <Border x:Name="LargePreviewBorder"
-                                CornerRadius="8"
-                                Background="{StaticResource FrostedGlassCardBrush}"
-                                Visibility="Collapsed"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                MaxWidth="400"
-                                MaxHeight="300"
-                                BorderBrush="{StaticResource FrostBorderBrush}"
-                                BorderThickness="1"
-                                Tapped="LargePreview_Tapped">
-                            <Image x:Name="LargePreviewImage"
-                                   Source="{x:Bind LargeImageSource, Mode=OneWay}"
-                                   Stretch="Uniform"/>
-                        </Border>
-                    </Grid>
+                    <GridView x:Name="PreviewImagesItemsControl"
+                              ItemsSource="{x:Bind ImageSources}"
+                              Padding="4"
+                              SelectionMode="None"
+                              IsItemClickEnabled="False">
+                        <GridView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="3"/>
+                            </ItemsPanelTemplate>
+                        </GridView.ItemsPanel>
+                        <GridView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Width="130" Height="80" Margin="4"
+                                      Tapped="Image_Tapped"
+                                      PointerEntered="Image_PointerEntered"
+                                      PointerExited="Image_PointerExited">
+                                    <Border CornerRadius="4" Clip="{Binding ElementName=InnerImage}"
+                                            Background="{StaticResource FrostedGlassCardBrush}">
+                                        <Image x:Name="InnerImage" Source="{Binding}" Stretch="UniformToFill"/>
+                                    </Border>
+                                    <Border CornerRadius="4"
+                                            Background="{StaticResource FrostedGlassCardBrush}"
+                                            Opacity="0.85"
+                                            Visibility="Collapsed"
+                                            x:Name="HoverOverlay">
+                                        <Grid>
+                                            <FontIcon Glyph="&#xE8A3;" FontSize="24"
+                                                      Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </DataTemplate>
+                        </GridView.ItemTemplate>
+                    </GridView>
                 </Border>
             </StackPanel>
+
+            <Grid x:Name="ImageOverlay"
+                  Visibility="Collapsed"
+                  Background="#99000000"
+                  Tapped="ImageOverlay_Tapped"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch"
+                  Canvas.ZIndex="100"
+                  Opacity="0">
+                <Border x:Name="LargePreviewBorder"
+                        CornerRadius="12"
+                        Background="Transparent"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        MaxWidth="420"
+                        MaxHeight="320"
+                        BorderBrush="{StaticResource FrostBorderBrush}"
+                        BorderThickness="1"
+                        Padding="4"
+                        RenderTransformOrigin="0.5,0.5">
+                    <Border.RenderTransform>
+                        <ScaleTransform x:Name="PreviewScaleTransform" ScaleX="0.5" ScaleY="0.5"/>
+                    </Border.RenderTransform>
+                    <Image x:Name="LargePreviewImage"
+                           Source="{x:Bind LargeImageSource, Mode=OneWay}"
+                           Stretch="Uniform"/>
+                </Border>
+            </Grid>
 
             <Grid Margin="0,8,0,0" ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
