@@ -1,5 +1,6 @@
 using GameLauncher.Models;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -7,6 +8,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
@@ -18,6 +20,8 @@ namespace GameLauncher.Services
         private const string MetadataFileName = "metadata.json";
         private const string IconFileName = "icon.png";
         private const string ImagesDirectoryName = "images";
+
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> _fileLocks = new(StringComparer.OrdinalIgnoreCase);
 
         public string GetGmdFilePath(string executablePath, string gameName)
         {
@@ -274,11 +278,15 @@ namespace GameLauncher.Services
             if (!File.Exists(gmdFilePath))
                 throw new FileNotFoundException(".gmd文件不存在", gmdFilePath);
 
-            await Task.Run(() =>
+            var semaphore = _fileLocks.GetOrAdd(gmdFilePath, _ => new SemaphoreSlim(1, 1));
+            await semaphore.WaitAsync();
+            try
             {
                 var tempFilePath = gmdFilePath + ".tmp";
 
-                try
+                DeleteTempFileIfExists(tempFilePath);
+
+                await Task.Run(() =>
                 {
                     using (var sourceArchive = ZipFile.OpenRead(gmdFilePath))
                     using (var tempArchive = ZipFile.Open(tempFilePath, ZipArchiveMode.Create))
@@ -311,29 +319,51 @@ namespace GameLauncher.Services
                         }
                     }
 
-                    File.Delete(gmdFilePath);
+                    FileDeleteWithRetry(gmdFilePath);
                     File.Move(tempFilePath, gmdFilePath);
 
                     Debug.WriteLine($"[GmdFileService] 成功更新.gmd元数据: {gmdFilePath}");
-                }
-                catch
-                {
-                    if (File.Exists(tempFilePath))
-                    {
-                        try
-                        {
-                            File.Delete(tempFilePath);
-                        }
-                        catch
-                        {
-                        }
-                    }
-                    throw;
-                }
-            });
+                });
+            }
+            catch
+            {
+                var tempFilePath = gmdFilePath + ".tmp";
+                DeleteTempFileIfExists(tempFilePath);
+                throw;
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         }
 
-        private GmdMetadata CreateMetadataFromGame(Game game)
+        private static void DeleteTempFileIfExists(string path)
+        {
+            if (File.Exists(path))
+            {
+                try { File.Delete(path); }
+                catch { }
+            }
+        }
+
+        private static void FileDeleteWithRetry(string path, int maxRetries = 5, int delayMs = 200)
+        {
+            for (int i = 0; i < maxRetries; i++)
+            {
+                try
+                {
+                    File.Delete(path);
+                    return;
+                }
+                catch (IOException) when (i < maxRetries - 1)
+                {
+                    Thread.Sleep(delayMs);
+                }
+            }
+            File.Delete(path);
+        }
+
+        public GmdMetadata CreateMetadataFromGame(Game game)
         {
             var relativePath = "";
             try
@@ -357,8 +387,8 @@ namespace GameLauncher.Services
                 LaunchCount = game.LaunchCount,
                 TotalPlayTime = game.TotalPlayTime,
                 LastRunTime = game.LastRunTime,
-                IsFavorite = game.IsFavorite,
                 Tags = game.Tags?.ToList() ?? new List<string>(),
+                Collections = game.Collections?.Select(c => c.Name).ToList() ?? new List<string>(),
                 Version = 1
             };
         }
@@ -392,8 +422,7 @@ namespace GameLauncher.Services
                 CreatedAt = metadata.CreatedAt,
                 LaunchCount = metadata.LaunchCount,
                 TotalPlayTime = metadata.TotalPlayTime,
-                LastRunTime = metadata.LastRunTime,
-                IsFavorite = metadata.IsFavorite
+                LastRunTime = metadata.LastRunTime
             };
 
             if (metadata.Tags != null)
@@ -401,6 +430,14 @@ namespace GameLauncher.Services
                 foreach (var tag in metadata.Tags)
                 {
                     game.Tags.Add(tag);
+                }
+            }
+
+            if (metadata.Collections != null)
+            {
+                foreach (var colName in metadata.Collections)
+                {
+                    game.Collections.Add(new GameCollection { Name = colName });
                 }
             }
 
@@ -554,6 +591,34 @@ namespace GameLauncher.Services
 
             return sanitized;
         }
+
+        public async Task SyncGameToGmdAsync(Game game)
+        {
+            if (game == null)
+                throw new ArgumentNullException(nameof(game));
+
+            try
+            {
+                var gmdPath = game.GmdFilePath;
+                if (string.IsNullOrEmpty(gmdPath))
+                {
+                    gmdPath = GetGmdFilePath(game.ExecutablePath, game.Name);
+                }
+
+                if (File.Exists(gmdPath))
+                {
+                    await UpdateGmdMetadataAsync(gmdPath, game);
+                }
+                else
+                {
+                    await SerializeGameToGmdAsync(game);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GmdFileService] 同步gmd失败: {ex.Message}");
+            }
+        }
     }
 
     public class GmdMetadata
@@ -582,11 +647,11 @@ namespace GameLauncher.Services
         [JsonPropertyName("lastRunTime")]
         public DateTime? LastRunTime { get; set; }
 
-        [JsonPropertyName("isFavorite")]
-        public bool IsFavorite { get; set; }
-
         [JsonPropertyName("tags")]
         public List<string> Tags { get; set; } = new();
+
+        [JsonPropertyName("collections")]
+        public List<string> Collections { get; set; } = new();
 
         [JsonPropertyName("version")]
         public int Version { get; set; } = 1;

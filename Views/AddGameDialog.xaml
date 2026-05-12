@@ -21,16 +21,45 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
+
+            <!-- .gmd文件快速添加 -->
+            <Grid Grid.Row="0" RowSpacing="4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" 
+                           Text="快速添加（从.gmd文件）" 
+                           Style="{ThemeResource BaseTextBlockStyle}"/>
+                <Grid Grid.Row="1" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="GmdPathTextBox" 
+                             Grid.Column="0"
+                             PlaceholderText="选择.gmd文件以自动填充游戏信息"
+                             IsReadOnly="True"/>
+                    <Button x:Name="BrowseGmdButton"
+                            Grid.Column="1"
+                            Click="BrowseGmdButton_Click"
+                            ToolTipService.ToolTip="选择.gmd文件"
+                            Style="{StaticResource FrostedDefaultButtonStyle}"
+                            Content="选择.gmd"/>
+                </Grid>
+            </Grid>
 
             <!-- 游戏名称 -->
             <TextBox x:Name="GameNameTextBox" 
-                     Grid.Row="0"
+                     Grid.Row="1"
                      Header="游戏名称" 
                      PlaceholderText="请输入游戏名称"/>
 
             <!-- 游戏路径 -->
-            <Grid Grid.Row="1" RowSpacing="4">
+            <Grid Grid.Row="2" RowSpacing="4">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -59,7 +88,7 @@
             </Grid>
 
             <!-- 图标路径 -->
-            <Grid Grid.Row="2" RowSpacing="4">
+            <Grid Grid.Row="3" RowSpacing="4">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -90,7 +119,7 @@
 
             <!-- 游戏描述 -->
             <TextBox x:Name="DescriptionTextBox" 
-                     Grid.Row="3"
+                     Grid.Row="4"
                      Header="游戏描述（可选）" 
                      PlaceholderText="请输入游戏描述"
                      TextWrapping="Wrap"
@@ -98,7 +127,7 @@
                      MinHeight="80"/>
 
             <!-- 标签管理 -->
-            <StackPanel Grid.Row="4" Spacing="8">
+            <StackPanel Grid.Row="5" Spacing="8">
                 <TextBlock Text="标签管理" 
                            Style="{ThemeResource SubtitleTextBlockStyle}" 
                            FontSize="16"/>
@@ -176,8 +205,30 @@
                 </ItemsControl>
             </StackPanel>
 
+            <!-- 收藏夹选择 -->
+            <StackPanel Grid.Row="6" Spacing="8">
+                <TextBlock Text="收藏夹" 
+                           Style="{ThemeResource SubtitleTextBlockStyle}" 
+                           FontSize="16"/>
+                <ItemsControl x:Name="CollectionsItemsControl">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapGrid Orientation="Horizontal" MaximumRowsOrColumns="3" HorizontalAlignment="Left"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <CheckBox Content="{Binding Name}" 
+                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                      Margin="0,0,16,6"
+                                      FontSize="14"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
             <!-- 预览图片 -->
-            <StackPanel Grid.Row="5" Spacing="8">
+            <StackPanel Grid.Row="7" Spacing="8">
                 <TextBlock Text="游戏预览图" 
                            Style="{ThemeResource SubtitleTextBlockStyle}" 
                            FontSize="16"/>

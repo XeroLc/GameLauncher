@@ -3,6 +3,8 @@ using GameLauncher.Models;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GameLauncher.Services
@@ -10,10 +12,16 @@ namespace GameLauncher.Services
     public class GameService
     {
         private readonly GameRepository _repository;
+        private readonly CollectionRepository _collectionRepo;
+        private readonly DiskScanService _diskScanService;
+        private readonly GmdFileService _gmdFileService;
 
-        public GameService(GameRepository repository)
+        public GameService(GameRepository repository, DatabaseContext dbContext)
         {
             _repository = repository;
+            _collectionRepo = new CollectionRepository(dbContext);
+            _diskScanService = new DiskScanService();
+            _gmdFileService = new GmdFileService();
         }
 
         public async Task<List<Game>> GetAllGamesAsync()
@@ -65,7 +73,12 @@ namespace GameLauncher.Services
                 throw new ArgumentException("游戏路径不存在");
             }
 
-            return await _repository.UpdateGameAsync(game);
+            var result = await _repository.UpdateGameAsync(game);
+            if (result)
+            {
+                _ = SyncGmdAsync(game.Id);
+            }
+            return result;
         }
 
         public async Task<bool> DeleteGameAsync(int id)
@@ -89,7 +102,6 @@ namespace GameLauncher.Services
 
                 ProcessStartInfo startInfo;
 
-                // bat文件需要通过cmd.exe启动
                 if (extension == ".bat")
                 {
                     startInfo = new ProcessStartInfo
@@ -102,7 +114,6 @@ namespace GameLauncher.Services
                 }
                 else
                 {
-                    // exe和lnk文件直接启动
                     startInfo = new ProcessStartInfo
                     {
                         FileName = game.ExecutablePath,
@@ -138,7 +149,6 @@ namespace GameLauncher.Services
             game.TotalPlayTime += additionalTime;
             game.IsRunning = false;
 
-            // 确保.gmd文件路径已设置
             if (string.IsNullOrEmpty(game.GmdFilePath))
             {
                 try
@@ -148,7 +158,12 @@ namespace GameLauncher.Services
                 catch { }
             }
 
-            return await _repository.UpdateGameAsync(game);
+            var result = await _repository.UpdateGameAsync(game);
+            if (result)
+            {
+                _ = SyncGmdAsync(gameId);
+            }
+            return result;
         }
 
         public async Task<bool> UpdateGameRunningStatusAsync(int gameId, bool isRunning)
@@ -170,7 +185,12 @@ namespace GameLauncher.Services
                 catch { }
             }
 
-            return await _repository.UpdateGameAsync(game);
+            var result = await _repository.UpdateGameAsync(game);
+            if (result)
+            {
+                _ = SyncGmdAsync(gameId);
+            }
+            return result;
         }
 
         public async Task<bool> StopGameAsync(Game game, DateTime? startTime = null)
@@ -188,7 +208,7 @@ namespace GameLauncher.Services
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"终止进程失败: {process.ProcessName}, 错误: {ex.Message}");
+                        Debug.WriteLine($"终止进程失败: {process.ProcessName}, 错误: {ex.Message}");
                     }
                     finally
                     {
@@ -221,9 +241,139 @@ namespace GameLauncher.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"停止游戏失败: {ex.Message}");
+                Debug.WriteLine($"停止游戏失败: {ex.Message}");
                 return false;
             }
+        }
+
+        public async Task<List<GameCollection>> GetAllCollectionsAsync()
+        {
+            return await _collectionRepo.GetAllCollectionsAsync();
+        }
+
+        public async Task<GameCollection> AddCollectionAsync(string name)
+        {
+            return await _collectionRepo.AddCollectionAsync(name);
+        }
+
+        public async Task<bool> UpdateCollectionAsync(GameCollection collection)
+        {
+            return await _collectionRepo.UpdateCollectionAsync(collection);
+        }
+
+        public async Task<bool> DeleteCollectionAsync(int id)
+        {
+            return await _collectionRepo.DeleteCollectionAsync(id);
+        }
+
+        public async Task<bool> AddGameToCollectionAsync(int gameId, int collectionId)
+        {
+            var result = await _collectionRepo.AddGameToCollectionAsync(gameId, collectionId);
+            if (result)
+            {
+                _ = SyncGmdAsync(gameId);
+            }
+            return result;
+        }
+
+        public async Task<bool> RemoveGameFromCollectionAsync(int gameId, int collectionId)
+        {
+            var result = await _collectionRepo.RemoveGameFromCollectionAsync(gameId, collectionId);
+            if (result)
+            {
+                _ = SyncGmdAsync(gameId);
+            }
+            return result;
+        }
+
+        public async Task<List<GameCollection>> GetCollectionsForGameAsync(int gameId)
+        {
+            return await _collectionRepo.GetCollectionsForGameAsync(gameId);
+        }
+
+        public async Task<int> GetCollectionGameCountAsync(int collectionId)
+        {
+            return await _collectionRepo.GetCollectionGameCountAsync(collectionId);
+        }
+
+        public async Task<Dictionary<int, List<GameCollection>>> GetAllGameCollectionMappingsAsync()
+        {
+            return await _collectionRepo.GetAllGameCollectionMappingsAsync();
+        }
+
+        public async Task PopulateGameCollectionsAsync(List<Game> games)
+        {
+            if (games == null || games.Count == 0) return;
+            var mappings = await GetAllGameCollectionMappingsAsync();
+            foreach (var game in games)
+            {
+                if (mappings.TryGetValue(game.Id, out var collections))
+                {
+                    game.Collections.Clear();
+                    foreach (var col in collections)
+                    {
+                        game.Collections.Add(col);
+                    }
+                }
+            }
+        }
+
+        private async Task SyncGmdAsync(int gameId)
+        {
+            try
+            {
+                var game = await _repository.GetGameByIdAsync(gameId);
+                if (game == null) return;
+
+                var gmdPath = game.GmdFilePath;
+                if (string.IsNullOrEmpty(gmdPath))
+                {
+                    try
+                    {
+                        gmdPath = _gmdFileService.GetGmdFilePath(game.ExecutablePath, game.Name);
+                    }
+                    catch { }
+                }
+
+                if (string.IsNullOrEmpty(gmdPath) || !System.IO.File.Exists(gmdPath))
+                    return;
+
+                var collections = await _collectionRepo.GetCollectionsForGameAsync(gameId);
+                game.Collections.Clear();
+                foreach (var col in collections)
+                {
+                    game.Collections.Add(col);
+                }
+
+                await _gmdFileService.SyncGameToGmdAsync(game);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"SyncGmdAsync 失败: {ex.Message}");
+            }
+        }
+
+        public async Task<ScanResult> ScanForGmdFilesAsync(IEnumerable<Game> existingGames, IProgress<ScanProgress> progress, CancellationToken ct)
+        {
+            return await _diskScanService.FullScanAsync(existingGames, progress, ct);
+        }
+
+        public async Task<int> ImportGamesAsync(List<Game> games)
+        {
+            int imported = 0;
+            foreach (var game in games)
+            {
+                try
+                {
+                    await _repository.AddGameAsync(game);
+                    imported++;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"导入游戏失败 {game.Name}: {ex.Message}");
+                }
+            }
+            return imported;
         }
     }
 }

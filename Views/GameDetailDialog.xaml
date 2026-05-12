@@ -125,7 +125,7 @@
                                       Tapped="Image_Tapped"
                                       PointerEntered="Image_PointerEntered"
                                       PointerExited="Image_PointerExited">
-                                    <Border CornerRadius="4" Clip="{Binding ElementName=InnerImage}"
+                                    <Border CornerRadius="4"
                                             Background="{StaticResource FrostedGlassCardBrush}">
                                         <Image x:Name="InnerImage" Source="{Binding}" Stretch="UniformToFill"/>
                                     </Border>
@@ -171,7 +171,6 @@
                         <ScaleTransform x:Name="PreviewScaleTransform" ScaleX="0.5" ScaleY="0.5"/>
                     </Border.RenderTransform>
                     <Image x:Name="LargePreviewImage"
-                           Source="{x:Bind LargeImageSource, Mode=OneWay}"
                            Stretch="Uniform"/>
                 </Border>
             </Grid>

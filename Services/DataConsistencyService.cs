@@ -96,7 +96,6 @@ namespace GameLauncher.Services
             CompareStringField(dbGame.Description, gmdGame.Description, "Description", conflicts);
             CompareNumericField(dbGame.LaunchCount, gmdGame.LaunchCount, "LaunchCount", conflicts);
             CompareNumericField(dbGame.TotalPlayTime, gmdGame.TotalPlayTime, "TotalPlayTime", conflicts);
-            CompareBooleanField(dbGame.IsFavorite, gmdGame.IsFavorite, "IsFavorite", conflicts);
             CompareDateTimeField(dbGame.LastRunTime, gmdGame.LastRunTime, "LastRunTime", conflicts);
             CompareCollectionField(dbGame.Tags, gmdGame.Tags, "Tags", conflicts);
             CompareCollectionField(dbGame.ImagePaths, gmdGame.ImagePaths, "ImagePaths", conflicts);
@@ -165,8 +164,6 @@ namespace GameLauncher.Services
             {
                 resolvedGame.LastRunTime = dbGame.LastRunTime;
             }
-
-            resolvedGame.IsFavorite = dbGame.IsFavorite || gmdGame.IsFavorite;
 
             resolvedGame.Tags.Clear();
             var mergedTags = MergeCollections(dbGame.Tags, gmdGame.Tags);
@@ -399,7 +396,6 @@ namespace GameLauncher.Services
                 TotalPlayTime = source.TotalPlayTime,
                 LastRunTime = source.LastRunTime,
                 IsRunning = source.IsRunning,
-                IsFavorite = source.IsFavorite,
                 IsGmdFileReady = source.IsGmdFileReady
             };
 

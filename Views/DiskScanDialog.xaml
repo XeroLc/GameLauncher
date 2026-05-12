@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="GameLauncher.Views.DiskScanDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="扫描游戏"
+    PrimaryButtonText="导入选中游戏"
+    SecondaryButtonText="取消"
+    DefaultButton="Primary"
+    Style="{StaticResource DefaultContentDialogStyle}">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500">
+        <StackPanel Spacing="16" Width="480">
+            <StackPanel x:Name="ScanProgressPanel" Spacing="12">
+                <TextBlock x:Name="ScanStatusText"
+                           Text="正在扫描..."
+                           Style="{StaticResource SubtitleTextBlockStyle}"/>
+                <ProgressBar x:Name="ScanProgressBar"
+                             IsIndeterminate="True"
+                             Minimum="0" Maximum="100"/>
+                <TextBlock x:Name="ScanDetailText"
+                           Text="正在初始化..."
+                           Style="{StaticResource CaptionTextBlockStyle}"
+                           TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" Spacing="36">
+                    <StackPanel>
+                        <TextBlock Text="已发现" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock x:Name="FoundCountText" Text="0" FontWeight="Bold"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="已跳过" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock x:Name="SkippedCountText" Text="0" FontWeight="Bold" Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="失败" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock x:Name="ErrorCountText" Text="0" FontWeight="Bold" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+                <Button x:Name="CancelScanButton"
+                        Content="停止扫描"
+                        Style="{StaticResource FrostedDefaultButtonStyle}"
+                        HorizontalAlignment="Center"
+                        Click="CancelScanButton_Click"/>
+            </StackPanel>
+
+            <StackPanel x:Name="ResultsPanel" Visibility="Collapsed" Spacing="12">
+                <TextBlock x:Name="ResultsTitleText"
+                           Text="扫描完成"
+                           Style="{StaticResource SubtitleTextBlockStyle}"/>
+                <TextBlock x:Name="ResultsSummaryText"
+                           Text=""
+                           Style="{StaticResource CaptionTextBlockStyle}"
+                           TextWrapping="Wrap"/>
+                <CheckBox x:Name="SelectAllCheckBox"
+                          Content="全选/取消"
+                          IsChecked="True"
+                          Checked="SelectAllCheckBox_Changed"
+                          Unchecked="SelectAllCheckBox_Changed"/>
+                <ListView x:Name="ResultsListView"
+                          MaxHeight="300"
+                          SelectionMode="Multiple">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Image Source="{Binding IconSource}" Width="32" Height="32" Stretch="Uniform"/>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding ExecutablePath}"
+                                               Style="{StaticResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextTrimming="CharacterEllipsis"
+                                               MaxWidth="350"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>

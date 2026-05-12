@@ -86,7 +86,6 @@ namespace GameLauncher.Services
                   .Append("|").Append(game.ExecutablePath ?? "")
                   .Append("|").Append(game.LaunchCount)
                   .Append("|").Append(game.TotalPlayTime)
-                  .Append("|").Append(game.IsFavorite)
                   .Append("|").Append(game.LastRunTime?.ToString("o") ?? "")
                   .Append("|").Append(game.Description ?? "")
                   .Append("|").Append(game.IconPath ?? "")
@@ -179,9 +178,6 @@ namespace GameLauncher.Services
             if (existing.TotalPlayTime != latest.TotalPlayTime)
                 changedFields.Add(nameof(Game.TotalPlayTime));
 
-            if (existing.IsFavorite != latest.IsFavorite)
-                changedFields.Add(nameof(Game.IsFavorite));
-
             if (existing.LastRunTime != latest.LastRunTime)
                 changedFields.Add(nameof(Game.LastRunTime));
 
@@ -199,6 +195,9 @@ namespace GameLauncher.Services
 
             if (!AreCollectionsEqual(existing.ImagePaths, latest.ImagePaths))
                 changedFields.Add(nameof(Game.ImagePaths));
+
+            if (!AreGameCollectionsEqual(existing.Collections, latest.Collections))
+                changedFields.Add(nameof(Game.Collections));
 
             foreach (var comparer in _customComparers)
             {
@@ -235,6 +234,15 @@ namespace GameLauncher.Services
             }
 
             return true;
+        }
+
+        private bool AreGameCollectionsEqual(IEnumerable<GameCollection>? c1, IEnumerable<GameCollection>? c2)
+        {
+            if (c1 == null && c2 == null) return true;
+            if (c1 == null || c2 == null) return false;
+            var ids1 = c1.Select(c => c.Id).OrderBy(id => id);
+            var ids2 = c2.Select(c => c.Id).OrderBy(id => id);
+            return ids1.SequenceEqual(ids2);
         }
 
         /// <summary>

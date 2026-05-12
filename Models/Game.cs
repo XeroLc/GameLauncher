@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 
@@ -19,12 +20,12 @@ namespace GameLauncher.Models
         private long _totalPlayTime = 0;
         private DateTime? _lastRunTime;
         private bool _isRunning = false;
-        private bool _isFavorite = false;
         private bool _isGmdFileReady = false;
         private ImageSource? _iconSource;
         private ObservableCollection<string> _imagePaths = new ObservableCollection<string>();
         private ObservableCollection<ImageSource> _imageSources = new ObservableCollection<ImageSource>();
         private ObservableCollection<string> _tags = new ObservableCollection<string>();
+        private ObservableCollection<GameCollection> _collections = new ObservableCollection<GameCollection>();
 
         public int Id
         {
@@ -74,7 +75,6 @@ namespace GameLauncher.Models
                 {
                     _iconPath = value;
                     OnPropertyChanged(nameof(IconPath));
-                    LoadIcon();
                 }
             }
         }
@@ -223,15 +223,40 @@ namespace GameLauncher.Models
             }
         }
 
-        public bool IsFavorite
+        public ObservableCollection<GameCollection> Collections
         {
-            get => _isFavorite;
+            get => _collections;
             set
             {
-                if (_isFavorite != value)
+                if (_collections != value)
                 {
-                    _isFavorite = value;
-                    OnPropertyChanged(nameof(IsFavorite));
+                    _collections = value ?? new ObservableCollection<GameCollection>();
+                    OnPropertyChanged(nameof(Collections));
+                }
+            }
+        }
+
+        public bool IsInCollection(int collectionId)
+        {
+            return _collections.Any(c => c.Id == collectionId);
+        }
+
+        public void AddToCollection(GameCollection collection)
+        {
+            if (collection != null && !_collections.Any(c => c.Id == collection.Id))
+            {
+                _collections.Add(collection);
+            }
+        }
+
+        public void RemoveFromCollection(GameCollection collection)
+        {
+            if (collection != null)
+            {
+                var existing = _collections.FirstOrDefault(c => c.Id == collection.Id);
+                if (existing != null)
+                {
+                    _collections.Remove(existing);
                 }
             }
         }

@@ -66,13 +66,43 @@ namespace GameLauncher.Data
                         IsFavorite INTEGER DEFAULT 0,
                         ImagePaths TEXT,
                         Tags TEXT
+                    );
+
+                    CREATE TABLE IF NOT EXISTS GameCollections (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        Name TEXT NOT NULL UNIQUE,
+                        CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+                    );
+
+                    CREATE TABLE IF NOT EXISTS GameCollectionItems (
+                        GameId INTEGER NOT NULL,
+                        CollectionId INTEGER NOT NULL,
+                        PRIMARY KEY (GameId, CollectionId),
+                        FOREIGN KEY (GameId) REFERENCES Games(Id) ON DELETE CASCADE,
+                        FOREIGN KEY (CollectionId) REFERENCES GameCollections(Id) ON DELETE CASCADE
                     )";
 
                 await command.ExecuteNonQueryAsync();
             }
             else
             {
-                await AddMissingColumnsAsync();
+                try
+                {
+                    await AddMissingColumnsAsync();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"数据库升级失败（非致命，继续使用现有结构）: {ex.Message}");
+                }
+            }
+
+            try
+            {
+                await MigrateFavoritesAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"收藏迁移初始化失败（非致命）: {ex.Message}");
             }
         }
 
@@ -119,9 +149,228 @@ namespace GameLauncher.Data
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"添加列 {columnName} 失败: {ex.Message}");
-                        // 忽略错误，列可能已经存在
                     }
                 }
+            }
+
+            using (var checkCommand = connection.CreateCommand())
+            {
+                checkCommand.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='GameCollections'";
+                var result = await checkCommand.ExecuteScalarAsync();
+                if (result == null)
+                {
+                    using var createCommand = connection.CreateCommand();
+                    createCommand.CommandText = @"
+                        CREATE TABLE IF NOT EXISTS GameCollections (
+                            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            Name TEXT NOT NULL UNIQUE,
+                            CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+                        )";
+                    await createCommand.ExecuteNonQueryAsync();
+                    System.Diagnostics.Debug.WriteLine("GameCollections 表创建成功");
+                }
+                else
+                {
+                    var hasIdColumn = false;
+                    using var pragmaCommand = connection.CreateCommand();
+                    pragmaCommand.CommandText = "PRAGMA table_info(GameCollections)";
+                    using var pragmaReader = await pragmaCommand.ExecuteReaderAsync();
+                    while (await pragmaReader.ReadAsync())
+                    {
+                        if (string.Equals(pragmaReader.GetString(1), "Id", StringComparison.OrdinalIgnoreCase))
+                        {
+                            hasIdColumn = true;
+                            break;
+                        }
+                    }
+                    if (!hasIdColumn)
+                    {
+                        System.Diagnostics.Debug.WriteLine("GameCollections 表缺少 Id 列，正在重建...");
+                        using var dropCmd = connection.CreateCommand();
+                        dropCmd.CommandText = "DROP TABLE IF EXISTS GameCollectionItems";
+                        await dropCmd.ExecuteNonQueryAsync();
+                        using var dropCmd2 = connection.CreateCommand();
+                        dropCmd2.CommandText = "DROP TABLE IF EXISTS GameCollections";
+                        await dropCmd2.ExecuteNonQueryAsync();
+                        using var recreateCmd = connection.CreateCommand();
+                        recreateCmd.CommandText = @"
+                            CREATE TABLE GameCollections (
+                                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                Name TEXT NOT NULL UNIQUE,
+                                CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+                            )";
+                        await recreateCmd.ExecuteNonQueryAsync();
+                        using var recreateItemsCmd = connection.CreateCommand();
+                        recreateItemsCmd.CommandText = @"
+                            CREATE TABLE GameCollectionItems (
+                                GameId INTEGER NOT NULL,
+                                CollectionId INTEGER NOT NULL,
+                                PRIMARY KEY (GameId, CollectionId),
+                                FOREIGN KEY (GameId) REFERENCES Games(Id) ON DELETE CASCADE,
+                                FOREIGN KEY (CollectionId) REFERENCES GameCollections(Id) ON DELETE CASCADE
+                            )";
+                        await recreateItemsCmd.ExecuteNonQueryAsync();
+                        System.Diagnostics.Debug.WriteLine("GameCollections 表重建成功");
+                    }
+                }
+            }
+
+            using (var checkCommand = connection.CreateCommand())
+            {
+                checkCommand.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='GameCollectionItems'";
+                var result = await checkCommand.ExecuteScalarAsync();
+                if (result == null)
+                {
+                    using var createCommand = connection.CreateCommand();
+                    createCommand.CommandText = @"
+                        CREATE TABLE IF NOT EXISTS GameCollectionItems (
+                            GameId INTEGER NOT NULL,
+                            CollectionId INTEGER NOT NULL,
+                            PRIMARY KEY (GameId, CollectionId),
+                            FOREIGN KEY (GameId) REFERENCES Games(Id) ON DELETE CASCADE,
+                            FOREIGN KEY (CollectionId) REFERENCES GameCollections(Id) ON DELETE CASCADE
+                        )";
+                    await createCommand.ExecuteNonQueryAsync();
+                    System.Diagnostics.Debug.WriteLine("GameCollectionItems 表创建成功");
+                }
+            }
+        }
+
+        public async Task MigrateFavoritesAsync()
+        {
+            try
+            {
+                using var connection = GetConnection();
+                await connection.OpenAsync();
+
+                using var checkCommand = connection.CreateCommand();
+                checkCommand.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='GameCollections'";
+                var result = await checkCommand.ExecuteScalarAsync();
+                if (result == null)
+                {
+                    using var createCommand = connection.CreateCommand();
+                    createCommand.CommandText = @"
+                        CREATE TABLE GameCollections (
+                            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            Name TEXT NOT NULL UNIQUE,
+                            CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+                        )";
+                    await createCommand.ExecuteNonQueryAsync();
+                    System.Diagnostics.Debug.WriteLine("MigrateFavorites: GameCollections 表创建成功");
+                }
+                else
+                {
+                    var hasIdColumn = false;
+                    using var pragmaCmd = connection.CreateCommand();
+                    pragmaCmd.CommandText = "PRAGMA table_info(GameCollections)";
+                    using var pragmaReader = await pragmaCmd.ExecuteReaderAsync();
+                    while (await pragmaReader.ReadAsync())
+                    {
+                        if (string.Equals(pragmaReader.GetString(1), "Id", StringComparison.OrdinalIgnoreCase))
+                        { hasIdColumn = true; break; }
+                    }
+                    if (!hasIdColumn)
+                    {
+                        System.Diagnostics.Debug.WriteLine("MigrateFavorites: GameCollections 缺少 Id 列，重建...");
+                        using var d1 = connection.CreateCommand();
+                        d1.CommandText = "DROP TABLE IF EXISTS GameCollectionItems";
+                        await d1.ExecuteNonQueryAsync();
+                        using var d2 = connection.CreateCommand();
+                        d2.CommandText = "DROP TABLE IF EXISTS GameCollections";
+                        await d2.ExecuteNonQueryAsync();
+                        using var r1 = connection.CreateCommand();
+                        r1.CommandText = @"CREATE TABLE GameCollections (Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL UNIQUE, CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP)";
+                        await r1.ExecuteNonQueryAsync();
+                        using var r2 = connection.CreateCommand();
+                        r2.CommandText = @"CREATE TABLE GameCollectionItems (GameId INTEGER NOT NULL, CollectionId INTEGER NOT NULL, PRIMARY KEY (GameId, CollectionId), FOREIGN KEY (GameId) REFERENCES Games(Id) ON DELETE CASCADE, FOREIGN KEY (CollectionId) REFERENCES GameCollections(Id) ON DELETE CASCADE)";
+                        await r2.ExecuteNonQueryAsync();
+                    }
+                }
+
+                using var checkItemsCommand = connection.CreateCommand();
+                checkItemsCommand.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='GameCollectionItems'";
+                var itemsResult = await checkItemsCommand.ExecuteScalarAsync();
+                if (itemsResult == null)
+                {
+                    using var createCommand = connection.CreateCommand();
+                    createCommand.CommandText = @"
+                        CREATE TABLE IF NOT EXISTS GameCollectionItems (
+                            GameId INTEGER NOT NULL,
+                            CollectionId INTEGER NOT NULL,
+                            PRIMARY KEY (GameId, CollectionId),
+                            FOREIGN KEY (GameId) REFERENCES Games(Id) ON DELETE CASCADE,
+                            FOREIGN KEY (CollectionId) REFERENCES GameCollections(Id) ON DELETE CASCADE
+                        )";
+                    await createCommand.ExecuteNonQueryAsync();
+                    System.Diagnostics.Debug.WriteLine("MigrateFavorites: GameCollectionItems 表创建成功");
+                }
+
+                var hasIsFavoriteColumn = false;
+                using (var pragmaCommand = connection.CreateCommand())
+                {
+                    pragmaCommand.CommandText = "PRAGMA table_info(Games)";
+                    using var pragmaReader = await pragmaCommand.ExecuteReaderAsync();
+                    while (await pragmaReader.ReadAsync())
+                    {
+                        var colName = pragmaReader.GetString(1);
+                        if (string.Equals(colName, "IsFavorite", StringComparison.OrdinalIgnoreCase))
+                        {
+                            hasIsFavoriteColumn = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!hasIsFavoriteColumn)
+                {
+                    System.Diagnostics.Debug.WriteLine("MigrateFavorites: Games 表无 IsFavorite 列，跳过迁移");
+                    return;
+                }
+
+                using var existsCommand = connection.CreateCommand();
+                existsCommand.CommandText = "SELECT Id FROM GameCollections WHERE Name = '收藏的游戏'";
+                var existingCollection = await existsCommand.ExecuteScalarAsync();
+                if (existingCollection != null)
+                {
+                    System.Diagnostics.Debug.WriteLine("MigrateFavorites: 收藏的游戏 集合已存在，跳过迁移");
+                    return;
+                }
+
+                using var countCommand = connection.CreateCommand();
+                countCommand.CommandText = "SELECT COUNT(*) FROM Games WHERE IsFavorite = 1";
+                var favoriteCount = (long)await countCommand.ExecuteScalarAsync();
+                if (favoriteCount == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("MigrateFavorites: 没有收藏的游戏需要迁移");
+                    return;
+                }
+
+                using var insertCommand = connection.CreateCommand();
+                insertCommand.CommandText = "INSERT INTO GameCollections (Name, CreatedAt) VALUES ('收藏的游戏', CURRENT_TIMESTAMP)";
+                await insertCommand.ExecuteNonQueryAsync();
+
+                using var getIdCommand = connection.CreateCommand();
+                getIdCommand.CommandText = "SELECT last_insert_rowid()";
+                var collectionId = (long)await getIdCommand.ExecuteScalarAsync();
+
+                using var selectFavoritesCommand = connection.CreateCommand();
+                selectFavoritesCommand.CommandText = "SELECT Id FROM Games WHERE IsFavorite = 1";
+                using var reader = await selectFavoritesCommand.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var gameId = reader.GetInt64(0);
+                    using var linkCommand = connection.CreateCommand();
+                    linkCommand.CommandText = "INSERT OR IGNORE INTO GameCollectionItems (GameId, CollectionId) VALUES ($gameId, $collectionId)";
+                    linkCommand.Parameters.AddWithValue("$gameId", gameId);
+                    linkCommand.Parameters.AddWithValue("$collectionId", collectionId);
+                    await linkCommand.ExecuteNonQueryAsync();
+                }
+
+                System.Diagnostics.Debug.WriteLine($"MigrateFavorites: 成功迁移 {favoriteCount} 个收藏游戏到 收藏的游戏 集合");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"MigrateFavorites: 迁移失败（非致命）: {ex.Message}");
             }
         }
     }

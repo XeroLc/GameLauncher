@@ -10,6 +10,7 @@ using Microsoft.UI.Xaml.Media.Animation;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace GameLauncher.Views
 {
@@ -48,10 +49,6 @@ namespace GameLauncher.Views
             private set
             {
                 _largeImageSource = value;
-                if (_largePreviewImage != null)
-                {
-                    _largePreviewImage.Source = value;
-                }
             }
         }
 
@@ -67,7 +64,7 @@ namespace GameLauncher.Views
             _gameStartTime = gameStartTime;
             var dbContext = new DatabaseContext();
             var repository = new GameRepository(dbContext);
-            _gameService = new GameService(repository);
+            _gameService = new GameService(repository, dbContext);
 
             // 注意：InitializeComponent 必须在变量赋值后调用，
             // 确保 x:Bind 能够正确找到数据
@@ -168,8 +165,10 @@ namespace GameLauncher.Views
 
         private void ShowLargePreview()
         {
-            if (ImageOverlay == null || LargePreviewBorder == null || PreviewScaleTransform == null)
+            if (ImageOverlay == null || LargePreviewBorder == null || PreviewScaleTransform == null || LargePreviewImage == null)
                 return;
+
+            LargePreviewImage.Source = _largeImageSource;
 
             ImageOverlay.Visibility = Visibility.Visible;
             PreviewScaleTransform.ScaleX = 0.6;
@@ -199,6 +198,10 @@ namespace GameLauncher.Views
             {
                 ImageOverlay.Visibility = Visibility.Collapsed;
                 LargeImageSource = null;
+                if (LargePreviewImage != null)
+                {
+                    LargePreviewImage.Source = null;
+                }
             };
 
             storyboard.Begin();
@@ -232,13 +235,24 @@ namespace GameLauncher.Views
 
         private async void EditButton_Click(object sender, RoutedEventArgs e)
         {
-            // WinUI 3 限制同一 XamlRoot 同时只能显示一个 ContentDialog
-            // 必须先关闭当前详情对话框，才能打开编辑对话框
             Hide();
 
             var editDialog = new AddGameDialog(_game);
             editDialog.XamlRoot = XamlRoot;
             editDialog.SetExistingTags(_allExistingTags);
+
+            List<GameCollection> allCollections = new List<GameCollection>();
+
+            try
+            {
+                allCollections = await _gameService.GetAllCollectionsAsync();
+                var gameCollections = await _gameService.GetCollectionsForGameAsync(_game.Id);
+                editDialog.SetCollections(allCollections, gameCollections.Select(c => c.Id).ToList());
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"加载游戏收藏夹数据失败: {ex.Message}");
+            }
 
             var result = await editDialog.ShowAsync();
 
@@ -247,6 +261,7 @@ namespace GameLauncher.Views
                 _game.Name = editDialog.GameName;
                 _game.ExecutablePath = editDialog.ExecutablePath;
                 _game.IconPath = editDialog.IconPath;
+                _game.LoadIcon();
                 _game.Description = editDialog.Description;
 
                 _game.ImagePaths.Clear();
@@ -267,6 +282,29 @@ namespace GameLauncher.Views
                 try
                 {
                     await _gameService.UpdateGameAsync(_game);
+
+                    var newColIds = editDialog.SelectedCollectionIds;
+                    var currentCols = await _gameService.GetCollectionsForGameAsync(_game.Id);
+                    var currentColIds = currentCols.Select(c => c.Id).ToList();
+
+                    foreach (var colId in currentColIds.Where(id => !newColIds.Contains(id)))
+                    {
+                        await _gameService.RemoveGameFromCollectionAsync(_game.Id, colId);
+                    }
+                    foreach (var colId in newColIds.Where(id => !currentColIds.Contains(id)))
+                    {
+                        await _gameService.AddGameToCollectionAsync(_game.Id, colId);
+                    }
+
+                    _game.Collections.Clear();
+                    foreach (var colId in newColIds)
+                    {
+                        var collection = allCollections.FirstOrDefault(c => c.Id == colId);
+                        if (collection != null)
+                        {
+                            _game.Collections.Add(collection);
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {

@@ -275,6 +275,16 @@
                                   PlaceholderText="全部标签"
                                   SelectionChanged="TagFilterComboBox_SelectionChanged"/>
                     </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="收藏夹筛选："
+                                   VerticalAlignment="Center"
+                                   FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <ComboBox x:Name="CollectionFilterComboBox"
+                                  Width="200"
+                                  PlaceholderText="全部游戏"
+                                  SelectionChanged="CollectionFilterComboBox_SelectionChanged"/>
+                    </StackPanel>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
@@ -307,6 +317,21 @@
                             Visibility="Collapsed">
                         <TextBlock Text="取消"/>
                     </Button>
+                    <Button x:Name="ScanGamesButton"
+                            Click="ScanGamesButton_Click"
+                            Style="{StaticResource FrostedDefaultButtonStyle}"
+                            ToolTipService.ToolTip="扫描.gmd游戏">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE721;"/>
+                            <TextBlock Text="扫描"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="ManageCollectionsButton"
+                            Click="ManageCollectionsButton_Click"
+                            Style="{StaticResource FrostedDefaultButtonStyle}"
+                            ToolTipService.ToolTip="管理收藏夹">
+                        <FontIcon Glyph="&#xE8B7;"/>
+                    </Button>
                     <Button x:Name="AddGameButton"
                             Click="AddGameButton_Click"
                             Style="{StaticResource FrostedAccentButtonStyle}">
@@ -318,6 +343,52 @@
                 </StackPanel>
             </Grid>
         </Border>
+
+        <Grid x:Name="ScanToastPanel"
+              Visibility="Collapsed"
+              HorizontalAlignment="Right"
+              VerticalAlignment="Bottom"
+              Margin="0,0,20,20"
+              MaxWidth="360">
+            <Border x:Name="ScanToastBorder"
+                    Background="{StaticResource FrostedGlassDialogBrush}"
+                    BorderBrush="{StaticResource FrostBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="16"
+                    Opacity="0"
+                    RenderTransformOrigin="1,1">
+                <Border.RenderTransform>
+                    <CompositeTransform x:Name="ScanToastTransform"
+                                        TranslateX="20"
+                                        ScaleX="0.95"
+                                        ScaleY="0.95"/>
+                </Border.RenderTransform>
+                <StackPanel Spacing="12">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE8FB;"
+                                  Foreground="{ThemeResource SystemAccentColor}"
+                                  FontSize="18"/>
+                        <TextBlock x:Name="ScanToastTitle"
+                                   Text="发现新游戏"
+                                   Style="{StaticResource BodyStrongTextBlockStyle}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock x:Name="ScanToastMessage"
+                               Text="已发现 N 个新游戏，已自动添加到库中。"
+                               TextWrapping="Wrap"
+                               Style="{StaticResource BodyTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <Button x:Name="ScanToastCloseButton"
+                            Click="ScanToastCloseButton_Click"
+                            HorizontalAlignment="Right"
+                            Style="{StaticResource FrostedDefaultButtonStyle}"
+                            Padding="12,6">
+                        <TextBlock Text="知道了"/>
+                    </Button>
+                </StackPanel>
+            </Border>
+        </Grid>
 
         <Grid x:Name="LoadingOverlay"
               Visibility="Collapsed"

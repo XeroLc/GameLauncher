@@ -6,8 +6,10 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -21,6 +23,7 @@ namespace GameLauncher.Views
         private ObservableCollection<ImageSource> _imageSources = new ObservableCollection<ImageSource>();
         private ObservableCollection<string> _tags = new ObservableCollection<string>();
         private ObservableCollection<string> _allExistingTags = new ObservableCollection<string>();
+        private ObservableCollection<CollectionCheckItem> _collectionItems = new();
 
         public string GameName => GameNameTextBox.Text;
         public string ExecutablePath => ExecutablePathTextBox.Text;
@@ -29,12 +32,20 @@ namespace GameLauncher.Views
         public ObservableCollection<string> ImagePaths => _imagePaths;
         public ObservableCollection<string> Tags => _tags;
         public string ImageCountDisplay => _imagePaths.Count > 0 ? $"已选择 {_imagePaths.Count} 张图片" : "未选择图片";
+        public List<int> SelectedCollectionIds
+        {
+            get
+            {
+                return _collectionItems.Where(c => c.IsSelected).Select(c => c.Id).ToList();
+            }
+        }
 
         public AddGameDialog()
         {
             InitializeComponent();
             PreviewImagesItemsControl.ItemsSource = _imageSources;
             TagsItemsControl.ItemsSource = _tags;
+            CollectionsItemsControl.ItemsSource = _collectionItems;
         }
 
         public AddGameDialog(Game game) : this()
@@ -68,6 +79,24 @@ namespace GameLauncher.Views
                 _allExistingTags.Add(tag);
             }
             UpdateTagComboBox();
+        }
+
+        public void SetCollections(List<GameCollection> collections, List<int>? selectedIds = null)
+        {
+            _collectionItems.Clear();
+            foreach (var col in collections)
+            {
+                _collectionItems.Add(new CollectionCheckItem
+                {
+                    Id = col.Id,
+                    Name = col.Name,
+                    IsSelected = selectedIds?.Contains(col.Id) ?? false
+                });
+            }
+            if (CollectionsItemsControl != null)
+            {
+                CollectionsItemsControl.ItemsSource = _collectionItems;
+            }
         }
 
         private void UpdateTagComboBox()
@@ -134,6 +163,88 @@ namespace GameLauncher.Views
                 {
                     Title = "错误",
                     Content = $"选择文件时出错：{ex.Message}",
+                    CloseButtonText = "确定",
+                    XamlRoot = XamlRoot,
+                    Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
+                };
+                await errorDialog.ShowAsync();
+            }
+        }
+
+        private async void BrowseGmdButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (App.MainWindow == null) return;
+                var hwnd = WindowNative.GetWindowHandle(App.MainWindow);
+                var picker = new FileOpenPicker
+                {
+                    ViewMode = PickerViewMode.List,
+                    SuggestedStartLocation = PickerLocationId.ComputerFolder
+                };
+                InitializeWithWindow.Initialize(picker, hwnd);
+                picker.FileTypeFilter.Add(".gmd");
+
+                var file = await picker.PickSingleFileAsync();
+                if (file != null)
+                {
+                    GmdPathTextBox.Text = file.Path;
+                    await LoadFromGmdFileAsync(file.Path);
+                }
+            }
+            catch (Exception ex)
+            {
+                var errorDialog = new ContentDialog
+                {
+                    Title = "错误",
+                    Content = $"选择.gmd文件时出错：{ex.Message}",
+                    CloseButtonText = "确定",
+                    XamlRoot = XamlRoot,
+                    Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
+                };
+                await errorDialog.ShowAsync();
+            }
+        }
+
+        private async Task LoadFromGmdFileAsync(string gmdFilePath)
+        {
+            try
+            {
+                var gmdService = new Services.GmdFileService();
+                var game = await gmdService.DeserializeGameFromGmdAsync(gmdFilePath);
+
+                if (!string.IsNullOrEmpty(game.Name))
+                    GameNameTextBox.Text = game.Name;
+
+                if (!string.IsNullOrEmpty(game.ExecutablePath))
+                    ExecutablePathTextBox.Text = game.ExecutablePath;
+
+                if (!string.IsNullOrEmpty(game.IconPath))
+                    IconPathTextBox.Text = game.IconPath;
+
+                if (!string.IsNullOrEmpty(game.Description))
+                    DescriptionTextBox.Text = game.Description;
+
+                _imagePaths.Clear();
+                foreach (var imagePath in game.ImagePaths)
+                {
+                    _imagePaths.Add(imagePath);
+                }
+                LoadImages();
+
+                foreach (var tag in game.Tags)
+                {
+                    if (!_tags.Contains(tag))
+                        _tags.Add(tag);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"从.gmd文件加载失败: {ex.Message}");
+                var errorDialog = new ContentDialog
+                {
+                    Title = "提示",
+                    Content = $"无法解析.gmd文件：{ex.Message}\n\n您可以手动填写游戏信息。",
                     CloseButtonText = "确定",
                     XamlRoot = XamlRoot,
                     Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
@@ -313,5 +424,18 @@ namespace GameLauncher.Views
         }
 
         public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+    }
+
+    public class CollectionCheckItem : INotifyPropertyChanged
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        private bool _isSelected;
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set { _isSelected = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected))); }
+        }
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

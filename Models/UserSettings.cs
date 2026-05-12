@@ -1,7 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace GameLauncher.Models
 {
@@ -15,6 +15,8 @@ namespace GameLauncher.Models
             "settings.json");
 
         public bool HideUnavailableGames { get; set; } = false;
+        public bool AutoScanEnabled { get; set; } = false;
+        public List<string> ScanPaths { get; set; } = new List<string>();
 
         public static UserSettings Instance
         {
@@ -26,8 +28,7 @@ namespace GameLauncher.Models
                     {
                         if (_instance == null)
                         {
-                            _instance = new UserSettings();
-                            _instance.Load();
+                            _instance = LoadSettings();
                         }
                     }
                 }
@@ -35,19 +36,26 @@ namespace GameLauncher.Models
             }
         }
 
-        private UserSettings() { }
+        public UserSettings() { }
 
-        private void Load()
+        private static UserSettings LoadSettings()
         {
             try
             {
                 if (File.Exists(SettingsFilePath))
                 {
                     var json = File.ReadAllText(SettingsFilePath);
-                    var doc = JsonDocument.Parse(json);
-                    if (doc.RootElement.TryGetProperty("hideUnavailableGames", out var prop))
+                    var settings = JsonSerializer.Deserialize<UserSettings>(json, new JsonSerializerOptions
                     {
-                        HideUnavailableGames = prop.GetBoolean();
+                        IncludeFields = true
+                    });
+                    if (settings != null)
+                    {
+                        if (settings.ScanPaths == null)
+                        {
+                            settings.ScanPaths = new List<string>();
+                        }
+                        return settings;
                     }
                 }
             }
@@ -55,6 +63,7 @@ namespace GameLauncher.Models
             {
                 System.Diagnostics.Debug.WriteLine($"加载设置失败: {ex.Message}");
             }
+            return new UserSettings();
         }
 
         public void Save()
@@ -67,8 +76,13 @@ namespace GameLauncher.Models
                     Directory.CreateDirectory(directory);
                 }
 
-                var json = $"{{\"hideUnavailableGames\": {HideUnavailableGames.ToString().ToLowerInvariant()}}}";
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                };
+                var json = JsonSerializer.Serialize(this, options);
                 File.WriteAllText(SettingsFilePath, json);
+                System.Diagnostics.Debug.WriteLine($"设置已保存: {json}");
             }
             catch (Exception ex)
             {
