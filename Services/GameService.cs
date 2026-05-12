@@ -161,7 +161,6 @@ namespace GameLauncher.Services
 
             game.IsRunning = isRunning;
 
-            // 确保.gmd文件路径已设置
             if (string.IsNullOrEmpty(game.GmdFilePath))
             {
                 try
@@ -172,6 +171,59 @@ namespace GameLauncher.Services
             }
 
             return await _repository.UpdateGameAsync(game);
+        }
+
+        public async Task<bool> StopGameAsync(Game game, DateTime? startTime = null)
+        {
+            try
+            {
+                var processName = System.IO.Path.GetFileNameWithoutExtension(game.ExecutablePath);
+                var processes = Process.GetProcessesByName(processName);
+
+                foreach (var process in processes)
+                {
+                    try
+                    {
+                        process.Kill();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"终止进程失败: {process.ProcessName}, 错误: {ex.Message}");
+                    }
+                    finally
+                    {
+                        process.Dispose();
+                    }
+                }
+
+                game.IsRunning = false;
+
+                if (startTime.HasValue)
+                {
+                    var runTime = (long)(DateTime.UtcNow - startTime.Value).TotalSeconds;
+                    if (runTime > 0)
+                    {
+                        game.TotalPlayTime += runTime;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(game.GmdFilePath))
+                {
+                    try
+                    {
+                        game.GmdFilePath = new GmdFileService().GetGmdFilePath(game.ExecutablePath, game.Name);
+                    }
+                    catch { }
+                }
+                await _repository.UpdateGameAsync(game);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"停止游戏失败: {ex.Message}");
+                return false;
+            }
         }
     }
 }

@@ -18,6 +18,10 @@ namespace GameLauncher.Views
         private Game _game;
         private readonly GameService _gameService;
         private readonly List<string> _allExistingTags;
+        private DateTime? _gameStartTime;
+
+        public event Action<Game, DateTime>? GameLaunched;
+        public event Action<Game>? GameStopped;
 
         // 绑定属性
         public string GameName => _game?.Name ?? string.Empty;
@@ -51,7 +55,7 @@ namespace GameLauncher.Views
             }
         }
 
-        public GameDetailDialog(Game game, List<string>? allExistingTags = null)
+        public GameDetailDialog(Game game, List<string>? allExistingTags = null, DateTime? gameStartTime = null)
         {
             if (game == null)
             {
@@ -60,6 +64,7 @@ namespace GameLauncher.Views
 
             _game = game;
             _allExistingTags = allExistingTags ?? new List<string>();
+            _gameStartTime = gameStartTime;
             var dbContext = new DatabaseContext();
             var repository = new GameRepository(dbContext);
             _gameService = new GameService(repository);
@@ -73,15 +78,28 @@ namespace GameLauncher.Views
             _largePreviewBorder = FindName("LargePreviewBorder") as Border;
 
             // 根据游戏运行状态显示正确的按钮
+            var launchScale = FindName("LaunchScaleTransform") as ScaleTransform;
+            var stopScale = FindName("StopScaleTransform") as ScaleTransform;
+
             if (_game.IsRunning)
             {
                 LaunchButton.Visibility = Visibility.Collapsed;
                 StopButton.Visibility = Visibility.Visible;
+                if (stopScale != null)
+                {
+                    stopScale.ScaleX = 1.0;
+                    stopScale.ScaleY = 1.0;
+                }
             }
             else
             {
                 LaunchButton.Visibility = Visibility.Visible;
                 StopButton.Visibility = Visibility.Collapsed;
+                if (launchScale != null)
+                {
+                    launchScale.ScaleX = 1.0;
+                    launchScale.ScaleY = 1.0;
+                }
             }
         }
 
@@ -128,62 +146,41 @@ namespace GameLauncher.Views
             HideLargePreview();
         }
 
+        private DoubleAnimation CreateDoubleAnimation(
+            DependencyObject target,
+            string propertyPath,
+            double from,
+            double to,
+            double durationMs,
+            EasingFunctionBase easingFunction)
+        {
+            var animation = new DoubleAnimation
+            {
+                From = from,
+                To = to,
+                Duration = new Duration(TimeSpan.FromMilliseconds(durationMs)),
+                EasingFunction = easingFunction
+            };
+            Storyboard.SetTarget(animation, target);
+            Storyboard.SetTargetProperty(animation, propertyPath);
+            return animation;
+        }
+
         private void ShowLargePreview()
         {
             if (ImageOverlay == null || LargePreviewBorder == null || PreviewScaleTransform == null)
                 return;
 
             ImageOverlay.Visibility = Visibility.Visible;
-
             PreviewScaleTransform.ScaleX = 0.6;
             PreviewScaleTransform.ScaleY = 0.6;
             LargePreviewBorder.Opacity = 0;
 
-            var overlayAnim = new DoubleAnimation
-            {
-                From = 0,
-                To = 1,
-                Duration = new Duration(TimeSpan.FromMilliseconds(250)),
-                EasingFunction = new QuadraticEase()
-            };
-            Storyboard.SetTarget(overlayAnim, ImageOverlay);
-            Storyboard.SetTargetProperty(overlayAnim, "Opacity");
-
-            var scaleXAnim = new DoubleAnimation
-            {
-                From = 0.6,
-                To = 1.0,
-                Duration = new Duration(TimeSpan.FromMilliseconds(300)),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-            };
-            Storyboard.SetTarget(scaleXAnim, PreviewScaleTransform);
-            Storyboard.SetTargetProperty(scaleXAnim, "ScaleX");
-
-            var scaleYAnim = new DoubleAnimation
-            {
-                From = 0.6,
-                To = 1.0,
-                Duration = new Duration(TimeSpan.FromMilliseconds(300)),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-            };
-            Storyboard.SetTarget(scaleYAnim, PreviewScaleTransform);
-            Storyboard.SetTargetProperty(scaleYAnim, "ScaleY");
-
-            var borderOpacityAnim = new DoubleAnimation
-            {
-                From = 0,
-                To = 1,
-                Duration = new Duration(TimeSpan.FromMilliseconds(200)),
-                EasingFunction = new QuadraticEase()
-            };
-            Storyboard.SetTarget(borderOpacityAnim, LargePreviewBorder);
-            Storyboard.SetTargetProperty(borderOpacityAnim, "Opacity");
-
             var storyboard = new Storyboard();
-            storyboard.Children.Add(overlayAnim);
-            storyboard.Children.Add(scaleXAnim);
-            storyboard.Children.Add(scaleYAnim);
-            storyboard.Children.Add(borderOpacityAnim);
+            storyboard.Children.Add(CreateDoubleAnimation(ImageOverlay, "Opacity", 0, 1, 250, new QuadraticEase()));
+            storyboard.Children.Add(CreateDoubleAnimation(PreviewScaleTransform, "ScaleX", 0.6, 1.0, 300, new CubicEase { EasingMode = EasingMode.EaseOut }));
+            storyboard.Children.Add(CreateDoubleAnimation(PreviewScaleTransform, "ScaleY", 0.6, 1.0, 300, new CubicEase { EasingMode = EasingMode.EaseOut }));
+            storyboard.Children.Add(CreateDoubleAnimation(LargePreviewBorder, "Opacity", 0, 1, 200, new QuadraticEase()));
             storyboard.Begin();
         }
 
@@ -192,51 +189,11 @@ namespace GameLauncher.Views
             if (ImageOverlay == null || LargePreviewBorder == null || PreviewScaleTransform == null)
                 return;
 
-            var overlayAnim = new DoubleAnimation
-            {
-                From = 1,
-                To = 0,
-                Duration = new Duration(TimeSpan.FromMilliseconds(200)),
-                EasingFunction = new QuadraticEase()
-            };
-            Storyboard.SetTarget(overlayAnim, ImageOverlay);
-            Storyboard.SetTargetProperty(overlayAnim, "Opacity");
-
-            var scaleXAnim = new DoubleAnimation
-            {
-                From = 1.0,
-                To = 0.85,
-                Duration = new Duration(TimeSpan.FromMilliseconds(150)),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
-            };
-            Storyboard.SetTarget(scaleXAnim, PreviewScaleTransform);
-            Storyboard.SetTargetProperty(scaleXAnim, "ScaleX");
-
-            var scaleYAnim = new DoubleAnimation
-            {
-                From = 1.0,
-                To = 0.85,
-                Duration = new Duration(TimeSpan.FromMilliseconds(150)),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
-            };
-            Storyboard.SetTarget(scaleYAnim, PreviewScaleTransform);
-            Storyboard.SetTargetProperty(scaleYAnim, "ScaleY");
-
-            var borderOpacityAnim = new DoubleAnimation
-            {
-                From = 1,
-                To = 0,
-                Duration = new Duration(TimeSpan.FromMilliseconds(150)),
-                EasingFunction = new QuadraticEase()
-            };
-            Storyboard.SetTarget(borderOpacityAnim, LargePreviewBorder);
-            Storyboard.SetTargetProperty(borderOpacityAnim, "Opacity");
-
             var storyboard = new Storyboard();
-            storyboard.Children.Add(overlayAnim);
-            storyboard.Children.Add(scaleXAnim);
-            storyboard.Children.Add(scaleYAnim);
-            storyboard.Children.Add(borderOpacityAnim);
+            storyboard.Children.Add(CreateDoubleAnimation(ImageOverlay, "Opacity", 1, 0, 200, new QuadraticEase()));
+            storyboard.Children.Add(CreateDoubleAnimation(PreviewScaleTransform, "ScaleX", 1.0, 0.85, 150, new CubicEase { EasingMode = EasingMode.EaseIn }));
+            storyboard.Children.Add(CreateDoubleAnimation(PreviewScaleTransform, "ScaleY", 1.0, 0.85, 150, new CubicEase { EasingMode = EasingMode.EaseIn }));
+            storyboard.Children.Add(CreateDoubleAnimation(LargePreviewBorder, "Opacity", 1, 0, 150, new QuadraticEase()));
 
             storyboard.Completed += (s, e) =>
             {
@@ -350,6 +307,8 @@ namespace GameLauncher.Views
             var success = await _gameService.LaunchGameAsync(_game);
             if (success)
             {
+                _gameStartTime = DateTime.UtcNow;
+                GameLaunched?.Invoke(_game, _gameStartTime.Value);
                 ShowStopButton();
             }
             else
@@ -373,9 +332,10 @@ namespace GameLauncher.Views
                 return;
             }
 
-            var success = await _gameService.UpdateGameRunningStatusAsync(_game.Id, false);
+            var success = await _gameService.StopGameAsync(_game, _gameStartTime);
             if (success)
             {
+                GameStopped?.Invoke(_game);
                 ShowLaunchButton();
             }
         }

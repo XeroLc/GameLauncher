@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿using System;
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -195,11 +195,23 @@ namespace GameLauncher
             var processes = Process.GetProcesses();
             bool hadRunningGames = _runningGames.Count > 0;
 
+            foreach (var game in _games.Where(g => g.IsRunning))
+            {
+                if (!_runningGames.ContainsKey(game.Id))
+                {
+                    _runningGames[game.Id] = DateTime.UtcNow;
+                }
+            }
+
             foreach (var kvp in _runningGames.ToList())
             {
                 var gameId = kvp.Key;
                 var game = _games.FirstOrDefault(g => g.Id == gameId);
-                if (game == null) continue;
+                if (game == null)
+                {
+                    _runningGames.Remove(gameId);
+                    continue;
+                }
 
                 var processName = Path.GetFileNameWithoutExtension(game.ExecutablePath).ToLowerInvariant();
                 var isRunning = processes.Any(p => p.ProcessName.ToLowerInvariant() == processName);
@@ -208,13 +220,11 @@ namespace GameLauncher
                 {
                     var runTime = (long)(DateTime.UtcNow - kvp.Value).TotalSeconds;
                     
-                    // 立即更新数据库
                     _ = _gameService.UpdateGamePlayTimeAsync(gameId, runTime);
                     _ = _gameService.UpdateGameRunningStatusAsync(gameId, false);
                     
                     _runningGames.Remove(gameId);
                     
-                    // 更新 UI
                     if (!_isClosing)
                     {
                         RunOnUi(() =>
@@ -223,84 +233,51 @@ namespace GameLauncher
                             {
                                 game.IsRunning = false;
                                 game.TotalPlayTime += runTime;
-                                // 不在此处修改 LaunchCount，避免与启动时的数据库更新重复计数
                                 UpdateGameCardStatistics();
                             }
                             catch
                             {
-                                // 忽略 UI 更新错误
                             }
                         });
                     }
                 }
             }
 
-            // 如果之前有正在运行的游戏，现在没有了，恢复窗口
             if (hadRunningGames && _runningGames.Count == 0)
             {
                 RunOnUi(() => _trayService.RestoreFromTray());
             }
-
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    var runningProcesses = processes;
-                    foreach (var game in _games.Where(g => g.IsRunning))
-                    {
-                        if (_isClosing) break;
-                        
-                        var processName = Path.GetFileNameWithoutExtension(game.ExecutablePath).ToLowerInvariant();
-                        var isRunning = runningProcesses.Any(p => p.ProcessName.ToLowerInvariant() == processName);
-                        
-                        if (!isRunning)
-                        {
-                            try
-                            {
-                                // 仅在 UI 线程设置 IsRunning=false（不要假设 Dispatcher 可用）
-                                RunOnUi(() => { 
-                                    game.IsRunning = false;
-                                    UpdateGameCardStatistics();
-                                });
-
-                                // 然后更新数据库
-                                await _gameService.UpdateGameRunningStatusAsync(game.Id, false);
-                            }
-                            catch
-                            {
-                                // 忽略调度器错误（可能是窗口已关闭）
-                            }
-                        }
-                    }
-                }
-                catch
-                {
-                    // 忽略任务中的错误
-                }
-            });
         }
 
-        private void MainWindow_Closed(object sender, WindowEventArgs args)
+        private async void MainWindow_Closed(object sender, WindowEventArgs args)
         {
             _isClosing = true;
             _statusCheckTimer?.Stop();
             
-            // 更新所有正在运行的游戏时长
-            foreach (var kvp in _runningGames.ToList())
+            var gamesToClose = _runningGames.ToList();
+            _runningGames.Clear();
+            
+            foreach (var kvp in gamesToClose)
             {
                 var gameId = kvp.Key;
                 var game = _games.FirstOrDefault(g => g.Id == gameId);
                 if (game != null)
                 {
                     var runTime = (long)(DateTime.UtcNow - kvp.Value).TotalSeconds;
-                    _ = _gameService.UpdateGamePlayTimeAsync(gameId, runTime);
-                    _ = _gameService.UpdateGameRunningStatusAsync(gameId, false);
+                    game.TotalPlayTime += runTime;
+                    game.IsRunning = false;
+                    
+                    try
+                    {
+                        await _gameService.UpdateGamePlayTimeAsync(gameId, runTime);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"关闭窗口时更新游戏时长失败: {ex.Message}");
+                    }
                 }
             }
             
-            _runningGames.Clear();
-            
-            // 释放托盘服务资源
             _trayService?.Dispose();
         }
 
@@ -873,7 +850,14 @@ namespace GameLauncher
         {
             if (sender is Button button && button.DataContext is Game game)
             {
-                var success = await _gameService.UpdateGameRunningStatusAsync(game.Id, false);
+                DateTime? startTime = null;
+                if (_runningGames.ContainsKey(game.Id))
+                {
+                    startTime = _runningGames[game.Id];
+                    _runningGames.Remove(game.Id);
+                }
+
+                var success = await _gameService.StopGameAsync(game, startTime);
                 if (success)
                 {
                     RunOnUi(() => {
@@ -1260,9 +1244,29 @@ namespace GameLauncher
             {
                 _isDialogOpen = true;
 
-                var detailDialog = new Views.GameDetailDialog(game, _allTags.ToList())
+                DateTime? startTime = null;
+                if (_runningGames.ContainsKey(game.Id))
+                {
+                    startTime = _runningGames[game.Id];
+                }
+
+                var detailDialog = new Views.GameDetailDialog(game, _allTags.ToList(), startTime)
                 {
                     XamlRoot = Content.XamlRoot
+                };
+
+                detailDialog.GameLaunched += (launchedGame, launchTime) =>
+                {
+                    if (!_runningGames.ContainsKey(launchedGame.Id))
+                    {
+                        _runningGames[launchedGame.Id] = launchTime;
+                    }
+                };
+
+                detailDialog.GameStopped += (stoppedGame) =>
+                {
+                    _runningGames.Remove(stoppedGame.Id);
+                    RunOnUi(() => UpdateGameCardStatistics());
                 };
 
                 await detailDialog.ShowAsync();
@@ -1413,6 +1417,36 @@ namespace GameLauncher
             }
         }
 
+        private async void SettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_isDialogOpen)
+            {
+                return;
+            }
+
+            try
+            {
+                _isDialogOpen = true;
+                var dialog = new Views.SettingsDialog(() =>
+                {
+                    RunOnUi(() => ApplyFilters());
+                })
+                {
+                    XamlRoot = Content.XamlRoot
+                };
+
+                await dialog.ShowAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"打开设置时出错: {ex.Message}");
+            }
+            finally
+            {
+                _isDialogOpen = false;
+            }
+        }
+
         private void ApplyFilters()
         {
             if (_filteredGames == null || _games == null) return;
@@ -1420,6 +1454,14 @@ namespace GameLauncher
             _filteredGames.Clear();
 
             IEnumerable<Game> gamesToShow = _games;
+
+            var settings = Models.UserSettings.Instance;
+            if (settings.HideUnavailableGames)
+            {
+                gamesToShow = gamesToShow.Where(g =>
+                    !string.IsNullOrEmpty(g.ExecutablePath) &&
+                    System.IO.File.Exists(g.ExecutablePath));
+            }
 
             if (!string.IsNullOrWhiteSpace(SearchBox?.Text))
             {
