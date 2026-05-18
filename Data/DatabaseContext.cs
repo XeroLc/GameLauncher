@@ -23,6 +23,16 @@ namespace GameLauncher.Data
             return new SqliteConnection($"Data Source={_databasePath}");
         }
 
+        public async Task<SqliteConnection> GetOpenConnectionAsync()
+        {
+            var connection = new SqliteConnection($"Data Source={_databasePath}");
+            await connection.OpenAsync();
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = "PRAGMA foreign_keys=ON;";
+            await cmd.ExecuteNonQueryAsync();
+            return connection;
+        }
+
         public async Task InitializeAsync()
         {
             var dir = Path.GetDirectoryName(_databasePath);
@@ -92,6 +102,36 @@ namespace GameLauncher.Data
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"收藏迁移初始化失败（非致命）: {ex.Message}");
+            }
+
+            try
+            {
+                using var pragmaConnection = GetConnection();
+                await pragmaConnection.OpenAsync();
+
+                using var walCmd = pragmaConnection.CreateCommand();
+                walCmd.CommandText = "PRAGMA journal_mode=WAL;";
+                await walCmd.ExecuteNonQueryAsync();
+
+                using var timeoutCmd = pragmaConnection.CreateCommand();
+                timeoutCmd.CommandText = "PRAGMA busy_timeout=5000;";
+                await timeoutCmd.ExecuteNonQueryAsync();
+
+                using var fkCmd = pragmaConnection.CreateCommand();
+                fkCmd.CommandText = "PRAGMA foreign_keys=ON;";
+                await fkCmd.ExecuteNonQueryAsync();
+
+                using var idx1Cmd = pragmaConnection.CreateCommand();
+                idx1Cmd.CommandText = "CREATE INDEX IF NOT EXISTS idx_games_gameid ON Games(GameId)";
+                await idx1Cmd.ExecuteNonQueryAsync();
+
+                using var idx2Cmd = pragmaConnection.CreateCommand();
+                idx2Cmd.CommandText = "CREATE INDEX IF NOT EXISTS idx_collectionitems_collectionid ON GameCollectionItems(CollectionId)";
+                await idx2Cmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"PRAGMA/索引设置失败（非致命）: {ex.Message}");
             }
         }
 

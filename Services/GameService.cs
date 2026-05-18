@@ -80,16 +80,17 @@ namespace GameLauncher.Services
             }
 
             var result = await _repository.UpdateGameAsync(game);
-            if (result)
-            {
-                _ = SyncGmdAsync(game.Id);
-            }
             return result;
         }
 
         public async Task<bool> DeleteGameAsync(int id)
         {
             return await _repository.DeleteGameAsync(id);
+        }
+
+        public async Task<int> DeleteGamesAsync(IEnumerable<int> ids)
+        {
+            return await _repository.DeleteGamesAsync(ids);
         }
 
         public async Task<bool> LaunchGameAsync(Game game)
@@ -155,20 +156,9 @@ namespace GameLauncher.Services
             game.TotalPlayTime += additionalTime;
             game.IsRunning = false;
 
-            if (string.IsNullOrEmpty(game.GmdFilePath))
-            {
-                try
-                {
-                    game.GmdFilePath = new GmdFileService().GetGmdFilePath(game.ExecutablePath, game.GameId);
-                }
-                catch { }
-            }
+            EnsureGmdFilePath(game);
 
             var result = await _repository.UpdateGameAsync(game);
-            if (result)
-            {
-                _ = SyncGmdAsync(gameId);
-            }
             return result;
         }
 
@@ -182,20 +172,9 @@ namespace GameLauncher.Services
 
             game.IsRunning = isRunning;
 
-            if (string.IsNullOrEmpty(game.GmdFilePath))
-            {
-                try
-                {
-                    game.GmdFilePath = new GmdFileService().GetGmdFilePath(game.ExecutablePath, game.GameId);
-                }
-                catch { }
-            }
+            EnsureGmdFilePath(game);
 
             var result = await _repository.UpdateGameAsync(game);
-            if (result)
-            {
-                _ = SyncGmdAsync(gameId);
-            }
             return result;
         }
 
@@ -233,15 +212,9 @@ namespace GameLauncher.Services
                     }
                 }
 
-                if (string.IsNullOrEmpty(game.GmdFilePath))
-                {
-                    try
-                    {
-                        game.GmdFilePath = new GmdFileService().GetGmdFilePath(game.ExecutablePath, game.GameId);
-                }
-                catch { }
-            }
-            await _repository.UpdateGameAsync(game);
+                EnsureGmdFilePath(game);
+
+                await _repository.UpdateGameAsync(game);
 
             return true;
         }
@@ -302,6 +275,11 @@ namespace GameLauncher.Services
             return await _collectionRepo.GetCollectionGameCountAsync(collectionId);
         }
 
+        public async Task<Dictionary<int, int>> GetCollectionGameCountsAsync()
+        {
+            return await _collectionRepo.GetCollectionGameCountsAsync();
+        }
+
         public async Task<Dictionary<int, List<GameCollection>>> GetAllGameCollectionMappingsAsync()
         {
             return await _collectionRepo.GetAllGameCollectionMappingsAsync();
@@ -324,11 +302,20 @@ namespace GameLauncher.Services
             }
         }
 
-        private async Task SyncGmdAsync(int gameId)
+        private void EnsureGmdFilePath(Game game)
+        {
+            if (string.IsNullOrEmpty(game.GmdFilePath))
+            {
+                try { game.GmdFilePath = _gmdFileService.GetGmdFilePath(game.ExecutablePath, game.GameId); }
+                catch { }
+            }
+        }
+
+        private async Task SyncGmdAsync(int gameId, Game? existingGame = null)
         {
             try
             {
-                var game = await _repository.GetGameByIdAsync(gameId);
+                var game = existingGame ?? await _repository.GetGameByIdAsync(gameId);
                 if (game == null) return;
 
                 var gmdPath = game.GmdFilePath;
@@ -367,11 +354,53 @@ namespace GameLauncher.Services
         public async Task<int> ImportGamesAsync(List<Game> games)
         {
             int imported = 0;
+            var allCollections = await _collectionRepo.GetAllCollectionsAsync();
+            var scanService = new DiskScanService();
+
             foreach (var game in games)
             {
                 try
                 {
-                    await _repository.AddGameAsync(game);
+                    if (!string.IsNullOrWhiteSpace(game.GmdFilePath) && System.IO.File.Exists(game.GmdFilePath))
+                    {
+                        var imageService = new ImageService();
+                        imageService.EnsureGameImageDirectory(game.GameId);
+
+                        var (_, previewPaths) = await scanService.ExtractImagesFromGmdToLocalAsync(game.GmdFilePath, game.GameId);
+
+                        if (previewPaths.Count > 0)
+                        {
+                            game.ImagePaths.Clear();
+                            foreach (var path in previewPaths)
+                            {
+                                game.ImagePaths.Add(path);
+                            }
+                        }
+                    }
+
+                    var gameId = await _repository.AddGameAsync(game);
+
+                    if (game.Collections != null && game.Collections.Count > 0)
+                    {
+                        foreach (var col in game.Collections.ToList())
+                        {
+                            if (string.IsNullOrWhiteSpace(col.Name)) continue;
+                            var existing = allCollections.FirstOrDefault(c => string.Equals(c.Name, col.Name, StringComparison.OrdinalIgnoreCase));
+                            int colId;
+                            if (existing != null)
+                            {
+                                colId = existing.Id;
+                            }
+                            else
+                            {
+                                var newCol = await _collectionRepo.AddCollectionAsync(col.Name);
+                                allCollections.Add(newCol);
+                                colId = newCol.Id;
+                            }
+                            await _collectionRepo.AddGameToCollectionAsync(gameId, colId);
+                        }
+                    }
+
                     imported++;
                 }
                 catch (Exception ex)

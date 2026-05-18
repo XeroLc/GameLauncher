@@ -23,6 +23,7 @@ namespace GameLauncher.Views
 
         public event Action<Game, DateTime>? GameLaunched;
         public event Action<Game>? GameStopped;
+        public event Action? DataChanged;
 
         // 绑定属性
         public string GameName => _game?.Name ?? string.Empty;
@@ -52,7 +53,7 @@ namespace GameLauncher.Views
             }
         }
 
-        public GameDetailDialog(Game game, List<string>? allExistingTags = null, DateTime? gameStartTime = null)
+        public GameDetailDialog(Game game, GameService gameService, List<string>? allExistingTags = null, DateTime? gameStartTime = null)
         {
             if (game == null)
             {
@@ -60,11 +61,9 @@ namespace GameLauncher.Views
             }
 
             _game = game;
+            _gameService = gameService ?? throw new ArgumentNullException(nameof(gameService));
             _allExistingTags = allExistingTags ?? new List<string>();
             _gameStartTime = gameStartTime;
-            var dbContext = new DatabaseContext();
-            var repository = new GameRepository(dbContext);
-            _gameService = new GameService(repository, dbContext);
 
             // 注意：InitializeComponent 必须在变量赋值后调用，
             // 确保 x:Bind 能够正确找到数据
@@ -209,28 +208,7 @@ namespace GameLauncher.Views
 
         private string FormatPlayTime(long totalSeconds)
         {
-            if (totalSeconds < 60)
-            {
-                return $"{totalSeconds}秒";
-            }
-            else if (totalSeconds < 3600)
-            {
-                var minutes = totalSeconds / 60;
-                return $"{minutes}分钟";
-            }
-            else
-            {
-                var hours = totalSeconds / 3600;
-                if (hours >= 24)
-                {
-                    var days = hours / 24;
-                    return $"{days}天";
-                }
-                else
-                {
-                    return $"{hours}小时";
-                }
-            }
+            return Game.FormatPlayTime(totalSeconds);
         }
 
         private async void EditButton_Click(object sender, RoutedEventArgs e)
@@ -305,6 +283,8 @@ namespace GameLauncher.Views
                             _game.Collections.Add(collection);
                         }
                     }
+
+                    DataChanged?.Invoke();
                 }
                 catch (Exception ex)
                 {

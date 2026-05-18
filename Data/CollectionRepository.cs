@@ -124,18 +124,29 @@ namespace GameLauncher.Data
                 using var connection = _context.GetConnection();
                 await connection.OpenAsync();
 
-                using var command = connection.CreateCommand();
-                command.CommandText = @"
-                    DELETE FROM GameCollectionItems WHERE CollectionId = @Id;
-                    DELETE FROM GameCollections WHERE Id = @Id;";
+                using var transaction = connection.BeginTransaction();
+                try
+                {
+                    using var delItemsCmd = connection.CreateCommand();
+                    delItemsCmd.Transaction = transaction;
+                    delItemsCmd.CommandText = "DELETE FROM GameCollectionItems WHERE CollectionId = @Id";
+                    delItemsCmd.Parameters.AddWithValue("@Id", id);
+                    await delItemsCmd.ExecuteNonQueryAsync();
 
-                command.Parameters.AddWithValue("@Id", id);
+                    using var delColCmd = connection.CreateCommand();
+                    delColCmd.Transaction = transaction;
+                    delColCmd.CommandText = "DELETE FROM GameCollections WHERE Id = @Id";
+                    delColCmd.Parameters.AddWithValue("@Id", id);
+                    int rowsAffected = await delColCmd.ExecuteNonQueryAsync();
 
-                int rowsAffected = await command.ExecuteNonQueryAsync();
-
-                System.Diagnostics.Debug.WriteLine($"删除游戏集合 (Id={id}), 成功={rowsAffected > 0}");
-
-                return rowsAffected > 0;
+                    transaction.Commit();
+                    return rowsAffected > 0;
+                }
+                catch
+                {
+                    try { transaction.Rollback(); } catch { }
+                    throw;
+                }
             }
             catch (Exception ex)
             {
@@ -293,6 +304,32 @@ namespace GameLauncher.Data
             {
                 System.Diagnostics.Debug.WriteLine($"GetCollectionGameCountAsync 失败: {ex.Message}");
                 return 0;
+            }
+        }
+
+        public async Task<Dictionary<int, int>> GetCollectionGameCountsAsync()
+        {
+            try
+            {
+                var result = new Dictionary<int, int>();
+                using var connection = _context.GetConnection();
+                await connection.OpenAsync();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT CollectionId, COUNT(*) as GameCount
+                    FROM GameCollectionItems
+                    GROUP BY CollectionId";
+                using var reader = await command.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    result[reader.GetInt32(0)] = reader.GetInt32(1);
+                }
+                return result;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GetCollectionGameCountsAsync 失败: {ex.Message}");
+                return new Dictionary<int, int>();
             }
         }
 

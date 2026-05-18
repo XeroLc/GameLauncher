@@ -10,6 +10,8 @@ namespace GameLauncher.Models
 {
     public class Game : INotifyPropertyChanged
     {
+        private static readonly Services.ImageService _sharedImageService = new();
+
         private int _id;
         private string _name = string.Empty;
         private string _executablePath = string.Empty;
@@ -129,7 +131,6 @@ namespace GameLauncher.Models
                 {
                     var bitmapImage = new BitmapImage();
                     bitmapImage.UriSource = new Uri(_iconPath);
-                    bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
                     IconSource = bitmapImage;
                     return;
                 }
@@ -140,15 +141,14 @@ namespace GameLauncher.Models
             {
                 try
                 {
-                    var imageService = new Services.ImageService();
-                    var iconPath = imageService.GetIconPath(GameId);
+                    var iconPath = _sharedImageService.GetIconPath(GameId);
 
                     if (!System.IO.File.Exists(iconPath))
                     {
                         var tempIconPath = Services.GmdFileService.ExtractIconFromGmd(_gmdFilePath);
                         if (!string.IsNullOrEmpty(tempIconPath) && System.IO.File.Exists(tempIconPath))
                         {
-                            iconPath = imageService.SaveIconAsync(GameId, tempIconPath).GetAwaiter().GetResult();
+                            iconPath = _sharedImageService.SaveIconAsync(GameId, tempIconPath).GetAwaiter().GetResult();
                         }
                     }
 
@@ -157,7 +157,6 @@ namespace GameLauncher.Models
                         _iconPath = iconPath;
                         var bitmapImage = new BitmapImage();
                         bitmapImage.UriSource = new Uri(iconPath);
-                        bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
                         IconSource = bitmapImage;
                         return;
                     }
@@ -165,6 +164,23 @@ namespace GameLauncher.Models
                 catch { }
             }
 
+            IconSource = null;
+        }
+
+        public void ReloadIcon()
+        {
+            if (!string.IsNullOrEmpty(_iconPath) && System.IO.File.Exists(_iconPath))
+            {
+                try
+                {
+                    var bitmapImage = new BitmapImage();
+                    bitmapImage.UriSource = new Uri(_iconPath);
+                    bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                    IconSource = bitmapImage;
+                    return;
+                }
+                catch { }
+            }
             IconSource = null;
         }
 
@@ -359,7 +375,6 @@ namespace GameLauncher.Models
                     {
                         var bitmapImage = new BitmapImage();
                         bitmapImage.UriSource = new Uri(imagePath);
-                        bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
                         _imageSources.Add(bitmapImage);
                         hasValidImages = true;
                     }
@@ -374,8 +389,7 @@ namespace GameLauncher.Models
             {
                 try
                 {
-                    var imageService = new Services.ImageService();
-                    var previewFiles = imageService.GetAllPreviewImagePaths(GameId);
+                    var previewFiles = _sharedImageService.GetAllPreviewImagePaths(GameId);
 
                     if (previewFiles.Count == 0)
                     {
@@ -385,13 +399,12 @@ namespace GameLauncher.Models
                         {
                             if (System.IO.File.Exists(tempPath))
                             {
-                                var savedPath = imageService.SavePreviewImageAsync(GameId, tempPath, index).GetAwaiter().GetResult();
+                                var savedPath = _sharedImageService.SavePreviewImageAsync(GameId, tempPath, index).GetAwaiter().GetResult();
                                 if (!string.IsNullOrEmpty(savedPath))
                                 {
                                     _imagePaths.Add(savedPath);
                                     var bitmapImage = new BitmapImage();
                                     bitmapImage.UriSource = new Uri(savedPath);
-                                    bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
                                     _imageSources.Add(bitmapImage);
                                 }
                                 index++;
@@ -407,7 +420,6 @@ namespace GameLauncher.Models
                                 _imagePaths.Add(imgPath);
                                 var bitmapImage = new BitmapImage();
                                 bitmapImage.UriSource = new Uri(imgPath);
-                                bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
                                 _imageSources.Add(bitmapImage);
                             }
                         }
@@ -418,6 +430,36 @@ namespace GameLauncher.Models
                     System.Diagnostics.Debug.WriteLine($"从.gmd加载图片失败: {ex.Message}");
                 }
             }
+        }
+
+        public void ReloadImages()
+        {
+            _imageSources.Clear();
+            foreach (var imagePath in _imagePaths)
+            {
+                if (!string.IsNullOrEmpty(imagePath) && System.IO.File.Exists(imagePath))
+                {
+                    try
+                    {
+                        var bitmapImage = new BitmapImage();
+                        bitmapImage.UriSource = new Uri(imagePath);
+                        bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                        _imageSources.Add(bitmapImage);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"加载图片失败: {imagePath}, 错误: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        public static string FormatPlayTime(long totalSeconds)
+        {
+            if (totalSeconds < 60) return $"{totalSeconds}秒";
+            if (totalSeconds < 3600) return $"{totalSeconds / 60}分钟";
+            var hours = totalSeconds / 3600;
+            return hours >= 24 ? $"{hours / 24}天" : $"{hours}小时";
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

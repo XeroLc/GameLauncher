@@ -177,15 +177,11 @@ namespace GameLauncher.Services
             try
             {
                 using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                {
-                    var randomAccessStream = stream.AsRandomAccessStream();
-                    var decoder = await BitmapDecoder.CreateAsync(randomAccessStream);
-
-                    if (decoder.FrameCount > 1)
-                        return true;
-
-                    return false;
-                }
+            using (var randomAccessStream = stream.AsRandomAccessStream())
+            {
+                var decoder = await BitmapDecoder.CreateAsync(randomAccessStream);
+                return decoder.FrameCount > 1;
+            }
             }
             catch
             {
@@ -199,8 +195,8 @@ namespace GameLauncher.Services
                 return;
 
             using (var stream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var randomAccessStream = stream.AsRandomAccessStream())
             {
-                var randomAccessStream = stream.AsRandomAccessStream();
                 var decoder = await BitmapDecoder.CreateAsync(randomAccessStream);
 
                 var width = decoder.OrientedPixelWidth;
@@ -241,8 +237,8 @@ namespace GameLauncher.Services
                 props.Add("ImageQuality", qualityValue);
 
                 using (var fileStream = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                using (var ras = fileStream.AsRandomAccessStream())
                 {
-                    var ras = fileStream.AsRandomAccessStream();
                     var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, ras, props);
 
                     encoder.SetPixelData(

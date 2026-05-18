@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -152,25 +153,55 @@ namespace GameLauncher.Services
             try
             {
                 var imageService = new ImageService();
+                var tempDir = Path.Combine(Path.GetTempPath(), "GameLauncher", "GmdExtract", Guid.NewGuid().ToString());
 
-                var tempIconPath = GmdFileService.ExtractIconFromGmd(gmdFilePath);
-                if (!string.IsNullOrEmpty(tempIconPath) && System.IO.File.Exists(tempIconPath))
+                try
                 {
-                    iconPath = await imageService.SaveIconAsync(gameId, tempIconPath);
-                }
+                    if (!Directory.Exists(tempDir))
+                        Directory.CreateDirectory(tempDir);
 
-                var tempImagePaths = GmdFileService.ExtractImagesFromGmd(gmdFilePath);
-                int index = 1;
-                foreach (var tempPath in tempImagePaths)
-                {
-                    if (System.IO.File.Exists(tempPath))
+                    using (var archive = System.IO.Compression.ZipFile.OpenRead(gmdFilePath))
                     {
-                        var savedPath = await imageService.SavePreviewImageAsync(gameId, tempPath, index);
-                        if (!string.IsNullOrEmpty(savedPath))
+                        var iconEntry = archive.GetEntry("icon.jpg");
+                        if (iconEntry != null)
                         {
-                            previewPaths.Add(savedPath);
+                            var tempIconPath = Path.Combine(tempDir, "icon.jpg");
+                            iconEntry.ExtractToFile(tempIconPath, overwrite: true);
+                            if (System.IO.File.Exists(tempIconPath))
+                            {
+                                iconPath = await imageService.SaveIconAsync(gameId, tempIconPath);
+                            }
                         }
-                        index++;
+
+                        int index = 1;
+                        foreach (var entry in archive.Entries)
+                        {
+                            if ((entry.FullName.StartsWith("images/", StringComparison.OrdinalIgnoreCase) ||
+                                 entry.FullName.StartsWith("images\\", StringComparison.OrdinalIgnoreCase)) &&
+                                !entry.FullName.EndsWith("/") && !entry.FullName.EndsWith("\\"))
+                            {
+                                var fileName = Path.GetFileName(entry.FullName);
+                                if (string.IsNullOrEmpty(fileName)) continue;
+                                var tempPath = Path.Combine(tempDir, fileName);
+                                entry.ExtractToFile(tempPath, overwrite: true);
+                                if (System.IO.File.Exists(tempPath))
+                                {
+                                    var savedPath = await imageService.SavePreviewImageAsync(gameId, tempPath, index);
+                                    if (!string.IsNullOrEmpty(savedPath))
+                                    {
+                                        previewPaths.Add(savedPath);
+                                    }
+                                    index++;
+                                }
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    if (Directory.Exists(tempDir))
+                    {
+                        try { Directory.Delete(tempDir, true); } catch { }
                     }
                 }
             }
@@ -187,28 +218,17 @@ namespace GameLauncher.Services
             try
             {
                 var game = await _gmdService.DeserializeGameFromGmdAsync(gmdFilePath);
+                if (game == null) return null;
 
-                var gameExeDir = Path.GetDirectoryName(game.ExecutablePath);
-                if (string.IsNullOrEmpty(gameExeDir) || !Directory.Exists(gameExeDir))
-                {
-                    Debug.WriteLine($"[DiskScanService] 游戏目录无效或不存在: {game.ExecutablePath}");
-                    return game;
-                }
+                game.GmdFilePath = gmdFilePath;
 
-                var (iconPath, previewPaths) = await ExtractImagesFromGmdToLocalAsync(gmdFilePath, game.GameId);
+                var imageService = new ImageService();
+                imageService.EnsureGameImageDirectory(game.GameId);
 
+                var (iconPath, _) = await ExtractImagesFromGmdToLocalAsync(gmdFilePath, game.GameId);
                 if (!string.IsNullOrEmpty(iconPath))
                 {
                     game.IconPath = iconPath;
-                }
-
-                if (previewPaths.Count > 0)
-                {
-                    game.ImagePaths.Clear();
-                    foreach (var path in previewPaths)
-                    {
-                        game.ImagePaths.Add(path);
-                    }
                 }
 
                 Debug.WriteLine($"[DiskScanService] 成功解析.gmd: {gmdFilePath}");
@@ -225,12 +245,17 @@ namespace GameLauncher.Services
         {
             var result = new ScanResult();
             var existingGameSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var existingGameIdSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var game in existingGames)
             {
                 if (!string.IsNullOrEmpty(game.ExecutablePath))
                 {
                     existingGameSet.Add(game.ExecutablePath);
+                }
+                if (!string.IsNullOrWhiteSpace(game.GameId))
+                {
+                    existingGameIdSet.Add(game.GameId);
                 }
             }
 
@@ -299,7 +324,8 @@ namespace GameLauncher.Services
                         continue;
                     }
 
-                    if (existingGameSet.Contains(game.ExecutablePath))
+                    if (existingGameSet.Contains(game.ExecutablePath) ||
+                        (!string.IsNullOrWhiteSpace(game.GameId) && existingGameIdSet.Contains(game.GameId)))
                     {
                         result.ExistingGames.Add(game);
                         Debug.WriteLine($"[DiskScanService] 游戏已存在于库中: {game.Name} ({game.ExecutablePath})");

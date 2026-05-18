@@ -3,6 +3,7 @@ using GameLauncher.Services;
 using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -14,12 +15,27 @@ namespace GameLauncher.Data
         private readonly DatabaseContext _context;
         private readonly GmdFileService _gmdService;
         private readonly CollectionRepository _collectionRepo;
+        private static Dictionary<string, int>? _cachedColumnMap;
 
         public GameRepository(DatabaseContext context)
         {
             _context = context;
             _gmdService = new GmdFileService();
             _collectionRepo = new CollectionRepository(context);
+        }
+
+        private string SerializeImagePaths(ObservableCollection<string> imagePaths)
+        {
+            if (imagePaths == null || imagePaths.Count == 0) return string.Empty;
+            try { return JsonSerializer.Serialize(imagePaths.ToList()); }
+            catch { return string.Empty; }
+        }
+
+        private string SerializeTags(ObservableCollection<string> tags)
+        {
+            if (tags == null || tags.Count == 0) return string.Empty;
+            try { return JsonSerializer.Serialize(tags.ToList()); }
+            catch { return string.Empty; }
         }
 
         public async Task<List<Game>> GetAllGamesAsync()
@@ -219,24 +235,33 @@ namespace GameLauncher.Data
                 }
 
                 games.Add(game);
+            }
 
-                try
+            try
+            {
+                var collectionMappings = await _collectionRepo.GetAllGameCollectionMappingsAsync();
+                foreach (var game in games)
                 {
-                    var collections = await _collectionRepo.GetCollectionsForGameAsync(game.Id);
-                    foreach (var col in collections)
+                    if (collectionMappings.TryGetValue(game.Id, out var collections))
                     {
-                        if (!game.Collections.Any(c => c.Id == col.Id))
-                            game.Collections.Add(col);
+                        foreach (var col in collections)
+                        {
+                            if (!game.Collections.Any(c => c.Id == col.Id))
+                                game.Collections.Add(col);
+                        }
                     }
                 }
-                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"加载游戏 {game.Name} 的收藏夹失败: {ex.Message}"); }
             }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"批量加载收藏夹失败: {ex.Message}"); }
 
             return games;
         }
 
         private async Task<Dictionary<string, int>> GetColumnMapAsync(SqliteConnection connection)
         {
+            if (_cachedColumnMap != null)
+                return _cachedColumnMap;
+
             var columnMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             using var pragmaCommand = connection.CreateCommand();
             pragmaCommand.CommandText = "PRAGMA table_info(Games)";
@@ -247,6 +272,7 @@ namespace GameLauncher.Data
                 if (!columnMap.ContainsKey(colName))
                     columnMap[colName] = pragmaReader.GetInt32(0);
             }
+            _cachedColumnMap = columnMap;
             return columnMap;
         }
 
@@ -401,32 +427,10 @@ namespace GameLauncher.Data
             command.Parameters.AddWithValue("@Description", game.Description ?? (object)DBNull.Value);
             command.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow);
 
-            // 序列化 ImagePaths
-            string imagePathsJson = string.Empty;
-            if (game.ImagePaths != null && game.ImagePaths.Count > 0)
-            {
-                try
-                {
-                    imagePathsJson = JsonSerializer.Serialize(game.ImagePaths.ToList());
-                }
-                catch
-                {
-                }
-            }
+            var imagePathsJson = SerializeImagePaths(game.ImagePaths);
             command.Parameters.AddWithValue("@ImagePaths", string.IsNullOrEmpty(imagePathsJson) ? (object)DBNull.Value : imagePathsJson);
 
-            // 序列化 Tags
-            string tagsJson = string.Empty;
-            if (game.Tags != null && game.Tags.Count > 0)
-            {
-                try
-                {
-                    tagsJson = JsonSerializer.Serialize(game.Tags.ToList());
-                }
-                catch
-                {
-                }
-            }
+            var tagsJson = SerializeTags(game.Tags);
             command.Parameters.AddWithValue("@Tags", string.IsNullOrEmpty(tagsJson) ? (object)DBNull.Value : tagsJson);
 
             var result = await command.ExecuteScalarAsync();
@@ -482,32 +486,10 @@ namespace GameLauncher.Data
             command.Parameters.AddWithValue("@IsRunning", game.IsRunning ? 1 : 0);
             command.Parameters.AddWithValue("@Id", game.Id);
 
-            // 序列化 ImagePaths
-            string imagePathsJson = string.Empty;
-            if (game.ImagePaths != null && game.ImagePaths.Count > 0)
-            {
-                try
-                {
-                    imagePathsJson = JsonSerializer.Serialize(game.ImagePaths.ToList());
-                }
-                catch
-                {
-                }
-            }
+            var imagePathsJson = SerializeImagePaths(game.ImagePaths);
             command.Parameters.AddWithValue("@ImagePaths", string.IsNullOrEmpty(imagePathsJson) ? (object)DBNull.Value : imagePathsJson);
 
-            // 序列化 Tags
-            string tagsJson = string.Empty;
-            if (game.Tags != null && game.Tags.Count > 0)
-            {
-                try
-                {
-                    tagsJson = JsonSerializer.Serialize(game.Tags.ToList());
-                }
-                catch
-                {
-                }
-            }
+            var tagsJson = SerializeTags(game.Tags);
             command.Parameters.AddWithValue("@Tags", string.IsNullOrEmpty(tagsJson) ? (object)DBNull.Value : tagsJson);
 
             int rowsAffected = await command.ExecuteNonQueryAsync();
@@ -537,50 +519,112 @@ namespace GameLauncher.Data
 
         public async Task<bool> DeleteGameAsync(int id)
         {
-            // 先获取游戏信息以便删除.gmd文件和图片目录
             var game = await GetGameByIdAsync(id);
 
-            if (game != null)
-            {
-                try
-                {
-                    var collections = await _collectionRepo.GetCollectionsForGameAsync(game.Id);
-                    foreach (var col in collections)
-                    {
-                        await _collectionRepo.RemoveGameFromCollectionAsync(game.Id, col.Id);
-                    }
-                }
-                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"删除游戏集合关联失败: {ex.Message}"); }
-            }
-            
             using var connection = _context.GetConnection();
             await connection.OpenAsync();
 
-            using var command = connection.CreateCommand();
-            command.CommandText = "DELETE FROM Games WHERE Id = @Id";
-            command.Parameters.AddWithValue("@Id", id);
-
-            int rowsAffected = await command.ExecuteNonQueryAsync();
-
-            if (rowsAffected > 0 && game != null)
+            using var transaction = connection.BeginTransaction();
+            try
             {
-                // 删除游戏图片目录
-                try
+                if (game != null)
                 {
-                    if (!string.IsNullOrWhiteSpace(game.GameId))
+                    try
                     {
-                        var imageService = new Services.ImageService();
-                        imageService.DeleteGameImages(game.GameId);
-                        System.Diagnostics.Debug.WriteLine($"删除游戏图片目录成功: {game.GameId}");
+                        using var delCmd = connection.CreateCommand();
+                        delCmd.Transaction = transaction;
+                        delCmd.CommandText = "DELETE FROM GameCollectionItems WHERE GameId = @Id";
+                        delCmd.Parameters.AddWithValue("@Id", id);
+                        await delCmd.ExecuteNonQueryAsync();
                     }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"删除游戏集合关联失败: {ex.Message}"); }
                 }
-                catch (Exception ex)
+
+                using var command = connection.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText = "DELETE FROM Games WHERE Id = @Id";
+                command.Parameters.AddWithValue("@Id", id);
+                int rowsAffected = await command.ExecuteNonQueryAsync();
+
+                transaction.Commit();
+
+                if (rowsAffected > 0 && game != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"删除游戏图片目录失败: {ex.Message}");
+                    try
+                    {
+                        if (!string.IsNullOrWhiteSpace(game.GameId))
+                        {
+                            var imageService = new Services.ImageService();
+                            imageService.DeleteGameImages(game.GameId);
+                        }
+                    }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"删除游戏图片目录失败: {ex.Message}"); }
                 }
+
+                return rowsAffected > 0;
+            }
+            catch
+            {
+                try { transaction.Rollback(); } catch { }
+                throw;
+            }
+        }
+
+        public async Task<int> DeleteGamesAsync(IEnumerable<int> ids)
+        {
+            var idList = ids.ToList();
+            if (idList.Count == 0) return 0;
+
+            var gamesToDelete = new List<Game>();
+            foreach (var id in idList)
+            {
+                var game = await GetGameByIdAsync(id);
+                if (game != null) gamesToDelete.Add(game);
             }
 
-            return rowsAffected > 0;
+            using var connection = _context.GetConnection();
+            await connection.OpenAsync();
+
+            using var transaction = connection.BeginTransaction();
+            try
+            {
+                using var delItemsCmd = connection.CreateCommand();
+                delItemsCmd.Transaction = transaction;
+                var itemParams = string.Join(",", idList.Select((_, i) => $"@Id{i}"));
+                delItemsCmd.CommandText = $"DELETE FROM GameCollectionItems WHERE GameId IN ({itemParams})";
+                for (int i = 0; i < idList.Count; i++)
+                    delItemsCmd.Parameters.AddWithValue($"@Id{i}", idList[i]);
+                await delItemsCmd.ExecuteNonQueryAsync();
+
+                using var delGamesCmd = connection.CreateCommand();
+                delGamesCmd.Transaction = transaction;
+                delGamesCmd.CommandText = $"DELETE FROM Games WHERE Id IN ({itemParams})";
+                for (int i = 0; i < idList.Count; i++)
+                    delGamesCmd.Parameters.AddWithValue($"@Id{i}", idList[i]);
+                int rowsAffected = await delGamesCmd.ExecuteNonQueryAsync();
+
+                transaction.Commit();
+
+                foreach (var game in gamesToDelete)
+                {
+                    try
+                    {
+                        if (!string.IsNullOrWhiteSpace(game.GameId))
+                        {
+                            var imageService = new Services.ImageService();
+                            imageService.DeleteGameImages(game.GameId);
+                        }
+                    }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"删除游戏图片目录失败: {ex.Message}"); }
+                }
+
+                return rowsAffected;
+            }
+            catch
+            {
+                try { transaction.Rollback(); } catch { }
+                throw;
+            }
         }
 
         public async Task<bool> GameIdExistsAsync(string gameId)

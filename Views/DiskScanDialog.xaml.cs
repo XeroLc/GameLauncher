@@ -20,6 +20,7 @@ namespace GameLauncher.Views
         private readonly ObservableCollection<Game> _displayedGames = new();
 
         public List<Game> SelectedGames { get; private set; } = new();
+        public List<Game> AllDiscoveredGames { get; private set; } = new();
 
         public DiskScanDialog(GameService gameService, ObservableCollection<Game> existingGames)
         {
@@ -104,6 +105,8 @@ namespace GameLauncher.Views
                 catch { }
                 _displayedGames.Add(game);
             }
+
+            AllDiscoveredGames = _scanResult.DiscoveredGames.ToList();
 
             if (newCount == 0)
             {

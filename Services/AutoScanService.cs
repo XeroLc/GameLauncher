@@ -15,6 +15,7 @@ namespace GameLauncher.Services
         public List<string> NewGameNames { get; set; } = new List<string>();
         public int TotalScanned { get; set; }
         public List<int> ImportedGameIds { get; set; } = new List<int>();
+        public List<Game> DiscoveredGames { get; set; } = new List<Game>();
     }
 
     public class AutoScanService
@@ -28,7 +29,7 @@ namespace GameLauncher.Services
             _gmdFileService = new GmdFileService();
         }
 
-        public async Task<AutoScanResult> ScanAndImportAsync(List<string> scanPaths, CancellationToken cancellationToken = default)
+        public async Task<AutoScanResult> ScanAsync(List<string> scanPaths, CancellationToken cancellationToken = default)
         {
             var result = new AutoScanResult();
 
@@ -42,6 +43,10 @@ namespace GameLauncher.Services
 
             var existingGameNames = new HashSet<string>(
                 allExistingGames.Select(g => g.Name),
+                StringComparer.OrdinalIgnoreCase);
+
+            var existingGameIds = new HashSet<string>(
+                allExistingGames.Where(g => !string.IsNullOrWhiteSpace(g.GameId)).Select(g => g.GameId),
                 StringComparer.OrdinalIgnoreCase);
 
             var foundGmdFiles = new List<string>();
@@ -96,43 +101,29 @@ namespace GameLauncher.Services
                     if (existingGameNames.Contains(game.Name))
                         continue;
 
+                    if (!string.IsNullOrWhiteSpace(game.GameId) &&
+                        existingGameIds.Contains(game.GameId))
+                        continue;
+
+                    game.GmdFilePath = gmdFile;
+
+                    var imageService = new ImageService();
+                    imageService.EnsureGameImageDirectory(game.GameId);
+
+                    var scanService = new DiskScanService();
+                    var (iconPath, _) = await scanService.ExtractImagesFromGmdToLocalAsync(gmdFile, game.GameId);
+                    if (!string.IsNullOrEmpty(iconPath))
+                    {
+                        game.IconPath = iconPath;
+                    }
+
                     result.NewGameNames.Add(game.Name);
+                    result.DiscoveredGames.Add(game);
                     existingGameNames.Add(game.Name);
                     if (!string.IsNullOrEmpty(game.ExecutablePath))
                         existingExePaths.Add(game.ExecutablePath);
-
-                    try
-                    {
-                        var gameId = await _gameService.AddGameAsync(game);
-                        result.ImportedGameIds.Add(gameId);
-
-                        var metadata = _gmdFileService.CreateMetadataFromGame(game);
-                        if (metadata.Collections != null && metadata.Collections.Count > 0)
-                        {
-                            var allCollections = await _gameService.GetAllCollectionsAsync();
-                            foreach (var colName in metadata.Collections)
-                            {
-                                var existingCol = allCollections.FirstOrDefault(c =>
-                                    string.Equals(c.Name, colName, StringComparison.OrdinalIgnoreCase));
-                                if (existingCol != null)
-                                {
-                                    await _gameService.AddGameToCollectionAsync(gameId, existingCol.Id);
-                                }
-                                else
-                                {
-                                    var newCol = await _gameService.AddCollectionAsync(colName);
-                                    if (newCol != null)
-                                    {
-                                        await _gameService.AddGameToCollectionAsync(gameId, newCol.Id);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[AutoScan] 导入游戏失败 {game.Name}: {ex.Message}");
-                    }
+                    if (!string.IsNullOrWhiteSpace(game.GameId))
+                        existingGameIds.Add(game.GameId);
                 }
                 catch (Exception ex)
                 {

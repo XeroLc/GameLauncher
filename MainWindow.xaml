@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Window
     x:Class="GameLauncher.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -42,18 +42,14 @@
             </Border>
         </Grid>
 
-        <ScrollViewer x:Name="MainScrollViewer"
-                      VerticalScrollMode="Auto"
-                      VerticalScrollBarVisibility="Auto"
-                      ViewChanged="MainScrollViewer_ViewChanged">
-            <GridView x:Name="GamesGridView"
-                      Padding="24,16"
-                      ItemsSource="{x:Bind FilteredGames}"
-                      SelectionMode="None"
-                      SelectionChanged="GamesGridView_SelectionChanged"
-                      AllowDrop="True"
-                      DragOver="GamesGridView_DragOver"
-                      Drop="GamesGridView_Drop">
+        <GridView x:Name="GamesGridView"
+                  Padding="24,16"
+                  ItemsSource="{x:Bind FilteredGames}"
+                  SelectionMode="None"
+                  SelectionChanged="GamesGridView_SelectionChanged"
+                  AllowDrop="True"
+                  DragOver="GamesGridView_DragOver"
+                  Drop="GamesGridView_Drop">
                 <GridView.ItemTemplate>
                     <DataTemplate>
                         <Border Width="240"
@@ -183,7 +179,6 @@
                     </DataTemplate>
                 </GridView.ItemTemplate>
             </GridView>
-        </ScrollViewer>
 
         <Grid x:Name="EmptyState"
               Visibility="Collapsed"

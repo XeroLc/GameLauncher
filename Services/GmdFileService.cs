@@ -58,38 +58,48 @@ namespace GameLauncher.Services
             if (!Directory.Exists(directory))
                 Directory.CreateDirectory(directory);
 
-            await Task.Run(async () =>
+            var semaphore = _fileLocks.GetOrAdd(gmdFilePath, _ => new SemaphoreSlim(1, 1));
+            await semaphore.WaitAsync();
+            try
             {
-                if (File.Exists(gmdFilePath))
+                await Task.Run(async () =>
                 {
-                    File.Delete(gmdFilePath);
-                }
-
-                using (var archive = ZipFile.Open(gmdFilePath, ZipArchiveMode.Create))
-                {
-                    var metadata = CreateMetadataFromGame(game);
-                    var json = JsonSerializer.Serialize(metadata, new JsonSerializerOptions
+                    if (File.Exists(gmdFilePath))
                     {
-                        WriteIndented = true,
-                        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-                    });
-
-                    var metadataEntry = archive.CreateEntry(MetadataFileName);
-                    using (var entryStream = metadataEntry.Open())
-                    using (var writer = new StreamWriter(entryStream))
-                    {
-                        await writer.WriteAsync(json);
+                        File.Delete(gmdFilePath);
                     }
 
-                    await AddIconToArchiveAsync(archive, game.IconPath);
-                    await AddImagesToArchiveAsync(archive, game.ImagePaths);
-                }
+                    using (var archive = ZipFile.Open(gmdFilePath, ZipArchiveMode.Create))
+                    {
+                        var metadata = CreateMetadataFromGame(game);
+                        var json = JsonSerializer.Serialize(metadata, new JsonSerializerOptions
+                        {
+                            WriteIndented = true,
+                            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                        });
 
-                game.GmdFilePath = gmdFilePath;
-                game.IsGmdFileReady = true;
+                        var metadataEntry = archive.CreateEntry(MetadataFileName);
+                        using (var entryStream = metadataEntry.Open())
+                        using (var writer = new StreamWriter(entryStream))
+                        {
+                            await writer.WriteAsync(json);
+                        }
 
-                Debug.WriteLine($"[GmdFileService] 成功创建.gmd文件: {gmdFilePath}");
-            });
+                        await AddIconToArchiveAsync(archive, game.IconPath);
+                        await AddImagesToArchiveAsync(archive, game.ImagePaths);
+                    }
+
+                    game.GmdFilePath = gmdFilePath;
+                    game.IsGmdFileReady = true;
+
+                    Debug.WriteLine($"[GmdFileService] 成功创建.gmd文件: {gmdFilePath}");
+                });
+            }
+            finally
+            {
+                semaphore.Release();
+                _fileLocks.TryRemove(gmdFilePath, out _);
+            }
         }
 
         public async Task<Game> DeserializeGameFromGmdAsync(string gmdFilePath)
@@ -185,6 +195,10 @@ namespace GameLauncher.Services
                 }
                 catch
                 {
+                    throw;
+                }
+                finally
+                {
                     if (Directory.Exists(tempDir))
                     {
                         try
@@ -195,7 +209,6 @@ namespace GameLauncher.Services
                         {
                         }
                     }
-                    throw;
                 }
             });
         }
@@ -348,6 +361,7 @@ namespace GameLauncher.Services
             finally
             {
                 semaphore.Release();
+                _fileLocks.TryRemove(gmdFilePath, out _);
             }
         }
 
@@ -530,12 +544,10 @@ namespace GameLauncher.Services
 
         private async Task CopyImageToArchiveAsync(string sourceImagePath, ZipArchive archive, string entryName)
         {
-            var imageBytes = await File.ReadAllBytesAsync(sourceImagePath);
             var entry = archive.CreateEntry(entryName);
-            using (var entryStream = entry.Open())
-            {
-                await entryStream.WriteAsync(imageBytes, 0, imageBytes.Length);
-            }
+            using var entryStream = entry.Open();
+            using var sourceStream = new FileStream(sourceImagePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            await sourceStream.CopyToAsync(entryStream);
         }
 
         private async Task ConvertImageToJpegAsync(string sourceImagePath, ZipArchive archive, string entryName)
@@ -543,8 +555,8 @@ namespace GameLauncher.Services
             try
             {
                 using (var stream = new FileStream(sourceImagePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (var randomAccessStream = stream.AsRandomAccessStream())
                 {
-                    var randomAccessStream = stream.AsRandomAccessStream();
                     var decoder = await BitmapDecoder.CreateAsync(randomAccessStream);
 
                     var width = decoder.OrientedPixelWidth;
@@ -581,29 +593,37 @@ namespace GameLauncher.Services
                     var entry = archive.CreateEntry(entryName);
 
                     var ms = new MemoryStream();
+                    byte[] jpegBytes;
                     var ras = ms.AsRandomAccessStream();
+                    try
+                    {
+                        var props = new BitmapPropertySet();
+                        var qualityValue = new BitmapTypedValue(0.75, Windows.Foundation.PropertyType.Single);
+                        props.Add("ImageQuality", qualityValue);
 
-                    var props = new BitmapPropertySet();
-                    var qualityValue = new BitmapTypedValue(0.75, Windows.Foundation.PropertyType.Single);
-                    props.Add("ImageQuality", qualityValue);
+                        var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, ras, props);
 
-                    var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, ras, props);
+                        encoder.SetPixelData(
+                            BitmapPixelFormat.Bgra8,
+                            BitmapAlphaMode.Ignore,
+                            (uint)newWidth,
+                            (uint)newHeight,
+                            decoder.DpiX,
+                            decoder.DpiY,
+                            pixelData.DetachPixelData());
 
-                    encoder.SetPixelData(
-                        BitmapPixelFormat.Bgra8,
-                        BitmapAlphaMode.Ignore,
-                        (uint)newWidth,
-                        (uint)newHeight,
-                        decoder.DpiX,
-                        decoder.DpiY,
-                        pixelData.DetachPixelData());
-
-                    await encoder.FlushAsync();
+                        await encoder.FlushAsync();
+                        jpegBytes = ms.ToArray();
+                    }
+                    finally
+                    {
+                        ras.Dispose();
+                        ms.Dispose();
+                    }
 
                     using (var entryStream = entry.Open())
                     {
-                        ms.Seek(0, SeekOrigin.Begin);
-                        await ms.CopyToAsync(entryStream);
+                        await entryStream.WriteAsync(jpegBytes, 0, jpegBytes.Length);
                     }
                 }
             }
