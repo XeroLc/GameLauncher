@@ -8,6 +8,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Graphics.Imaging;
@@ -18,21 +19,20 @@ namespace GameLauncher.Services
     public class GmdFileService
     {
         private const string MetadataFileName = "metadata.json";
-        private const string IconFileName = "icon.png";
+        private const string IconFileName = "icon.jpg";
         private const string ImagesDirectoryName = "images";
 
         private static readonly ConcurrentDictionary<string, SemaphoreSlim> _fileLocks = new(StringComparer.OrdinalIgnoreCase);
 
-        public string GetGmdFilePath(string executablePath, string gameName)
+        public string GetGmdFilePath(string executablePath, string gameId)
         {
             if (string.IsNullOrWhiteSpace(executablePath))
                 throw new ArgumentException("可执行文件路径不能为空", nameof(executablePath));
-            if (string.IsNullOrWhiteSpace(gameName))
-                throw new ArgumentException("游戏名称不能为空", nameof(gameName));
+            if (string.IsNullOrWhiteSpace(gameId))
+                throw new ArgumentException("游戏ID不能为空", nameof(gameId));
 
             var directory = Path.GetDirectoryName(executablePath) ?? throw new InvalidOperationException("无法获取可执行文件目录");
-            var sanitizedName = SanitizeFileName(gameName);
-            return Path.Combine(directory, $"{sanitizedName}.gmd");
+            return Path.Combine(directory, $"{gameId}.gmd");
         }
 
         public bool GmdFileExists(string gmdFilePath)
@@ -52,7 +52,7 @@ namespace GameLauncher.Services
             if (string.IsNullOrWhiteSpace(game.Name))
                 throw new ArgumentException("游戏名称不能为空");
 
-            var gmdFilePath = GetGmdFilePath(game.ExecutablePath, game.Name);
+            var gmdFilePath = GetGmdFilePath(game.ExecutablePath, game.GameId);
             var directory = Path.GetDirectoryName(gmdFilePath) ?? throw new InvalidOperationException("无法获取.gmd文件目录");
 
             if (!Directory.Exists(directory))
@@ -102,6 +102,7 @@ namespace GameLauncher.Services
             return await Task.Run(async () =>
             {
                 var tempDir = Path.Combine(Path.GetTempPath(), "GameLauncher", "GmdExtract", Guid.NewGuid().ToString());
+                var imageService = new ImageService();
 
                 try
                 {
@@ -124,17 +125,27 @@ namespace GameLauncher.Services
 
                         var game = CreateGameFromMetadata(metadata, gmdFilePath);
 
+                        var gameId = game.GameId;
+                        if (string.IsNullOrWhiteSpace(gameId))
+                        {
+                            gameId = Path.GetFileNameWithoutExtension(gmdFilePath);
+                        }
+
                         var iconEntry = archive.GetEntry(IconFileName);
                         if (iconEntry != null)
                         {
-                            var iconPath = ExtractEntryToTemp(archive, iconEntry, tempDir, IconFileName);
-                            if (!string.IsNullOrEmpty(iconPath))
+                            var tempIconPath = ExtractEntryToTemp(archive, iconEntry, tempDir, IconFileName);
+                            if (!string.IsNullOrEmpty(tempIconPath) && File.Exists(tempIconPath))
                             {
-                                game.IconPath = iconPath;
+                                var savedIconPath = await imageService.SaveIconAsync(gameId, tempIconPath);
+                                if (!string.IsNullOrEmpty(savedIconPath))
+                                {
+                                    game.IconPath = savedIconPath;
+                                }
                             }
                         }
 
-                        var imagePaths = new List<string>();
+                        var imageEntries = new List<ZipArchiveEntry>();
                         foreach (var entry in archive.Entries)
                         {
                             if (entry.FullName.StartsWith(ImagesDirectoryName + "/", StringComparison.OrdinalIgnoreCase) ||
@@ -142,23 +153,26 @@ namespace GameLauncher.Services
                             {
                                 if (!entry.FullName.EndsWith("/") && !entry.FullName.EndsWith("\\"))
                                 {
-                                    var fileName = Path.GetFileName(entry.FullName);
-                                    if (!string.IsNullOrEmpty(fileName))
-                                    {
-                                        var imagePath = ExtractEntryToTemp(archive, entry, tempDir, entry.FullName);
-                                        if (!string.IsNullOrEmpty(imagePath))
-                                        {
-                                            imagePaths.Add(imagePath);
-                                        }
-                                    }
+                                    imageEntries.Add(entry);
                                 }
                             }
                         }
 
-                        imagePaths.Sort();
-                        foreach (var path in imagePaths)
+                        imageEntries.Sort((a, b) => string.Compare(a.FullName, b.FullName, StringComparison.OrdinalIgnoreCase));
+
+                        int previewIndex = 1;
+                        foreach (var entry in imageEntries)
                         {
-                            game.ImagePaths.Add(path);
+                            var tempImagePath = ExtractEntryToTemp(archive, entry, tempDir, entry.FullName);
+                            if (!string.IsNullOrEmpty(tempImagePath) && File.Exists(tempImagePath))
+                            {
+                                var savedPath = await imageService.SavePreviewImageAsync(gameId, tempImagePath, previewIndex);
+                                if (!string.IsNullOrEmpty(savedPath))
+                                {
+                                    game.ImagePaths.Add(savedPath);
+                                }
+                                previewIndex++;
+                            }
                         }
 
                         game.GmdFilePath = gmdFilePath;
@@ -368,7 +382,7 @@ namespace GameLauncher.Services
             var relativePath = "";
             try
             {
-                var gmdDir = Path.GetDirectoryName(GetGmdFilePath(game.ExecutablePath, game.Name));
+                var gmdDir = Path.GetDirectoryName(GetGmdFilePath(game.ExecutablePath, game.GameId));
                 var winRelative = Path.GetRelativePath(gmdDir ?? "", game.ExecutablePath);
                 relativePath = "./" + winRelative.Replace('\\', '/');
             }
@@ -380,6 +394,7 @@ namespace GameLauncher.Services
             return new GmdMetadata
             {
                 Id = game.Id,
+                GameId = game.GameId ?? string.Empty,
                 Name = game.Name ?? string.Empty,
                 ExecutablePath = relativePath,
                 Description = game.Description ?? string.Empty,
@@ -416,6 +431,7 @@ namespace GameLauncher.Services
             var game = new Game
             {
                 Id = metadata.Id,
+                GameId = metadata.GameId ?? string.Empty,
                 Name = metadata.Name ?? string.Empty,
                 ExecutablePath = absoluteExePath,
                 Description = metadata.Description ?? string.Empty,
@@ -454,7 +470,7 @@ namespace GameLauncher.Services
 
             try
             {
-                await AddImageToArchiveAsync(archive, iconPath, IconFileName);
+                await ConvertImageToJpegAsync(iconPath, archive, IconFileName);
             }
             catch (Exception ex)
             {
@@ -481,8 +497,9 @@ namespace GameLauncher.Services
 
                 try
                 {
-                    var entryName = $"{ImagesDirectoryName}/image{imageIndex}.png";
-                    await AddImageToArchiveAsync(archive, imagePath, entryName);
+                    var extension = Path.GetExtension(imagePath).ToLowerInvariant();
+                    var entryName = $"{ImagesDirectoryName}/image{imageIndex}{(extension == ".gif" ? ".gif" : ".jpg")}";
+                    await AddImageToArchiveAsync(archive, imagePath, entryName, extension == ".gif");
                     imageIndex++;
                 }
                 catch (Exception ex)
@@ -492,11 +509,18 @@ namespace GameLauncher.Services
             }
         }
 
-        private async Task AddImageToArchiveAsync(ZipArchive archive, string sourceImagePath, string entryName)
+        private async Task AddImageToArchiveAsync(ZipArchive archive, string sourceImagePath, string entryName, bool isGif)
         {
             try
             {
-                await ConvertImageToPngAsync(sourceImagePath, archive, entryName);
+                if (isGif)
+                {
+                    await CopyImageToArchiveAsync(sourceImagePath, archive, entryName);
+                }
+                else
+                {
+                    await ConvertImageToJpegAsync(sourceImagePath, archive, entryName);
+                }
             }
             catch (Exception ex)
             {
@@ -504,58 +528,88 @@ namespace GameLauncher.Services
             }
         }
 
-        private async Task ConvertImageToPngAsync(string sourceImagePath, ZipArchive archive, string entryName)
+        private async Task CopyImageToArchiveAsync(string sourceImagePath, ZipArchive archive, string entryName)
+        {
+            var imageBytes = await File.ReadAllBytesAsync(sourceImagePath);
+            var entry = archive.CreateEntry(entryName);
+            using (var entryStream = entry.Open())
+            {
+                await entryStream.WriteAsync(imageBytes, 0, imageBytes.Length);
+            }
+        }
+
+        private async Task ConvertImageToJpegAsync(string sourceImagePath, ZipArchive archive, string entryName)
         {
             try
             {
-                var imageBytes = await File.ReadAllBytesAsync(sourceImagePath);
-
-                var extension = Path.GetExtension(sourceImagePath).ToLowerInvariant();
-
-                if (extension == ".png")
+                using (var stream = new FileStream(sourceImagePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
+                    var randomAccessStream = stream.AsRandomAccessStream();
+                    var decoder = await BitmapDecoder.CreateAsync(randomAccessStream);
+
+                    var width = decoder.OrientedPixelWidth;
+                    var height = decoder.OrientedPixelHeight;
+                    double scale = 1.0;
+
+                    const int maxWidth = 1920;
+                    const int maxHeight = 1080;
+                    if (width > maxWidth || height > maxHeight)
+                    {
+                        var scaleX = (double)maxWidth / width;
+                        var scaleY = (double)maxHeight / height;
+                        scale = Math.Min(scaleX, scaleY);
+                    }
+
+                    var newWidth = width;
+                    var newHeight = height;
+                    var transform = new BitmapTransform();
+                    if (scale < 1.0)
+                    {
+                        transform.ScaledWidth = (uint)(width * scale);
+                        transform.ScaledHeight = (uint)(height * scale);
+                        newWidth = (uint)(width * scale);
+                        newHeight = (uint)(height * scale);
+                    }
+
+                    var pixelData = await decoder.GetPixelDataAsync(
+                        BitmapPixelFormat.Bgra8,
+                        BitmapAlphaMode.Ignore,
+                        transform,
+                        ExifOrientationMode.IgnoreExifOrientation,
+                        ColorManagementMode.ColorManageToSRgb);
+
                     var entry = archive.CreateEntry(entryName);
+
+                    var ms = new MemoryStream();
+                    var ras = ms.AsRandomAccessStream();
+
+                    var props = new BitmapPropertySet();
+                    var qualityValue = new BitmapTypedValue(0.75, Windows.Foundation.PropertyType.Single);
+                    props.Add("ImageQuality", qualityValue);
+
+                    var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, ras, props);
+
+                    encoder.SetPixelData(
+                        BitmapPixelFormat.Bgra8,
+                        BitmapAlphaMode.Ignore,
+                        (uint)newWidth,
+                        (uint)newHeight,
+                        decoder.DpiX,
+                        decoder.DpiY,
+                        pixelData.DetachPixelData());
+
+                    await encoder.FlushAsync();
+
                     using (var entryStream = entry.Open())
                     {
-                        await entryStream.WriteAsync(imageBytes, 0, imageBytes.Length);
-                    }
-                }
-                else
-                {
-                    using (var stream = new FileStream(sourceImagePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    {
-                        var randomAccessStream = stream.AsRandomAccessStream();
-                        var decoder = await BitmapDecoder.CreateAsync(randomAccessStream);
-                        var pixelData = await decoder.GetPixelDataAsync();
-
-                        var entry = archive.CreateEntry(entryName);
-
-                        var ms = new MemoryStream();
-                        var ras = ms.AsRandomAccessStream();
-                        var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, ras);
-
-                        encoder.SetPixelData(
-                            decoder.BitmapPixelFormat,
-                            decoder.BitmapAlphaMode,
-                            decoder.OrientedPixelWidth,
-                            decoder.OrientedPixelHeight,
-                            decoder.DpiX,
-                            decoder.DpiY,
-                            pixelData.DetachPixelData());
-
-                        await encoder.FlushAsync();
-
-                        using (var entryStream = entry.Open())
-                        {
-                            ms.Seek(0, SeekOrigin.Begin);
-                            await ms.CopyToAsync(entryStream);
-                        }
+                        ms.Seek(0, SeekOrigin.Begin);
+                        await ms.CopyToAsync(entryStream);
                     }
                 }
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"无法将图片转换为PNG格式: {sourceImagePath}", ex);
+                throw new InvalidOperationException($"无法将图片转换为JPEG格式: {sourceImagePath}", ex);
             }
         }
 
@@ -579,19 +633,6 @@ namespace GameLauncher.Services
             }
         }
 
-        private string SanitizeFileName(string fileName)
-        {
-            var invalidChars = Path.GetInvalidFileNameChars();
-            var sanitized = new string(fileName.ToCharArray()
-                .Where(c => !invalidChars.Contains(c))
-                .ToArray());
-
-            if (string.IsNullOrWhiteSpace(sanitized))
-                throw new ArgumentException("游戏名称包含无效字符，无法生成文件名");
-
-            return sanitized;
-        }
-
         public async Task SyncGameToGmdAsync(Game game)
         {
             if (game == null)
@@ -602,7 +643,7 @@ namespace GameLauncher.Services
                 var gmdPath = game.GmdFilePath;
                 if (string.IsNullOrEmpty(gmdPath))
                 {
-                    gmdPath = GetGmdFilePath(game.ExecutablePath, game.Name);
+                    gmdPath = GetGmdFilePath(game.ExecutablePath, game.GameId);
                 }
 
                 if (File.Exists(gmdPath))
@@ -619,12 +660,74 @@ namespace GameLauncher.Services
                 Debug.WriteLine($"[GmdFileService] 同步gmd失败: {ex.Message}");
             }
         }
+
+        public async Task<(int DeletedCount, long FreedBytes, int SkippedCount)> CleanOldGmdFilesAsync(List<Game> allGames)
+        {
+            int deletedCount = 0;
+            long freedBytes = 0;
+            int skippedCount = 0;
+
+            var newNamingPattern = new Regex(@"^GID\d{9}\.gmd$", RegexOptions.IgnoreCase);
+
+            var processedDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            await Task.Run(() =>
+            {
+                foreach (var game in allGames)
+                {
+                    try
+                    {
+                        var directory = Path.GetDirectoryName(game.ExecutablePath);
+                        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+                            continue;
+
+                        if (!processedDirectories.Add(directory))
+                            continue;
+
+                        var gmdFiles = Directory.GetFiles(directory, "*.gmd");
+                        foreach (var gmdFile in gmdFiles)
+                        {
+                            try
+                            {
+                                var fileName = Path.GetFileName(gmdFile);
+                                if (newNamingPattern.IsMatch(fileName))
+                                    continue;
+
+                                var fileInfo = new FileInfo(gmdFile);
+                                var fileSize = fileInfo.Length;
+
+                                File.Delete(gmdFile);
+                                deletedCount++;
+                                freedBytes += fileSize;
+
+                                Debug.WriteLine($"[GmdFileService] 已删除旧GMD文件: {gmdFile} ({fileSize} 字节)");
+                            }
+                            catch (Exception ex)
+                            {
+                                skippedCount++;
+                                Debug.WriteLine($"[GmdFileService] 无法删除文件: {gmdFile}, 错误: {ex.Message}");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[GmdFileService] 处理游戏目录时出错: {game.ExecutablePath}, 错误: {ex.Message}");
+                    }
+                }
+            });
+
+            Debug.WriteLine($"[GmdFileService] 清理完成: 删除 {deletedCount} 个文件, 释放 {freedBytes} 字节, 跳过 {skippedCount} 个文件");
+            return (deletedCount, freedBytes, skippedCount);
+        }
     }
 
     public class GmdMetadata
     {
         [JsonPropertyName("id")]
         public int Id { get; set; }
+
+        [JsonPropertyName("gameId")]
+        public string GameId { get; set; } = string.Empty;
 
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;

@@ -1,3 +1,4 @@
+using GameLauncher.Services;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -36,6 +37,21 @@ namespace GameLauncher.Models
                 {
                     _id = value;
                     OnPropertyChanged(nameof(Id));
+                }
+            }
+        }
+
+        private string _gameId = string.Empty;
+
+        public string GameId
+        {
+            get => _gameId;
+            set
+            {
+                if (_gameId != value)
+                {
+                    _gameId = value;
+                    OnPropertyChanged(nameof(GameId));
                 }
             }
         }
@@ -117,16 +133,25 @@ namespace GameLauncher.Models
                     IconSource = bitmapImage;
                     return;
                 }
-                catch
-                {
-                }
+                catch { }
             }
 
-            if (!string.IsNullOrEmpty(_gmdFilePath) && System.IO.File.Exists(_gmdFilePath))
+            if (!string.IsNullOrEmpty(_gmdFilePath) && System.IO.File.Exists(_gmdFilePath) && !string.IsNullOrEmpty(GameId))
             {
                 try
                 {
-                    var iconPath = Services.GmdFileService.ExtractIconFromGmd(_gmdFilePath);
+                    var imageService = new Services.ImageService();
+                    var iconPath = imageService.GetIconPath(GameId);
+
+                    if (!System.IO.File.Exists(iconPath))
+                    {
+                        var tempIconPath = Services.GmdFileService.ExtractIconFromGmd(_gmdFilePath);
+                        if (!string.IsNullOrEmpty(tempIconPath) && System.IO.File.Exists(tempIconPath))
+                        {
+                            iconPath = imageService.SaveIconAsync(GameId, tempIconPath).GetAwaiter().GetResult();
+                        }
+                    }
+
                     if (!string.IsNullOrEmpty(iconPath) && System.IO.File.Exists(iconPath))
                     {
                         _iconPath = iconPath;
@@ -137,9 +162,7 @@ namespace GameLauncher.Models
                         return;
                     }
                 }
-                catch
-                {
-                }
+                catch { }
             }
 
             IconSource = null;
@@ -347,20 +370,46 @@ namespace GameLauncher.Models
                 }
             }
 
-            if (!hasValidImages && !string.IsNullOrEmpty(_gmdFilePath) && System.IO.File.Exists(_gmdFilePath))
+            if (!hasValidImages && !string.IsNullOrEmpty(_gmdFilePath) && System.IO.File.Exists(_gmdFilePath) && !string.IsNullOrEmpty(GameId))
             {
                 try
                 {
-                    var gmdImages = Services.GmdFileService.ExtractImagesFromGmd(_gmdFilePath);
-                    foreach (var imgPath in gmdImages)
+                    var imageService = new Services.ImageService();
+                    var previewFiles = imageService.GetAllPreviewImagePaths(GameId);
+
+                    if (previewFiles.Count == 0)
                     {
-                        if (System.IO.File.Exists(imgPath))
+                        var tempImagePaths = Services.GmdFileService.ExtractImagesFromGmd(_gmdFilePath);
+                        int index = 1;
+                        foreach (var tempPath in tempImagePaths)
                         {
-                            _imagePaths.Add(imgPath);
-                            var bitmapImage = new BitmapImage();
-                            bitmapImage.UriSource = new Uri(imgPath);
-                            bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-                            _imageSources.Add(bitmapImage);
+                            if (System.IO.File.Exists(tempPath))
+                            {
+                                var savedPath = imageService.SavePreviewImageAsync(GameId, tempPath, index).GetAwaiter().GetResult();
+                                if (!string.IsNullOrEmpty(savedPath))
+                                {
+                                    _imagePaths.Add(savedPath);
+                                    var bitmapImage = new BitmapImage();
+                                    bitmapImage.UriSource = new Uri(savedPath);
+                                    bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                                    _imageSources.Add(bitmapImage);
+                                }
+                                index++;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        foreach (var imgPath in previewFiles)
+                        {
+                            if (System.IO.File.Exists(imgPath))
+                            {
+                                _imagePaths.Add(imgPath);
+                                var bitmapImage = new BitmapImage();
+                                bitmapImage.UriSource = new Uri(imgPath);
+                                bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                                _imageSources.Add(bitmapImage);
+                            }
                         }
                     }
                 }

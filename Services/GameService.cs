@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -53,6 +54,11 @@ namespace GameLauncher.Services
             }
 
             return await _repository.AddGameAsync(game);
+        }
+
+        public async Task<bool> GameIdExistsAsync(string gameId)
+        {
+            return await _repository.GameIdExistsAsync(gameId);
         }
 
         public async Task<bool> UpdateGameAsync(Game game)
@@ -153,7 +159,7 @@ namespace GameLauncher.Services
             {
                 try
                 {
-                    game.GmdFilePath = new GmdFileService().GetGmdFilePath(game.ExecutablePath, game.Name);
+                    game.GmdFilePath = new GmdFileService().GetGmdFilePath(game.ExecutablePath, game.GameId);
                 }
                 catch { }
             }
@@ -180,7 +186,7 @@ namespace GameLauncher.Services
             {
                 try
                 {
-                    game.GmdFilePath = new GmdFileService().GetGmdFilePath(game.ExecutablePath, game.Name);
+                    game.GmdFilePath = new GmdFileService().GetGmdFilePath(game.ExecutablePath, game.GameId);
                 }
                 catch { }
             }
@@ -231,20 +237,20 @@ namespace GameLauncher.Services
                 {
                     try
                     {
-                        game.GmdFilePath = new GmdFileService().GetGmdFilePath(game.ExecutablePath, game.Name);
-                    }
-                    catch { }
+                        game.GmdFilePath = new GmdFileService().GetGmdFilePath(game.ExecutablePath, game.GameId);
                 }
-                await _repository.UpdateGameAsync(game);
+                catch { }
+            }
+            await _repository.UpdateGameAsync(game);
 
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"停止游戏失败: {ex.Message}");
-                return false;
-            }
+            return true;
         }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"停止游戏失败: {ex.Message}");
+            return false;
+        }
+    }
 
         public async Task<List<GameCollection>> GetAllCollectionsAsync()
         {
@@ -330,7 +336,7 @@ namespace GameLauncher.Services
                 {
                     try
                     {
-                        gmdPath = _gmdFileService.GetGmdFilePath(game.ExecutablePath, game.Name);
+                        gmdPath = _gmdFileService.GetGmdFilePath(game.ExecutablePath, game.GameId);
                     }
                     catch { }
                 }
@@ -374,6 +380,32 @@ namespace GameLauncher.Services
                 }
             }
             return imported;
+        }
+
+        public async Task<string> GenerateUniqueGameIdAsync()
+        {
+            const int maxRetries = 5;
+            for (int attempt = 0; attempt < maxRetries; attempt++)
+            {
+                var digits = new byte[9];
+                using (var rng = RandomNumberGenerator.Create())
+                {
+                    rng.GetBytes(digits);
+                }
+
+                var gid = "GID";
+                for (int i = 0; i < 9; i++)
+                {
+                    gid += (digits[i] % 10).ToString();
+                }
+
+                if (!await _repository.GameIdExistsAsync(gid))
+                {
+                    return gid;
+                }
+            }
+
+            throw new InvalidOperationException($"无法在 {maxRetries} 次尝试内生成唯一的 GameId");
         }
     }
 }

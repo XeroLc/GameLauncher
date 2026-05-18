@@ -7,16 +7,22 @@ using System.Threading.Tasks;
 using System.Xml.Linq;
 
 namespace GameLauncher.Services
-{
-    public class UpdateCheckerService
     {
-        private const string GitHubApiUrl = "https://api.github.com/repos/XeroLc/GameLauncher/releases/latest";
-        private const string GitHubAtomUrl = "https://github.com/XeroLc/GameLauncher/releases.atom";
-        private const string ReleasesPageUrl = "https://github.com/XeroLc/GameLauncher/releases";
-        private const string CurrentVersion = "3.0";
-        private static readonly HttpClient _httpClient = new HttpClient();
+        public class UpdateCheckerService
+        {
+            private const string GitHubApiUrl = "https://api.github.com/repos/XeroLc/GameLauncher/releases/latest";
+            private const string GitHubAtomUrl = "https://github.com/XeroLc/GameLauncher/releases.atom";
+            private const string ReleasesPageUrl = "https://github.com/XeroLc/GameLauncher/releases";
+            private const string CurrentVersion = "3.1";
+            private static readonly HttpClient _httpClient = new HttpClient();
 
-        static UpdateCheckerService()
+            public static int MaxConsecutiveFailures = 3;
+            private static int _consecutiveFailures = 0;
+            private static bool _hasCheckedAutomatically = false;
+
+            public static string CurrentVersionValue => CurrentVersion;
+
+            static UpdateCheckerService()
         {
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "GameLauncher");
             _httpClient.DefaultRequestHeaders.Add("Accept", "application/vnd.github+json");
@@ -24,18 +30,50 @@ namespace GameLauncher.Services
             _httpClient.Timeout = TimeSpan.FromSeconds(15);
         }
 
-        public async Task<UpdateInfo?> CheckForUpdateAsync()
+        public async Task<UpdateInfo?> CheckForUpdateAsync(bool forceCheck = false)
         {
+            if (!forceCheck && _hasCheckedAutomatically)
+            {
+                System.Diagnostics.Debug.WriteLine("[UpdateCheck] 自动检查已在本次启动时执行过，跳过");
+                return null;
+            }
+
+            if (!forceCheck && _consecutiveFailures >= MaxConsecutiveFailures)
+            {
+                System.Diagnostics.Debug.WriteLine($"[UpdateCheck] 连续失败次数已达上限 ({MaxConsecutiveFailures})，跳过检查");
+                return null;
+            }
+
             UpdateInfo? result = await TryApiCheckAsync();
-            if (result != null) return result;
+            if (result != null)
+            {
+                _consecutiveFailures = 0;
+                if (!forceCheck) _hasCheckedAutomatically = true;
+                return result;
+            }
 
             System.Diagnostics.Debug.WriteLine("[UpdateCheck] API 失败，尝试 Atom Feed...");
             result = await TryAtomFeedAsync();
-            if (result != null) return result;
+            if (result != null)
+            {
+                _consecutiveFailures = 0;
+                if (!forceCheck) _hasCheckedAutomatically = true;
+                return result;
+            }
 
             System.Diagnostics.Debug.WriteLine("[UpdateCheck] Atom Feed 失败，尝试 HTML 页面...");
             result = await TryPageScrapeAsync();
-            return result;
+            if (result != null)
+            {
+                _consecutiveFailures = 0;
+                if (!forceCheck) _hasCheckedAutomatically = true;
+                return result;
+            }
+
+            _consecutiveFailures++;
+            if (!forceCheck) _hasCheckedAutomatically = true;
+            System.Diagnostics.Debug.WriteLine($"[UpdateCheck] 所有检查方式均失败，连续失败次数: {_consecutiveFailures}/{MaxConsecutiveFailures}");
+            return null;
         }
 
         private async Task<UpdateInfo?> TryApiCheckAsync()
@@ -179,9 +217,10 @@ namespace GameLauncher.Services
                 return null;
 
             var trimmed = name.TrimStart('v', 'V').Trim();
-            if (Regex.IsMatch(trimmed, @"^\d+\.\d+"))
+            var match = Regex.Match(trimmed, @"^(\d+\.\d+(?:\.\d+)?)");
+            if (match.Success)
             {
-                return trimmed;
+                return match.Groups[1].Value;
             }
             return null;
         }

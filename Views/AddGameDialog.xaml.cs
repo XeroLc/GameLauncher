@@ -1,3 +1,4 @@
+using GameLauncher.Data;
 using GameLauncher.Models;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -19,19 +20,24 @@ namespace GameLauncher.Views
     public sealed partial class AddGameDialog : ContentDialog
     {
         private Game? _existingGame;
+        private string _iconPath = string.Empty;
         private ObservableCollection<string> _imagePaths = new ObservableCollection<string>();
         private ObservableCollection<ImageSource> _imageSources = new ObservableCollection<ImageSource>();
         private ObservableCollection<string> _tags = new ObservableCollection<string>();
         private ObservableCollection<string> _allExistingTags = new ObservableCollection<string>();
         private ObservableCollection<CollectionCheckItem> _collectionItems = new();
+        private string? _gmdImportPath;
+        private Game? _importedGame;
 
         public string GameName => GameNameTextBox.Text;
         public string ExecutablePath => ExecutablePathTextBox.Text;
-        public string IconPath => IconPathTextBox.Text;
+        public string IconPath => _iconPath;
         public string Description => DescriptionTextBox.Text;
         public ObservableCollection<string> ImagePaths => _imagePaths;
         public ObservableCollection<string> Tags => _tags;
         public string ImageCountDisplay => _imagePaths.Count > 0 ? $"已选择 {_imagePaths.Count} 张图片" : "未选择图片";
+        public bool IsGmdQuickImport => !string.IsNullOrEmpty(_gmdImportPath);
+        public Game? ImportedGame => _importedGame;
         public List<int> SelectedCollectionIds
         {
             get
@@ -53,7 +59,8 @@ namespace GameLauncher.Views
             _existingGame = game;
             GameNameTextBox.Text = game.Name;
             ExecutablePathTextBox.Text = game.ExecutablePath;
-            IconPathTextBox.Text = game.IconPath ?? string.Empty;
+            _iconPath = game.IconPath ?? string.Empty;
+            UpdateIconButtonText();
             DescriptionTextBox.Text = game.Description ?? string.Empty;
             Title = "编辑游戏";
 
@@ -69,6 +76,8 @@ namespace GameLauncher.Views
             {
                 _tags.Add(tag);
             }
+
+            GmdQuickAddPanel.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
         }
 
         public void SetExistingTags(List<string> existingTags)
@@ -186,18 +195,23 @@ namespace GameLauncher.Views
                 picker.FileTypeFilter.Add(".gmd");
 
                 var file = await picker.PickSingleFileAsync();
-                if (file != null)
-                {
-                    GmdPathTextBox.Text = file.Path;
-                    await LoadFromGmdFileAsync(file.Path);
-                }
+                if (file == null) return;
+
+                // 从 .gmd 文件加载游戏数据（图片已通过 ImageService 保存到全局目录）
+                var gmdService = new Services.GmdFileService();
+                _importedGame = await gmdService.DeserializeGameFromGmdAsync(file.Path);
+                _gmdImportPath = file.Path;
+
+                // 直接关闭对话框，由 MainWindow 统一保存到数据库
+                this.Hide();
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"GMD快速添加失败: {ex.Message}");
                 var errorDialog = new ContentDialog
                 {
-                    Title = "错误",
-                    Content = $"选择.gmd文件时出错：{ex.Message}",
+                    Title = "添加失败",
+                    Content = $"无法从GMD文件添加游戏：{ex.Message}",
                     CloseButtonText = "确定",
                     XamlRoot = XamlRoot,
                     Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
@@ -220,7 +234,10 @@ namespace GameLauncher.Views
                     ExecutablePathTextBox.Text = game.ExecutablePath;
 
                 if (!string.IsNullOrEmpty(game.IconPath))
-                    IconPathTextBox.Text = game.IconPath;
+                {
+                    _iconPath = game.IconPath;
+                    UpdateIconButtonText();
+                }
 
                 if (!string.IsNullOrEmpty(game.Description))
                     DescriptionTextBox.Text = game.Description;
@@ -273,11 +290,14 @@ namespace GameLauncher.Views
                 picker.FileTypeFilter.Add(".jpeg");
                 picker.FileTypeFilter.Add(".bmp");
                 picker.FileTypeFilter.Add(".ico");
+                picker.FileTypeFilter.Add(".webp");
+                picker.FileTypeFilter.Add(".gif");
 
                 var file = await picker.PickSingleFileAsync();
                 if (file != null)
                 {
-                    IconPathTextBox.Text = file.Path;
+                    _iconPath = file.Path;
+                    UpdateIconButtonText();
                 }
             }
             catch (Exception ex)
@@ -291,6 +311,18 @@ namespace GameLauncher.Views
                     Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
                 };
                 await errorDialog.ShowAsync();
+            }
+        }
+
+        private void UpdateIconButtonText()
+        {
+            if (!string.IsNullOrEmpty(_iconPath))
+            {
+                IconButtonText.Text = System.IO.Path.GetFileName(_iconPath);
+            }
+            else
+            {
+                IconButtonText.Text = "选择图标";
             }
         }
 
@@ -314,6 +346,7 @@ namespace GameLauncher.Views
                 picker.FileTypeFilter.Add(".jpeg");
                 picker.FileTypeFilter.Add(".bmp");
                 picker.FileTypeFilter.Add(".webp");
+                picker.FileTypeFilter.Add(".gif");
 
                 var files = await picker.PickMultipleFilesAsync();
                 if (files != null)

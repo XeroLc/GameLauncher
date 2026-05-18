@@ -208,7 +208,28 @@ namespace GameLauncher.Services
                 var gmdFilePath = game.GmdFilePath;
                 if (string.IsNullOrWhiteSpace(gmdFilePath))
                 {
-                    gmdFilePath = _gmdFileService.GetGmdFilePath(game.ExecutablePath, game.Name);
+                    if (string.IsNullOrWhiteSpace(game.GameId))
+                    {
+                        var skipResult = new ConsistencyResult
+                        {
+                            GameId = game.Id,
+                            GameName = game.Name,
+                            IsConsistent = false,
+                            RecommendedSource = "数据库",
+                            Details = "缺少GameId，无法确定GMD文件路径"
+                        };
+                        skipResult.ConflictFields.Add(new ConsistencyConflictField
+                        {
+                            FieldName = "GmdFile",
+                            DatabaseValue = "",
+                            GmdFileValue = "文件路径无法确定（缺少GameId）",
+                            ConflictType = "MissingGameId"
+                        });
+                        report.Details.Add(skipResult);
+                        report.MissingGmdGames++;
+                        continue;
+                    }
+                    gmdFilePath = _gmdFileService.GetGmdFilePath(game.ExecutablePath, game.GameId);
                 }
 
                 var result = await CheckConsistencyAsync(game, gmdFilePath);

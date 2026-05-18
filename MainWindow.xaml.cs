@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -36,6 +36,7 @@ namespace GameLauncher
         private string? _selectedTagFilter;
         private bool _isClosing = false;
         private bool _isDialogOpen = false;
+        private static bool _isShowingUpdateDialog = false;
         private bool _isBatchSelectionMode = false;
         private DispatcherTimer _statusCheckTimer;
         private readonly Dictionary<int, DateTime> _runningGames = new();
@@ -389,6 +390,8 @@ namespace GameLauncher
                     },
                     applyAdd: (game) =>
                     {
+                        game.LoadIcon();
+                        game.LoadImages();
                         _games.Add(game);
                         AddTagsFromGame(game);
                     },
@@ -525,11 +528,28 @@ namespace GameLauncher
             {
                 var games = await _gameService.GetAllGamesAsync();
 
-                // 数据迁移：为缺少.gmd文件的游戏生成.gmd
+                // 阶段0: 为缺少GID的旧游戏分配唯一标识符
                 try
                 {
                     var gmdService = new GmdFileService();
-                    var migrationService = new DataMigrationService(gmdService);
+                    var migrationService = new DataMigrationService(gmdService, _dbContext);
+                    var assignedCount = await migrationService.AssignGameIdsToExistingGamesAsync();
+                    if (assignedCount > 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[数据迁移] 为 {assignedCount} 个旧游戏分配了GID，重新加载游戏数据...");
+                        games = await _gameService.GetAllGamesAsync();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[数据迁移] GID分配失败: {ex.Message}");
+                }
+
+                // 阶段1: 数据迁移：为缺少.gmd文件的游戏生成.gmd
+                try
+                {
+                    var gmdService = new GmdFileService();
+                    var migrationService = new DataMigrationService(gmdService, _dbContext);
                     var missingGmdGames = await migrationService.ScanForMissingGmdFilesAsync(games);
                     if (missingGmdGames.Count > 0)
                     {
@@ -546,6 +566,44 @@ namespace GameLauncher
                 {
                     System.Diagnostics.Debug.WriteLine($"数据迁移失败: {ex.Message}");
                     // 迁移失败不阻塞游戏加载
+                }
+
+                // 阶段2: 图片迁移到全局目录
+                try
+                {
+                    var gmdService = new GmdFileService();
+                    var migrationService = new DataMigrationService(gmdService, _dbContext);
+                    var progress = new Progress<MigrationProgress>(p =>
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[图片迁移进度] {p.Percentage:F0}% - {p.CurrentGameName}");
+                    });
+                    var imageMigrationStatus = await migrationService.MigrateGameImagesToGlobalDirectoryAsync(games, progress);
+                    if (imageMigrationStatus.MigratedGames > 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[图片迁移] 迁移了 {imageMigrationStatus.MigratedGames} 个游戏的图片");
+                        // 重新加载游戏数据以获取最新路径
+                        games = await _gameService.GetAllGamesAsync();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[图片迁移] 迁移失败: {ex.Message}");
+                }
+
+                // 阶段3: 清理旧图片目录
+                try
+                {
+                    var gmdService = new GmdFileService();
+                    var migrationService = new DataMigrationService(gmdService, _dbContext);
+                    var cleanedCount = await migrationService.CleanOldImageDirectoriesAsync(games);
+                    if (cleanedCount > 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[图片迁移] 清理了 {cleanedCount} 个旧图片目录");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[图片迁移] 清理旧目录失败: {ex.Message}");
                 }
 
                 // 数据一致性校验
@@ -829,47 +887,130 @@ namespace GameLauncher
 
                 var result = await dialog.ShowAsync();
 
-                if (result == ContentDialogResult.Primary)
+                if (result == ContentDialogResult.Primary || dialog.IsGmdQuickImport)
                 {
-                    var newGame = new Game
+                    if (dialog.IsGmdQuickImport && dialog.ImportedGame != null)
                     {
-                        Name = dialog.GameName,
-                        ExecutablePath = dialog.ExecutablePath,
-                        IconPath = dialog.IconPath,
-                        Description = dialog.Description
-                    };
+                        // .gmd 快速导入：使用统一的 _gameService 保存到数据库，避免多连接冲突
+                        var importedGame = dialog.ImportedGame;
+                        LoadingOverlay.Visibility = Visibility.Visible;
 
-                    // 添加预览图
-                    foreach (var imagePath in dialog.ImagePaths)
-                    {
-                        newGame.ImagePaths.Add(imagePath);
-                    }
-
-                    // 添加标签
-                    foreach (var tag in dialog.Tags)
-                    {
-                        newGame.Tags.Add(tag);
-                    }
-
-                    newGame.LoadIcon();
-                    newGame.LoadImages();
-
-                    LoadingOverlay.Visibility = Visibility.Visible;
-
-                    try
-                    {
-                        var gameId = await _gameService.AddGameAsync(newGame);
-                        foreach (var colId in dialog.SelectedCollectionIds)
+                        try
                         {
-                            await _gameService.AddGameToCollectionAsync(gameId, colId);
+                            // 检查 GID 是否已存在
+                            if (!string.IsNullOrWhiteSpace(importedGame.GameId) && await _gameService.GameIdExistsAsync(importedGame.GameId))
+                            {
+                                await ShowErrorDialog("提示", $"游戏「{importedGame.Name}」已存在于数据库中，无需重复添加。");
+                                LoadingOverlay.Visibility = Visibility.Collapsed;
+                            }
+                            else
+                            {
+                                // 确保图片目录已创建
+                                var imageService = new Services.ImageService();
+                                imageService.EnsureGameImageDirectory(importedGame.GameId);
+
+                                // 使用统一的 _gameService 保存到数据库
+                                var gameId = await _gameService.AddGameAsync(importedGame);
+                                foreach (var colId in dialog.SelectedCollectionIds)
+                                {
+                                    await _gameService.AddGameToCollectionAsync(gameId, colId);
+                                }
+
+                                importedGame.LoadIcon();
+                                importedGame.LoadImages();
+
+                                LoadingOverlay.Visibility = Visibility.Collapsed;
+                                await SilentRefreshGamesAsync(forceUiUpdate: true);
+                            }
                         }
-                        LoadingOverlay.Visibility = Visibility.Collapsed;
-                        await SilentRefreshGamesAsync(forceUiUpdate: true);
+                        catch (Exception ex)
+                        {
+                            LoadingOverlay.Visibility = Visibility.Collapsed;
+                            await ShowErrorDialog("添加游戏失败", ex.Message);
+                        }
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        LoadingOverlay.Visibility = Visibility.Collapsed;
-                        await ShowErrorDialog("添加游戏失败", ex.Message);
+                        // 手动添加游戏
+                        var newGame = new Game
+                        {
+                            Name = dialog.GameName,
+                            ExecutablePath = dialog.ExecutablePath,
+                            Description = dialog.Description
+                        };
+
+                        // 添加标签
+                        foreach (var tag in dialog.Tags)
+                        {
+                            newGame.Tags.Add(tag);
+                        }
+
+                        newGame.LoadIcon();
+                        newGame.LoadImages();
+
+                        LoadingOverlay.Visibility = Visibility.Visible;
+
+                        try
+                        {
+                            // 先保存到数据库，获取 GameId
+                            var gameId = await _gameService.AddGameAsync(newGame);
+                            foreach (var colId in dialog.SelectedCollectionIds)
+                            {
+                                await _gameService.AddGameToCollectionAsync(gameId, colId);
+                            }
+
+                            // GameId 已由数据库分配，现在保存图片到全局目录
+                            var imageService = new Services.ImageService();
+                            imageService.EnsureGameImageDirectory(newGame.GameId);
+                            bool needsUpdate = false;
+
+                            if (!string.IsNullOrEmpty(dialog.IconPath))
+                            {
+                                var savedIcon = await imageService.SaveIconAsync(newGame.GameId, dialog.IconPath);
+                                if (!string.IsNullOrEmpty(savedIcon))
+                                {
+                                    newGame.IconPath = savedIcon;
+                                    needsUpdate = true;
+                                }
+                            }
+                            else
+                            {
+                                var defaultIconPath = imageService.GetIconPath(newGame.GameId);
+                                if (!System.IO.File.Exists(defaultIconPath))
+                                {
+                                    newGame.IconPath = string.Empty;
+                                }
+                            }
+
+                            int previewIndex = 1;
+                            foreach (var imagePath in dialog.ImagePaths)
+                            {
+                                var savedImage = await imageService.SavePreviewImageAsync(newGame.GameId, imagePath, previewIndex);
+                                if (!string.IsNullOrEmpty(savedImage))
+                                {
+                                    newGame.ImagePaths.Add(savedImage);
+                                    previewIndex++;
+                                    needsUpdate = true;
+                                }
+                            }
+
+                            // 更新数据库中的图片路径
+                            if (needsUpdate)
+                            {
+                                await _gameService.UpdateGameAsync(newGame);
+                            }
+
+                            newGame.LoadIcon();
+                            newGame.LoadImages();
+
+                            LoadingOverlay.Visibility = Visibility.Collapsed;
+                            await SilentRefreshGamesAsync(forceUiUpdate: true);
+                        }
+                        catch (Exception ex)
+                        {
+                            LoadingOverlay.Visibility = Visibility.Collapsed;
+                            await ShowErrorDialog("添加游戏失败", ex.Message);
+                        }
                     }
                 }
             }
@@ -965,22 +1106,43 @@ namespace GameLauncher
                     {
                         game.Name = dialog.GameName;
                         game.ExecutablePath = dialog.ExecutablePath;
-                        game.IconPath = dialog.IconPath;
-                        game.LoadIcon();
                         game.Description = dialog.Description;
 
-                        // 更新预览图列表
-                        game.ImagePaths.Clear();
-                        foreach (var imagePath in dialog.ImagePaths)
+                        // 使用 ImageService 保存图标和预览图到全局目录
+                        var imageService = new Services.ImageService();
+                        imageService.EnsureGameImageDirectory(game.GameId);
+
+                        // 保存图标：如果用户选择了新图标
+                        if (!string.IsNullOrEmpty(dialog.IconPath) && dialog.IconPath != game.IconPath)
                         {
-                            game.ImagePaths.Add(imagePath);
+                            var savedIcon = await imageService.SaveIconAsync(game.GameId, dialog.IconPath);
+                            if (!string.IsNullOrEmpty(savedIcon))
+                                game.IconPath = savedIcon;
                         }
 
-                        // 更新标签列表
-                        game.Tags.Clear();
-                        foreach (var tag in dialog.Tags)
+                        // 更新预览图
+                        var oldImagePaths = game.ImagePaths.ToList();
+                        game.ImagePaths.Clear();
+
+                        int previewIndex = 1;
+                        foreach (var imagePath in dialog.ImagePaths)
                         {
-                            game.Tags.Add(tag);
+                            var savedImage = await imageService.SavePreviewImageAsync(game.GameId, imagePath, previewIndex);
+                            if (!string.IsNullOrEmpty(savedImage))
+                            {
+                                game.ImagePaths.Add(savedImage);
+                                previewIndex++;
+                            }
+                        }
+
+                        // 删除被移除的旧图片文件
+                        var currentPaths = new HashSet<string>(game.ImagePaths);
+                        foreach (var oldPath in oldImagePaths)
+                        {
+                            if (!currentPaths.Contains(oldPath) && System.IO.File.Exists(oldPath))
+                            {
+                                try { System.IO.File.Delete(oldPath); } catch { }
+                            }
                         }
 
                         game.LoadIcon();
@@ -1771,76 +1933,90 @@ namespace GameLauncher
 
         private async void ShowUpdateAvailableDialog(UpdateInfo updateInfo)
         {
-            var accentColor = (Windows.UI.Color)App.Current.Resources["SystemAccentColor"];
-            var accentBrush = new SolidColorBrush(accentColor);
-            var secondaryBrush = (Microsoft.UI.Xaml.Media.Brush)App.Current.Resources["TextFillColorSecondaryBrush"];
+            if (_isShowingUpdateDialog) return;
+            _isShowingUpdateDialog = true;
 
-            var contentGrid = new Grid();
-            contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            try
+            {
+                var accentColor = (Windows.UI.Color)App.Current.Resources["SystemAccentColor"];
+                var accentBrush = new SolidColorBrush(accentColor);
+                var secondaryBrush = (Microsoft.UI.Xaml.Media.Brush)App.Current.Resources["TextFillColorSecondaryBrush"];
 
-            var infoStack = new StackPanel { Spacing = 8 };
-            infoStack.Children.Add(new TextBlock
-            {
-                Text = $"发现新版本 v{updateInfo.LatestVersion}",
-                Style = (Style)App.Current.Resources["SubtitleTextBlockStyle"],
-                Foreground = accentBrush
-            });
-            infoStack.Children.Add(new TextBlock
-            {
-                Text = $"当前版本: v{updateInfo.CurrentVersion}",
-                Style = (Style)App.Current.Resources["BodyTextBlockStyle"],
-                Foreground = secondaryBrush
-            });
-            if (updateInfo.PublishedAt.HasValue)
-            {
+                var contentGrid = new Grid();
+                contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+                var infoStack = new StackPanel { Spacing = 8 };
                 infoStack.Children.Add(new TextBlock
                 {
-                    Text = $"发布日期: {updateInfo.PublishedAt.Value:yyyy-MM-dd}",
+                    Text = $"发现新版本 v{updateInfo.LatestVersion}",
+                    Style = (Style)App.Current.Resources["SubtitleTextBlockStyle"],
+                    Foreground = accentBrush
+                });
+                infoStack.Children.Add(new TextBlock
+                {
+                    Text = $"当前版本: v{updateInfo.CurrentVersion}",
                     Style = (Style)App.Current.Resources["BodyTextBlockStyle"],
                     Foreground = secondaryBrush
                 });
-            }
-            Grid.SetRow(infoStack, 0);
-            contentGrid.Children.Add(infoStack);
-
-            var scrollViewer = new ScrollViewer
-            {
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                VerticalScrollMode = ScrollMode.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                MaxHeight = 400,
-                Margin = new Microsoft.UI.Xaml.Thickness(0, 12, 0, 0),
-                Content = new TextBlock
+                if (updateInfo.PublishedAt.HasValue)
                 {
-                    Text = updateInfo.ReleaseNotes,
-                    FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Microsoft YaHei UI"),
-                    FontSize = 13,
-                    TextWrapping = TextWrapping.Wrap
+                    infoStack.Children.Add(new TextBlock
+                    {
+                        Text = $"发布日期: {updateInfo.PublishedAt.Value:yyyy-MM-dd}",
+                        Style = (Style)App.Current.Resources["BodyTextBlockStyle"],
+                        Foreground = secondaryBrush
+                    });
                 }
-            };
-            Grid.SetRow(scrollViewer, 1);
-            contentGrid.Children.Add(scrollViewer);
+                Grid.SetRow(infoStack, 0);
+                contentGrid.Children.Add(infoStack);
 
-            var dialog = new ContentDialog
-            {
-                Title = "发现新版本",
-                Content = contentGrid,
-                PrimaryButtonText = "前往下载",
-                CloseButtonText = "稍后再说",
-                DefaultButton = ContentDialogButton.Primary,
-                XamlRoot = Content.XamlRoot,
-                Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
-            };
-
-            var result = await dialog.ShowAsync();
-            if (result == ContentDialogResult.Primary)
-            {
-                Process.Start(new ProcessStartInfo
+                var scrollViewer = new ScrollViewer
                 {
-                    FileName = updateInfo.DownloadUrl,
-                    UseShellExecute = true
-                });
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    VerticalScrollMode = ScrollMode.Auto,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    MaxHeight = 400,
+                    Margin = new Microsoft.UI.Xaml.Thickness(0, 12, 0, 0),
+                    Content = new TextBlock
+                    {
+                        Text = updateInfo.ReleaseNotes,
+                        FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Microsoft YaHei UI"),
+                        FontSize = 13,
+                        TextWrapping = TextWrapping.Wrap
+                    }
+                };
+                Grid.SetRow(scrollViewer, 1);
+                contentGrid.Children.Add(scrollViewer);
+
+                var dialog = new ContentDialog
+                {
+                    Title = "发现新版本",
+                    Content = contentGrid,
+                    PrimaryButtonText = "前往下载",
+                    CloseButtonText = "稍后再说",
+                    DefaultButton = ContentDialogButton.Primary,
+                    XamlRoot = Content.XamlRoot,
+                    Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
+                };
+
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = updateInfo.DownloadUrl,
+                        UseShellExecute = true
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"显示更新对话框失败: {ex.Message}");
+            }
+            finally
+            {
+                _isShowingUpdateDialog = false;
             }
         }
 
@@ -1853,7 +2029,7 @@ namespace GameLauncher
                 _isDialogOpen = true;
 
                 var updateChecker = new UpdateCheckerService();
-                var updateInfo = await updateChecker.CheckForUpdateAsync();
+                var updateInfo = await updateChecker.CheckForUpdateAsync(forceCheck: true);
 
                 if (updateInfo != null)
                 {
@@ -1863,6 +2039,7 @@ namespace GameLauncher
                 {
                     var accentColor = (Windows.UI.Color)App.Current.Resources["SystemAccentColor"];
                     var accentBrush = new SolidColorBrush(accentColor);
+                    var currentVersion = UpdateCheckerService.CurrentVersionValue;
 
                     var upToDateDialog = new ContentDialog
                     {
@@ -1881,7 +2058,7 @@ namespace GameLauncher
                                 },
                                 new TextBlock
                                 {
-                                    Text = "当前版本: v3.0",
+                                    Text = $"当前版本: v{currentVersion}",
                                     Style = (Style)App.Current.Resources["BodyTextBlockStyle"],
                                     Foreground = (Microsoft.UI.Xaml.Media.Brush)App.Current.Resources["TextFillColorSecondaryBrush"],
                                     HorizontalAlignment = Microsoft.UI.Xaml.HorizontalAlignment.Center

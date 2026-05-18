@@ -10,24 +10,12 @@ namespace GameLauncher.Data
         private readonly string _databasePath;
 
         public DatabaseContext()
-            {
-                // 尝试使用 Windows.Storage.ApplicationData 获取一致的本地数据目录
-                string appDataPath;
-                try
-                {
-                    var localFolder = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
-                    appDataPath = localFolder;
-                }
-                catch
-                {
-                    // 如果不可用（例如在某些特殊运行环境下），回退到传统方式
-                    appDataPath = Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                        "GameLauncher");
-                }
-                
-                _databasePath = Path.Combine(appDataPath, "games.db");
-            }
+        {
+            var appDataPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "GameLauncher");
+            _databasePath = Path.Combine(appDataPath, "games.db");
+        }
         public string DatabasePath => _databasePath;
 
         public SqliteConnection GetConnection()
@@ -54,6 +42,7 @@ namespace GameLauncher.Data
                 command.CommandText = @"
                     CREATE TABLE Games (
                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        GameId TEXT,
                         Name TEXT NOT NULL,
                         ExecutablePath TEXT NOT NULL,
                         IconPath TEXT,
@@ -126,6 +115,7 @@ namespace GameLauncher.Data
             // 只添加不存在的列
             var columnsToAdd = new[]
             {
+                ("GameId", "TEXT"),
                 ("LaunchCount", "INTEGER DEFAULT 0"),
                 ("TotalPlayTime", "INTEGER DEFAULT 0"),
                 ("LastRunTime", "DATETIME"),

@@ -26,7 +26,7 @@
             </Grid.RowDefinitions>
 
             <!-- .gmd文件快速添加 -->
-            <Grid Grid.Row="0" RowSpacing="4">
+            <Grid Grid.Row="0" RowSpacing="4" x:Name="GmdQuickAddPanel">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -34,22 +34,12 @@
                 <TextBlock Grid.Row="0" 
                            Text="快速添加（从.gmd文件）" 
                            Style="{ThemeResource BaseTextBlockStyle}"/>
-                <Grid Grid.Row="1" ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBox x:Name="GmdPathTextBox" 
-                             Grid.Column="0"
-                             PlaceholderText="选择.gmd文件以自动填充游戏信息"
-                             IsReadOnly="True"/>
-                    <Button x:Name="BrowseGmdButton"
-                            Grid.Column="1"
-                            Click="BrowseGmdButton_Click"
-                            ToolTipService.ToolTip="选择.gmd文件"
-                            Style="{StaticResource FrostedDefaultButtonStyle}"
-                            Content="选择.gmd"/>
-                </Grid>
+                <Button x:Name="BrowseGmdButton"
+                        Grid.Row="1"
+                        Click="BrowseGmdButton_Click"
+                        ToolTipService.ToolTip="选择.gmd文件并自动添加游戏"
+                        Style="{StaticResource FrostedAccentButtonStyle}"
+                        Content="选择GMD文件并自动添加"/>
             </Grid>
 
             <!-- 游戏名称 -->
@@ -98,23 +88,17 @@
                            Text="游戏图标（可选）" 
                            Style="{ThemeResource BaseTextBlockStyle}"/>
 
-                <Grid Grid.Row="1" ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBox x:Name="IconPathTextBox" 
-                             Grid.Column="0"
-                             PlaceholderText="选择游戏图标"
-                             IsReadOnly="True"/>
-                    <Button x:Name="BrowseIconButton"
-                            Grid.Column="1"
-                            Click="BrowseIconButton_Click"
-                            ToolTipService.ToolTip="浏览图标"
-                            Style="{StaticResource FrostedDefaultButtonStyle}">
+                <Button x:Name="BrowseIconButton"
+                        Grid.Row="1"
+                        Click="BrowseIconButton_Click"
+                        ToolTipService.ToolTip="选择游戏图标"
+                        Style="{StaticResource FrostedDefaultButtonStyle}"
+                        HorizontalAlignment="Left">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE8B9;" FontSize="16"/>
-                    </Button>
-                </Grid>
+                        <TextBlock x:Name="IconButtonText" Text="选择图标"/>
+                    </StackPanel>
+                </Button>
             </Grid>
 
             <!-- 游戏描述 -->

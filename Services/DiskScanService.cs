@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -145,82 +144,39 @@ namespace GameLauncher.Services
             return result;
         }
 
-        public async Task<(string? iconPath, List<string> previewPaths)> ExtractImagesFromGmdToLocalAsync(string gmdFilePath, string gameExeDir)
+        public async Task<(string? iconPath, List<string> previewPaths)> ExtractImagesFromGmdToLocalAsync(string gmdFilePath, string gameId)
         {
             string? iconPath = null;
-            var previewPaths = new List<string>();
+            List<string> previewPaths = new List<string>();
 
             try
             {
-                var imagesDir = Path.Combine(gameExeDir, "GameLauncher_Images");
+                var imageService = new ImageService();
 
-                await Task.Run(() =>
+                var tempIconPath = GmdFileService.ExtractIconFromGmd(gmdFilePath);
+                if (!string.IsNullOrEmpty(tempIconPath) && System.IO.File.Exists(tempIconPath))
                 {
-                    try
+                    iconPath = await imageService.SaveIconAsync(gameId, tempIconPath);
+                }
+
+                var tempImagePaths = GmdFileService.ExtractImagesFromGmd(gmdFilePath);
+                int index = 1;
+                foreach (var tempPath in tempImagePaths)
+                {
+                    if (System.IO.File.Exists(tempPath))
                     {
-                        if (!Directory.Exists(imagesDir))
+                        var savedPath = await imageService.SavePreviewImageAsync(gameId, tempPath, index);
+                        if (!string.IsNullOrEmpty(savedPath))
                         {
-                            Directory.CreateDirectory(imagesDir);
+                            previewPaths.Add(savedPath);
                         }
-
-                        using (var archive = ZipFile.OpenRead(gmdFilePath))
-                        {
-                            var iconEntry = archive.GetEntry("icon.png");
-                            if (iconEntry != null)
-                            {
-                                var iconTargetPath = Path.Combine(imagesDir, "icon.png");
-                                try
-                                {
-                                    iconEntry.ExtractToFile(iconTargetPath, overwrite: true);
-                                    iconPath = iconTargetPath;
-                                    Debug.WriteLine($"[DiskScanService] 提取图标: {iconTargetPath}");
-                                }
-                                catch (Exception ex)
-                                {
-                                    Debug.WriteLine($"[DiskScanService] 提取图标失败: {ex.Message}");
-                                }
-                            }
-
-                            var imageEntries = new List<ZipArchiveEntry>();
-                            foreach (var entry in archive.Entries)
-                            {
-                                if ((entry.FullName.StartsWith("images/", StringComparison.OrdinalIgnoreCase) ||
-                                     entry.FullName.StartsWith("images\\", StringComparison.OrdinalIgnoreCase)) &&
-                                    !entry.FullName.EndsWith("/") && !entry.FullName.EndsWith("\\"))
-                                {
-                                    imageEntries.Add(entry);
-                                }
-                            }
-
-                            imageEntries.Sort((a, b) => string.Compare(a.FullName, b.FullName, StringComparison.OrdinalIgnoreCase));
-
-                            int previewIndex = 1;
-                            foreach (var entry in imageEntries)
-                            {
-                                try
-                                {
-                                    var previewTargetPath = Path.Combine(imagesDir, $"preview_{previewIndex}.png");
-                                    entry.ExtractToFile(previewTargetPath, overwrite: true);
-                                    previewPaths.Add(previewTargetPath);
-                                    Debug.WriteLine($"[DiskScanService] 提取预览图: {previewTargetPath}");
-                                    previewIndex++;
-                                }
-                                catch (Exception ex)
-                                {
-                                    Debug.WriteLine($"[DiskScanService] 提取预览图失败: {entry.FullName}, 错误: {ex.Message}");
-                                }
-                            }
-                        }
+                        index++;
                     }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"[DiskScanService] 从.gmd提取图片到本地失败: {gmdFilePath}, 错误: {ex.Message}");
-                    }
-                });
+                }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[DiskScanService] ExtractImagesFromGmdToLocalAsync 异常: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[DiskScanService] 提取图片失败: {gmdFilePath}, 错误: {ex.Message}");
             }
 
             return (iconPath, previewPaths);
@@ -239,7 +195,7 @@ namespace GameLauncher.Services
                     return game;
                 }
 
-                var (iconPath, previewPaths) = await ExtractImagesFromGmdToLocalAsync(gmdFilePath, gameExeDir);
+                var (iconPath, previewPaths) = await ExtractImagesFromGmdToLocalAsync(gmdFilePath, game.GameId);
 
                 if (!string.IsNullOrEmpty(iconPath))
                 {

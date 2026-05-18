@@ -53,6 +53,7 @@ namespace GameLauncher.Data
             var columnMap = await GetColumnMapAsync(connection);
 
             var selectList = new List<string> { "Id", "Name", "ExecutablePath" };
+            if (columnMap.ContainsKey("GameId")) selectList.Add("GameId");
             if (columnMap.ContainsKey("IconPath")) selectList.Add("IconPath");
             if (columnMap.ContainsKey("Description")) selectList.Add("Description");
             if (columnMap.ContainsKey("CreatedAt")) selectList.Add("CreatedAt");
@@ -77,6 +78,11 @@ namespace GameLauncher.Data
                 };
 
                 int idx = 3;
+                if (columnMap.ContainsKey("GameId"))
+                {
+                    game.GameId = reader.IsDBNull(idx) ? string.Empty : reader.GetString(idx);
+                    idx++;
+                }
                 if (columnMap.ContainsKey("IconPath"))
                 {
                     game.IconPath = reader.IsDBNull(idx) ? null : reader.GetString(idx);
@@ -153,49 +159,57 @@ namespace GameLauncher.Data
                 // 设置.gmd文件路径信息（仅用于备份/锚点标记）
                 try
                 {
-                    var gmdPath = _gmdService.GetGmdFilePath(game.ExecutablePath, game.Name);
-                    game.GmdFilePath = gmdPath;
-                    game.IsGmdFileReady = _gmdService.GmdFileExists(gmdPath);
-
-                    // 数据库数据缺失时回退到.gmd文件
-                    if (game.IsGmdFileReady)
+                    if (!string.IsNullOrWhiteSpace(game.GameId))
                     {
-                        var needGmdFallback = string.IsNullOrEmpty(game.Description) ||
-                                              string.IsNullOrEmpty(game.IconPath) ||
-                                              game.ImagePaths.Count == 0;
+                        var gmdPath = _gmdService.GetGmdFilePath(game.ExecutablePath, game.GameId);
+                        game.GmdFilePath = gmdPath;
+                        game.IsGmdFileReady = _gmdService.GmdFileExists(gmdPath);
 
-                        if (needGmdFallback)
+                        // 数据库数据缺失时回退到.gmd文件
+                        if (game.IsGmdFileReady)
                         {
-                            try
+                            var needGmdFallback = string.IsNullOrEmpty(game.Description) ||
+                                                  string.IsNullOrEmpty(game.IconPath) ||
+                                                  game.ImagePaths.Count == 0;
+
+                            if (needGmdFallback)
                             {
-                                var gmdGame = await _gmdService.DeserializeGameFromGmdAsync(gmdPath);
-                                if (gmdGame != null)
+                                try
                                 {
-                                    if (string.IsNullOrEmpty(game.Description) && !string.IsNullOrEmpty(gmdGame.Description))
-                                        game.Description = gmdGame.Description;
-                                    if (string.IsNullOrEmpty(game.IconPath) && !string.IsNullOrEmpty(gmdGame.IconPath))
-                                        game.IconPath = gmdGame.IconPath;
-                                    if (game.ImagePaths.Count == 0 && gmdGame.ImagePaths.Count > 0)
+                                    var gmdGame = await _gmdService.DeserializeGameFromGmdAsync(gmdPath);
+                                    if (gmdGame != null)
                                     {
-                                        foreach (var path in gmdGame.ImagePaths)
+                                        if (string.IsNullOrEmpty(game.Description) && !string.IsNullOrEmpty(gmdGame.Description))
+                                            game.Description = gmdGame.Description;
+                                        if (string.IsNullOrEmpty(game.IconPath) && !string.IsNullOrEmpty(gmdGame.IconPath))
+                                            game.IconPath = gmdGame.IconPath;
+                                        if (game.ImagePaths.Count == 0 && gmdGame.ImagePaths.Count > 0)
                                         {
-                                            game.ImagePaths.Add(path);
+                                            foreach (var path in gmdGame.ImagePaths)
+                                            {
+                                                game.ImagePaths.Add(path);
+                                            }
                                         }
-                                    }
-                                    if (game.Tags.Count == 0 && gmdGame.Tags.Count > 0)
-                                    {
-                                        foreach (var tag in gmdGame.Tags)
+                                        if (game.Tags.Count == 0 && gmdGame.Tags.Count > 0)
                                         {
-                                            game.Tags.Add(tag);
+                                            foreach (var tag in gmdGame.Tags)
+                                            {
+                                                game.Tags.Add(tag);
+                                            }
                                         }
                                     }
                                 }
-                            }
-                            catch (Exception ex)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"从.gmd回退加载游戏 {game.Name} 失败: {ex.Message}");
+                                catch (Exception ex)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"从.gmd回退加载游戏 {game.Name} 失败: {ex.Message}");
+                                }
                             }
                         }
+                    }
+                    else
+                    {
+                        // GameId 尚未分配（旧数据库升级场景），跳过 GMD 检查
+                        game.IsGmdFileReady = false;
                     }
                 }
                 catch (Exception ex)
@@ -273,7 +287,7 @@ namespace GameLauncher.Data
 
             using var command = connection.CreateCommand();
             command.CommandText = @"
-                SELECT Id, Name, ExecutablePath, IconPath, Description, CreatedAt,
+                SELECT Id, GameId, Name, ExecutablePath, IconPath, Description, CreatedAt,
                        LaunchCount, TotalPlayTime, LastRunTime, IsRunning, ImagePaths, Tags
                 FROM Games
                 WHERE Id = @Id";
@@ -285,23 +299,23 @@ namespace GameLauncher.Data
                 var game = new Game
                 {
                     Id = reader.GetInt32(0),
-                    Name = reader.GetString(1),
-                    ExecutablePath = reader.GetString(2),
-                    IconPath = reader.IsDBNull(3) ? null : reader.GetString(3),
-                    Description = reader.IsDBNull(4) ? null : reader.GetString(4),
-                    CreatedAt = reader.GetDateTime(5),
-                    LaunchCount = reader.IsDBNull(6) ? 0 : reader.GetInt32(6),
-                    TotalPlayTime = reader.IsDBNull(7) ? 0 : reader.GetInt64(7),
-                    LastRunTime = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
-                    IsRunning = !reader.IsDBNull(9) && reader.GetInt32(9) == 1
+                    GameId = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                    Name = reader.GetString(2),
+                    ExecutablePath = reader.GetString(3),
+                    IconPath = reader.IsDBNull(4) ? null : reader.GetString(4),
+                    Description = reader.IsDBNull(5) ? null : reader.GetString(5),
+                    CreatedAt = reader.GetDateTime(6),
+                    LaunchCount = reader.IsDBNull(7) ? 0 : reader.GetInt32(7),
+                    TotalPlayTime = reader.IsDBNull(8) ? 0 : reader.GetInt64(8),
+                    LastRunTime = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
+                    IsRunning = !reader.IsDBNull(10) && reader.GetInt32(10) == 1
                 };
 
-                // 反序列化 ImagePaths
-                if (!reader.IsDBNull(10))
+                if (!reader.IsDBNull(11))
                 {
                     try
                     {
-                        var imagePathsJson = reader.GetString(10);
+                        var imagePathsJson = reader.GetString(11);
                         var imagePaths = JsonSerializer.Deserialize<List<string>>(imagePathsJson);
                         if (imagePaths != null)
                         {
@@ -314,16 +328,14 @@ namespace GameLauncher.Data
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"反序列化 ImagePaths 失败: {ex.Message}");
-                        // 忽略反序列化错误
                     }
                 }
 
-                // 反序列化 Tags
-                if (!reader.IsDBNull(11))
+                if (!reader.IsDBNull(12))
                 {
                     try
                     {
-                        var tagsJson = reader.GetString(11);
+                        var tagsJson = reader.GetString(12);
                         var tags = JsonSerializer.Deserialize<List<string>>(tagsJson);
                         if (tags != null)
                         {
@@ -336,7 +348,6 @@ namespace GameLauncher.Data
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"反序列化 Tags 失败: {ex.Message}");
-                        // 忽略反序列化错误
                     }
                 }
 
@@ -362,12 +373,28 @@ namespace GameLauncher.Data
             using var connection = _context.GetConnection();
             await connection.OpenAsync();
 
+            if (string.IsNullOrWhiteSpace(game.GameId))
+            {
+                var digits = new byte[9];
+                using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create())
+                {
+                    rng.GetBytes(digits);
+                }
+                var gid = "GID";
+                for (int i = 0; i < 9; i++)
+                {
+                    gid += (digits[i] % 10).ToString();
+                }
+                game.GameId = gid;
+            }
+
             using var command = connection.CreateCommand();
             command.CommandText = @"
-                INSERT INTO Games (Name, ExecutablePath, IconPath, Description, CreatedAt, ImagePaths, Tags)
-                VALUES (@Name, @ExecutablePath, @IconPath, @Description, @CreatedAt, @ImagePaths, @Tags);
+                INSERT INTO Games (GameId, Name, ExecutablePath, IconPath, Description, CreatedAt, ImagePaths, Tags)
+                VALUES (@GameId, @Name, @ExecutablePath, @IconPath, @Description, @CreatedAt, @ImagePaths, @Tags);
                 SELECT last_insert_rowid();";
 
+            command.Parameters.AddWithValue("@GameId", game.GameId ?? (object)DBNull.Value);
             command.Parameters.AddWithValue("@Name", game.Name);
             command.Parameters.AddWithValue("@ExecutablePath", game.ExecutablePath);
             command.Parameters.AddWithValue("@IconPath", game.IconPath ?? (object)DBNull.Value);
@@ -409,7 +436,7 @@ namespace GameLauncher.Data
             try
             {
                 game.Id = gameId;
-                game.GmdFilePath = _gmdService.GetGmdFilePath(game.ExecutablePath, game.Name);
+                game.GmdFilePath = _gmdService.GetGmdFilePath(game.ExecutablePath, game.GameId);
                 await _gmdService.SerializeGameToGmdAsync(game);
                 game.IsGmdFileReady = true;
                 System.Diagnostics.Debug.WriteLine($"创建.gmd文件成功: {game.GmdFilePath}");
@@ -431,7 +458,8 @@ namespace GameLauncher.Data
             using var command = connection.CreateCommand();
             command.CommandText = @"
                 UPDATE Games
-                SET Name = @Name,
+                SET GameId = @GameId,
+                    Name = @Name,
                     ExecutablePath = @ExecutablePath,
                     IconPath = @IconPath,
                     Description = @Description,
@@ -443,6 +471,7 @@ namespace GameLauncher.Data
                     Tags = @Tags
                 WHERE Id = @Id";
 
+            command.Parameters.AddWithValue("@GameId", game.GameId ?? (object)DBNull.Value);
             command.Parameters.AddWithValue("@Name", game.Name);
             command.Parameters.AddWithValue("@ExecutablePath", game.ExecutablePath);
             command.Parameters.AddWithValue("@IconPath", game.IconPath ?? (object)DBNull.Value);
@@ -490,7 +519,7 @@ namespace GameLauncher.Data
                 {
                     if (string.IsNullOrEmpty(game.GmdFilePath))
                     {
-                        game.GmdFilePath = _gmdService.GetGmdFilePath(game.ExecutablePath, game.Name);
+                        game.GmdFilePath = _gmdService.GetGmdFilePath(game.ExecutablePath, game.GameId);
                     }
                     
                     await _gmdService.SerializeGameToGmdAsync(game);
@@ -508,7 +537,7 @@ namespace GameLauncher.Data
 
         public async Task<bool> DeleteGameAsync(int id)
         {
-            // 先获取游戏信息以便删除.gmd文件
+            // 先获取游戏信息以便删除.gmd文件和图片目录
             var game = await GetGameByIdAsync(id);
 
             if (game != null)
@@ -533,25 +562,57 @@ namespace GameLauncher.Data
 
             int rowsAffected = await command.ExecuteNonQueryAsync();
 
-            // 删除.gmd文件
             if (rowsAffected > 0 && game != null)
             {
+                // 删除游戏图片目录
                 try
                 {
-                    var gmdPath = !string.IsNullOrEmpty(game.GmdFilePath)
-                        ? game.GmdFilePath
-                        : _gmdService.GetGmdFilePath(game.ExecutablePath, game.Name);
-                    
-                    _gmdService.DeleteGmdFile(gmdPath);
-                    System.Diagnostics.Debug.WriteLine($"删除.gmd文件成功: {gmdPath}");
+                    if (!string.IsNullOrWhiteSpace(game.GameId))
+                    {
+                        var imageService = new Services.ImageService();
+                        imageService.DeleteGameImages(game.GameId);
+                        System.Diagnostics.Debug.WriteLine($"删除游戏图片目录成功: {game.GameId}");
+                    }
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"删除.gmd文件失败: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"删除游戏图片目录失败: {ex.Message}");
                 }
             }
 
             return rowsAffected > 0;
+        }
+
+        public async Task<bool> GameIdExistsAsync(string gameId)
+        {
+            using var connection = _context.GetConnection();
+            await connection.OpenAsync();
+
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT COUNT(1) FROM Games WHERE GameId = @GameId";
+            command.Parameters.AddWithValue("@GameId", gameId);
+
+            var result = await command.ExecuteScalarAsync();
+            return result != null && Convert.ToInt64(result) > 0;
+        }
+
+        public async Task<Game?> GetGameByGameIdAsync(string gameId)
+        {
+            using var connection = _context.GetConnection();
+            await connection.OpenAsync();
+
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT Id FROM Games WHERE GameId = @GameId";
+            command.Parameters.AddWithValue("@GameId", gameId);
+
+            var result = await command.ExecuteScalarAsync();
+            if (result != null)
+            {
+                int id = Convert.ToInt32(result);
+                return await GetGameByIdAsync(id);
+            }
+
+            return null;
         }
     }
 }
