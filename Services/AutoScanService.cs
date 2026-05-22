@@ -1,4 +1,3 @@
-using GameLauncher.Data;
 using GameLauncher.Models;
 using System;
 using System.Collections.Generic;
@@ -22,11 +21,15 @@ namespace GameLauncher.Services
     {
         private readonly GameService _gameService;
         private readonly GmdFileService _gmdFileService;
+        private readonly ImageService _imageService;
+        private readonly DiskScanService _diskScanService;
 
-        public AutoScanService(GameService gameService)
+        public AutoScanService(GameService gameService, GmdFileService gmdFileService, ImageService imageService, DiskScanService diskScanService)
         {
             _gameService = gameService;
-            _gmdFileService = new GmdFileService();
+            _gmdFileService = gmdFileService;
+            _imageService = imageService;
+            _diskScanService = diskScanService;
         }
 
         public async Task<AutoScanResult> ScanAsync(List<string> scanPaths, CancellationToken cancellationToken = default)
@@ -107,11 +110,9 @@ namespace GameLauncher.Services
 
                     game.GmdFilePath = gmdFile;
 
-                    var imageService = new ImageService();
-                    imageService.EnsureGameImageDirectory(game.GameId);
+                    _imageService.EnsureGameImageDirectory(game.GameId);
 
-                    var scanService = new DiskScanService();
-                    var (iconPath, _) = await scanService.ExtractImagesFromGmdToLocalAsync(gmdFile, game.GameId);
+                    var (iconPath, _) = await _diskScanService.ExtractImagesFromGmdToLocalAsync(gmdFile, game.GameId);
                     if (!string.IsNullOrEmpty(iconPath))
                     {
                         game.IconPath = iconPath;

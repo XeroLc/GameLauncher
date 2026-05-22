@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using GameLauncher.Data;
+using GameLauncher.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -30,15 +33,35 @@ namespace GameLauncher
 
         public static Window? MainWindow { get; private set; }
 
+        public static IServiceProvider Services { get; private set; }
+
         /// <summary>
         /// Initializes the singleton application object.  This is the first line of authored code
         /// executed, and as such is the logical equivalent of main() or WinMain().
         /// </summary>
         public App()
         {
+            var services = new ServiceCollection();
+
+            services.AddSingleton<DatabaseContext>();
+            services.AddSingleton<GameRepository>();
+            services.AddSingleton<CollectionRepository>();
+            services.AddSingleton<GameService>();
+            services.AddSingleton<GmdFileService>();
+            services.AddSingleton<ImageService>();
+            services.AddSingleton<GameImageLoader>();
+            services.AddSingleton<DataSyncService>();
+            services.AddSingleton<UpdateCheckerService>();
+
+            services.AddTransient<DiskScanService>();
+            services.AddTransient<AutoScanService>();
+            services.AddTransient<DataMigrationService>();
+            services.AddTransient<DataConsistencyService>();
+
+            Services = services.BuildServiceProvider();
+
             InitializeComponent();
 
-            // 添加全局异常处理
             this.UnhandledException += App_UnhandledException;
         }
 

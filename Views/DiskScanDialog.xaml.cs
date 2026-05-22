@@ -14,6 +14,7 @@ namespace GameLauncher.Views
     public sealed partial class DiskScanDialog : ContentDialog
     {
         private readonly GameService _gameService;
+        private readonly GameImageLoader _gameImageLoader;
         private readonly ObservableCollection<Game> _existingGames;
         private CancellationTokenSource? _cts;
         private ScanResult? _scanResult;
@@ -22,9 +23,10 @@ namespace GameLauncher.Views
         public List<Game> SelectedGames { get; private set; } = new();
         public List<Game> AllDiscoveredGames { get; private set; } = new();
 
-        public DiskScanDialog(GameService gameService, ObservableCollection<Game> existingGames)
+        public DiskScanDialog(GameService gameService, GameImageLoader gameImageLoader, ObservableCollection<Game> existingGames)
         {
             _gameService = gameService;
+            _gameImageLoader = gameImageLoader;
             _existingGames = existingGames;
             this.InitializeComponent();
 
@@ -100,7 +102,7 @@ namespace GameLauncher.Views
             {
                 try
                 {
-                    game.LoadIcon();
+                    _gameImageLoader.LoadIcon(game);
                 }
                 catch { }
                 _displayedGames.Add(game);

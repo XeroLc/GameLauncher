@@ -1,4 +1,6 @@
+using GameLauncher.Data;
 using GameLauncher.Models;
+using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -58,12 +60,20 @@ namespace GameLauncher.Services
     /// </summary>
     public class DataSyncService
     {
+        private readonly DatabaseContext _dbContext;
+
         /// <summary>
         /// 更新日志列表
         /// </summary>
         public List<SyncSummary> SyncHistory { get; } = new();
+        private const int MaxSyncHistoryCount = 50;
 
         private readonly List<Func<Game, Game, List<string>>> _customComparers = new();
+
+        public DataSyncService(DatabaseContext dbContext)
+        {
+            _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        }
 
         /// <summary>
         /// 注册自定义字段对比规则
@@ -75,29 +85,24 @@ namespace GameLauncher.Services
 
         /// <summary>
         /// 计算游戏数据签名（用于快速判断整体是否变化）
+        /// 使用 COUNT + MAX(LastRunTime) 轻量数据库查询，不再全量遍历内存中的游戏对象
         /// </summary>
-        public string ComputeDataSignature(IEnumerable<Game> games)
+        public async Task<string> ComputeDataSignatureAsync()
         {
-            var sb = new StringBuilder();
-            foreach (var game in games.OrderBy(g => g.Id))
-            {
-                sb.Append(game.Id)
-                  .Append("|").Append(game.Name ?? "")
-                  .Append("|").Append(game.ExecutablePath ?? "")
-                  .Append("|").Append(game.LaunchCount)
-                  .Append("|").Append(game.TotalPlayTime)
-                  .Append("|").Append(game.LastRunTime?.ToString("o") ?? "")
-                  .Append("|").Append(game.Description ?? "")
-                  .Append("|").Append(game.IconPath ?? "")
-                  .Append("|").Append(game.GmdFilePath ?? "")
-                  .Append("|").Append(game.IsGmdFileReady)
-                  .Append("|").Append(string.Join(",", game.Tags.OrderBy(t => t)))
-                  .Append("|").Append(string.Join(",", game.ImagePaths.OrderBy(p => p)))
-                  .Append(";");
-            }
+            using var connection = _dbContext.GetConnection();
+            await connection.OpenAsync();
 
-            using var sha256 = SHA256.Create();
-            var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(sb.ToString()));
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT COUNT(*) as Count, MAX(LastRunTime) as MaxUpdatedAt FROM Games";
+
+            using var reader = await command.ExecuteReaderAsync();
+            await reader.ReadAsync();
+
+            var count = reader.GetInt32(0);
+            var maxUpdatedAtStr = reader.IsDBNull(1) ? "" : reader.GetDateTime(1).ToString("o");
+
+            var signatureString = $"{count}|{maxUpdatedAtStr}";
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(signatureString));
             return Convert.ToBase64String(bytes);
         }
 
@@ -274,15 +279,15 @@ namespace GameLauncher.Services
                     summary.ElapsedMs = sw.ElapsedMilliseconds;
                     summary.SyncTime = DateTime.UtcNow;
                     SyncHistory.Add(summary);
+                    TrimSyncHistory();
                     return summary;
                 }
 
-                // 先计算整体签名快速判断
-                var existingSignature = ComputeDataSignature(existingList);
                 var latestGames = await fetchLatestGames();
-                var latestSignature = ComputeDataSignature(latestGames);
 
-                if (existingSignature == latestSignature)
+                var changes = DetectChanges(existingList, latestGames);
+
+                if (changes.Count == 0)
                 {
                     sw.Stop();
                     summary.HasChanges = false;
@@ -290,12 +295,10 @@ namespace GameLauncher.Services
                     summary.ElapsedMs = sw.ElapsedMilliseconds;
                     summary.SyncTime = DateTime.UtcNow;
                     SyncHistory.Add(summary);
-                    System.Diagnostics.Debug.WriteLine($"[DataSync] 静默跳过 — 签名匹配，耗时 {sw.ElapsedMilliseconds}ms");
+                    TrimSyncHistory();
+                    System.Diagnostics.Debug.WriteLine($"[DataSync] 静默跳过 — 无变更，耗时 {sw.ElapsedMilliseconds}ms");
                     return summary;
                 }
-
-                // 签名不匹配，执行详细对比
-                var changes = DetectChanges(existingList, latestGames);
 
                 foreach (var change in changes)
                 {
@@ -341,10 +344,18 @@ namespace GameLauncher.Services
                 summary.ElapsedMs = sw.ElapsedMilliseconds;
                 summary.SyncTime = DateTime.UtcNow;
                 SyncHistory.Add(summary);
-                System.Diagnostics.Debug.WriteLine($"[DataSync] 同步完成 — {summary.Description}, 耗时 {sw.ElapsedMilliseconds}ms");
+                TrimSyncHistory();
             }
 
             return summary;
+        }
+
+        private void TrimSyncHistory()
+        {
+            while (SyncHistory.Count > MaxSyncHistoryCount)
+            {
+                SyncHistory.RemoveAt(0);
+            }
         }
     }
 }

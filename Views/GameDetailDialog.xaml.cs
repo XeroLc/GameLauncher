@@ -1,6 +1,7 @@
 using GameLauncher.Models;
 using GameLauncher.Services;
 using GameLauncher.Data;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -18,6 +19,8 @@ namespace GameLauncher.Views
     {
         private Game _game;
         private readonly GameService _gameService;
+        private readonly GameImageLoader _gameImageLoader;
+        private readonly ImageService _imageService;
         private readonly List<string> _allExistingTags;
         private DateTime? _gameStartTime;
 
@@ -53,7 +56,7 @@ namespace GameLauncher.Views
             }
         }
 
-        public GameDetailDialog(Game game, GameService gameService, List<string>? allExistingTags = null, DateTime? gameStartTime = null)
+        public GameDetailDialog(Game game, GameService gameService, GameImageLoader gameImageLoader, List<string>? allExistingTags = null, DateTime? gameStartTime = null)
         {
             if (game == null)
             {
@@ -62,12 +65,16 @@ namespace GameLauncher.Views
 
             _game = game;
             _gameService = gameService ?? throw new ArgumentNullException(nameof(gameService));
+            _gameImageLoader = gameImageLoader ?? throw new ArgumentNullException(nameof(gameImageLoader));
+            _imageService = App.Services.GetRequiredService<ImageService>();
             _allExistingTags = allExistingTags ?? new List<string>();
             _gameStartTime = gameStartTime;
 
             // 注意：InitializeComponent 必须在变量赋值后调用，
             // 确保 x:Bind 能够正确找到数据
             this.InitializeComponent();
+
+            _gameImageLoader.LoadImages(_game);
 
             // 获取大图预览控件的引用
             _largePreviewImage = FindName("LargePreviewImage") as Image;
@@ -215,7 +222,7 @@ namespace GameLauncher.Views
         {
             Hide();
 
-            var editDialog = new AddGameDialog(_game);
+            var editDialog = new AddGameDialog(_game, _imageService);
             editDialog.XamlRoot = XamlRoot;
             editDialog.SetExistingTags(_allExistingTags);
 
@@ -236,68 +243,12 @@ namespace GameLauncher.Views
 
             if (result == ContentDialogResult.Primary)
             {
-                _game.Name = editDialog.GameName;
-                _game.ExecutablePath = editDialog.ExecutablePath;
-                _game.IconPath = editDialog.IconPath;
-                _game.LoadIcon();
-                _game.Description = editDialog.Description;
-
-                _game.ImagePaths.Clear();
-                foreach (var imagePath in editDialog.ImagePaths)
+                await _gameService.UpdateGameFromDialogAsync(_game, editDialog, _imageService, () =>
                 {
-                    _game.ImagePaths.Add(imagePath);
-                }
-
-                _game.Tags.Clear();
-                foreach (var tag in editDialog.Tags)
-                {
-                    _game.Tags.Add(tag);
-                }
-
-                _game.LoadIcon();
-                _game.LoadImages();
-
-                try
-                {
-                    await _gameService.UpdateGameAsync(_game);
-
-                    var newColIds = editDialog.SelectedCollectionIds;
-                    var currentCols = await _gameService.GetCollectionsForGameAsync(_game.Id);
-                    var currentColIds = currentCols.Select(c => c.Id).ToList();
-
-                    foreach (var colId in currentColIds.Where(id => !newColIds.Contains(id)))
-                    {
-                        await _gameService.RemoveGameFromCollectionAsync(_game.Id, colId);
-                    }
-                    foreach (var colId in newColIds.Where(id => !currentColIds.Contains(id)))
-                    {
-                        await _gameService.AddGameToCollectionAsync(_game.Id, colId);
-                    }
-
-                    _game.Collections.Clear();
-                    foreach (var colId in newColIds)
-                    {
-                        var collection = allCollections.FirstOrDefault(c => c.Id == colId);
-                        if (collection != null)
-                        {
-                            _game.Collections.Add(collection);
-                        }
-                    }
-
-                    DataChanged?.Invoke();
-                }
-                catch (Exception ex)
-                {
-                    var errorDialog = new ContentDialog
-                    {
-                        Title = "更新失败",
-                        Content = $"更新游戏失败：{ex.Message}",
-                        CloseButtonText = "确定",
-                        XamlRoot = XamlRoot,
-                        Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
-                    };
-                    await errorDialog.ShowAsync();
-                }
+                    _gameImageLoader.LoadIcon(_game);
+                    _gameImageLoader.LoadImages(_game);
+                });
+                DataChanged?.Invoke();
             }
         }
 

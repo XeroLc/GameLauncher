@@ -1,22 +1,24 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using GameLauncher.Data;
 using GameLauncher.Models;
 using GameLauncher.Services;
 using GameLauncher.Views;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Dispatching;
-using Microsoft.UI; 
+using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using WinRT.Interop;
 using Windows.Storage;
@@ -31,25 +33,21 @@ namespace GameLauncher
         private readonly GameRepository _repository;
         private readonly GameService _gameService;
         private readonly ObservableCollection<Game> _games;
-        private readonly ObservableCollection<Game> _filteredGames;
         private readonly ObservableCollection<string> _allTags;
         private readonly DataSyncService _syncService;
-        private string? _selectedTagFilter;
-        private volatile bool _isClosing = false;
-        private bool _isDialogOpen = false;
+        private volatile bool _isDialogOpen = false;
         private static bool _isShowingUpdateDialog = false;
         private bool _isBatchSelectionMode = false;
-        private DispatcherTimer _statusCheckTimer;
-        private readonly ConcurrentDictionary<int, DateTime> _runningGames = new();
         private SystemTrayService _trayService;
-        private string _currentSortMode = "CreatedAt";
-        private string? _selectedCollectionFilter;
         private SolidColorBrush _navBarBackgroundBrush = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(140, 249, 249, 249));
         private bool _isNavBarScrolled = false;
         private bool _isFirstActivation = true;
+        private volatile int _isActivatedHandling = 0;
         private readonly SolidColorBrush _hoverBorderBrush = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(80, 255, 255, 255));
-        private DispatcherTimer? _searchDebounceTimer;
-        private readonly HashSet<int> _lastRunningGameIds = new();
+        private readonly UpdateCheckerService _updateChecker;
+        private readonly ImageService _imageService;
+        private readonly GmdFileService _gmdService;
+        private readonly GameImageLoader _gameImageLoader;
 
         public ObservableCollection<Game> Games => _games;
         public ObservableCollection<Game> FilteredGames => _filteredGames;
@@ -60,13 +58,17 @@ namespace GameLauncher
 
             SetupFloatingNavBar();
 
-            _dbContext = new DatabaseContext();
-            _repository = new GameRepository(_dbContext);
-            _gameService = new GameService(_repository, _dbContext);
+            _dbContext = App.Services.GetRequiredService<DatabaseContext>();
+            _repository = App.Services.GetRequiredService<GameRepository>();
+            _gameService = App.Services.GetRequiredService<GameService>();
             _games = new ObservableCollection<Game>();
             _filteredGames = new ObservableCollection<Game>();
             _allTags = new ObservableCollection<string>();
-            _syncService = new DataSyncService();
+            _syncService = App.Services.GetRequiredService<DataSyncService>();
+            _updateChecker = App.Services.GetRequiredService<UpdateCheckerService>();
+            _imageService = App.Services.GetRequiredService<ImageService>();
+            _gmdService = App.Services.GetRequiredService<GmdFileService>();
+            _gameImageLoader = App.Services.GetRequiredService<GameImageLoader>();
 
             // 绑定窗口事件，确保每次激活时都刷新数据
             Activated += MainWindow_Activated;
@@ -83,7 +85,7 @@ namespace GameLauncher
 
             // 2. 设置图标 (路径要对应你项目中的图标文件)
             // 注意：如果是非打包应用，通常图标文件需要复制到输出目录
-            appWindow.SetIcon("AppIcon.jpg");
+            appWindow.SetIcon("AppIcon.ico");
             // --- 设置图标代码结束 ---
 
             // 初始化托盘服务
@@ -170,26 +172,6 @@ namespace GameLauncher
         }
 
 
-        private void InitializeStatusCheckTimer()
-        {
-            _statusCheckTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(5)
-            };
-            _statusCheckTimer.Tick += StatusCheckTimer_Tick;
-            _statusCheckTimer.Start();
-        }
-
-        private void StatusCheckTimer_Tick(object sender, object e)
-        {
-            if (_isClosing)
-            {
-                return;
-            }
-            CheckRunningGames();
-            UpdateGameCardStatistics();
-        }
-
         // 辅助：在 UI 线程安全执行 action（优先使用 Dispatcher，其次使用 DispatcherQueue，最后直接调用）
         private void RunOnUi(Action action)
         {
@@ -211,78 +193,6 @@ namespace GameLauncher
             catch
             {
                 // 忽略调度错误
-            }
-        }
-
-        private void CheckRunningGames()
-        {
-            if (_games == null || _gameService == null || _isClosing)
-            {
-                return;
-            }
-
-            bool hadRunningGames = _runningGames.Count > 0;
-
-            foreach (var game in _games.Where(g => g.IsRunning))
-            {
-                if (!_runningGames.ContainsKey(game.Id))
-                {
-                    _runningGames[game.Id] = DateTime.UtcNow;
-                }
-            }
-
-            foreach (var kvp in _runningGames.ToList())
-            {
-                var gameId = kvp.Key;
-                var game = _games.FirstOrDefault(g => g.Id == gameId);
-                if (game == null)
-                {
-                    _runningGames.TryRemove(gameId, out _);
-                    continue;
-                }
-
-                var processName = Path.GetFileNameWithoutExtension(game.ExecutablePath).ToLowerInvariant();
-                bool isRunning = false;
-                try
-                {
-                    var processes = Process.GetProcessesByName(processName);
-                    isRunning = processes.Length > 0;
-                    foreach (var p in processes)
-                    {
-                        p.Dispose();
-                    }
-                }
-                catch { }
-
-                if (!isRunning)
-                {
-                    var runTime = (long)(DateTime.UtcNow - kvp.Value).TotalSeconds;
-                    
-                    _ = _gameService.UpdateGamePlayTimeAsync(gameId, runTime);
-                    
-                    _runningGames.TryRemove(gameId, out _);
-                    
-                    if (!_isClosing)
-                    {
-                        RunOnUi(() =>
-                        {
-                            try
-                            {
-                                game.IsRunning = false;
-                                game.TotalPlayTime += runTime;
-                                UpdateGameCardStatistics();
-                            }
-                            catch
-                            {
-                            }
-                        });
-                    }
-                }
-            }
-
-            if (hadRunningGames && _runningGames.Count == 0)
-            {
-                RunOnUi(() => _trayService.RestoreFromTray());
             }
         }
 
@@ -320,91 +230,92 @@ namespace GameLauncher
 
         private async void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
         {
-            await System.Threading.Tasks.Task.Delay(100);
+            if (Interlocked.Exchange(ref _isActivatedHandling, 1) == 1)
+            {
+                return;
+            }
 
             try
             {
-                System.Diagnostics.Debug.WriteLine("开始初始化数据库...");
-                var initializer = new DatabaseInitializer(_dbContext);
-                await initializer.InitializeAsync();
-                System.Diagnostics.Debug.WriteLine("数据库初始化完成，开始加载游戏数据...");
-
-                if (_isFirstActivation)
-                {
-                    _isFirstActivation = false;
-                    LoadingOverlay.Visibility = Visibility.Visible;
-                    await LoadGamesAsync();
-                    LoadingOverlay.Visibility = Visibility.Collapsed;
-
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            var settings = UserSettings.Instance;
-                            if (settings.AutoScanEnabled && settings.ScanPaths.Count > 0)
-                            {
-                                Debug.WriteLine("[AutoScan] 开始静默扫描...");
-                                var scanService = new AutoScanService(_gameService);
-                                var result = await scanService.ScanAsync(settings.ScanPaths);
-                                if (result.NewGamesFound > 0)
-                                {
-                                    RunOnUi(async () =>
-                                    {
-                                        await ShowAutoScanResultDialog(result);
-                                    });
-                                }
-                                Debug.WriteLine($"[AutoScan] 扫描完成: 扫描 {result.TotalScanned} 个文件, 发现 {result.NewGamesFound} 个新游戏");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"[AutoScan] 扫描失败: {ex.Message}");
-                        }
-                    });
-
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await Task.Delay(2000);
-                            var updateChecker = new UpdateCheckerService();
-                            var updateInfo = await updateChecker.CheckForUpdateAsync();
-                            if (updateInfo != null)
-                            {
-                                RunOnUi(() => ShowUpdateAvailableDialog(updateInfo));
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"[UpdateCheck] 自动检查更新失败: {ex.Message}");
-                        }
-                    });
-                }
-                else
-                {
-                    await SilentRefreshGamesAsync();
-                }
-
-                System.Diagnostics.Debug.WriteLine("游戏数据加载完成");
+                await System.Threading.Tasks.Task.Delay(100);
 
                 try
                 {
-                    await _dbContext.MigrateFavoritesAsync();
+                    System.Diagnostics.Debug.WriteLine("开始初始化数据库...");
+                    await _dbContext.InitializeAsync();
+                    System.Diagnostics.Debug.WriteLine("数据库初始化完成，开始加载游戏数据...");
+
+                    if (_isFirstActivation)
+                    {
+                        _isFirstActivation = false;
+                        LoadingOverlay.Visibility = Visibility.Visible;
+                        await LoadGamesAsync();
+                        LoadingOverlay.Visibility = Visibility.Collapsed;
+
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                var settings = UserSettings.Instance;
+                                if (settings.AutoScanEnabled && settings.ScanPaths.Count > 0)
+                                {
+                                    Debug.WriteLine("[AutoScan] 开始静默扫描...");
+                                    var scanService = App.Services.GetRequiredService<AutoScanService>();
+                                    var result = await scanService.ScanAsync(settings.ScanPaths);
+                                    if (result.NewGamesFound > 0)
+                                    {
+                                        RunOnUi(async () =>
+                                        {
+                                            await ShowAutoScanResultDialog(result);
+                                        });
+                                    }
+                                    Debug.WriteLine($"[AutoScan] 扫描完成: 扫描 {result.TotalScanned} 个文件, 发现 {result.NewGamesFound} 个新游戏");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"[AutoScan] 扫描失败: {ex.Message}");
+                            }
+                        });
+
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await Task.Delay(2000);
+                                var updateInfo = await _updateChecker.CheckForUpdateAsync();
+                                if (updateInfo != null)
+                                {
+                                    RunOnUi(() => ShowUpdateAvailableDialog(updateInfo));
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"[UpdateCheck] 自动检查更新失败: {ex.Message}");
+                            }
+                        });
+                    }
+                    else
+                    {
+                        await SilentRefreshGamesAsync();
+                    }
+
+                    System.Diagnostics.Debug.WriteLine("游戏数据加载完成");
+                }
+                catch (Microsoft.Data.Sqlite.SqliteException ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"数据库错误: {ex.Message}");
+                    await ShowErrorDialog("数据库错误", $"数据库操作失败：{ex.Message}\n\n请尝试删除应用程序数据文件夹中的 games.db 文件后重新启动。");
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"收藏迁移失败: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"初始化失败: {ex.Message}");
+                    await ShowErrorDialog("初始化失败", $"发生错误：{ex.Message}");
                 }
             }
-            catch (Microsoft.Data.Sqlite.SqliteException ex)
+            finally
             {
-                System.Diagnostics.Debug.WriteLine($"数据库错误: {ex.Message}");
-                await ShowErrorDialog("数据库错误", $"数据库操作失败：{ex.Message}\n\n请尝试删除应用程序数据文件夹中的 games.db 文件后重新启动。");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"初始化失败: {ex.Message}");
-                await ShowErrorDialog("初始化失败", $"发生错误：{ex.Message}");
+                Interlocked.Exchange(ref _isActivatedHandling, 0);
             }
         }
 
@@ -426,8 +337,8 @@ namespace GameLauncher
                     },
                     applyAdd: (game) =>
                     {
-                        game.LoadIcon();
-                        game.LoadImages();
+                        _gameImageLoader.LoadIcon(game);
+                        _gameImageLoader.LoadImages(game);
                         _games.Add(game);
                         AddTagsFromGame(game);
                     },
@@ -525,7 +436,7 @@ namespace GameLauncher
                             break;
                         case nameof(Game.IconPath):
                             target.IconPath = source.IconPath;
-                            target.LoadIcon();
+                            _gameImageLoader.LoadIcon(target);
                             break;
                         case nameof(Game.Tags):
                             target.Tags.Clear();
@@ -563,181 +474,33 @@ namespace GameLauncher
             try
             {
                 var games = await _gameService.GetAllGamesAsync();
-                var gmdService = new GmdFileService();
-                var migrationService = new DataMigrationService(gmdService, _dbContext);
-
-                try
-                {
-                    var assignedCount = await migrationService.AssignGameIdsToExistingGamesAsync();
-                    if (assignedCount > 0)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[数据迁移] 为 {assignedCount} 个旧游戏分配了GID，重新加载游戏数据...");
-                        games = await _gameService.GetAllGamesAsync();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[数据迁移] GID分配失败: {ex.Message}");
-                }
-
-                try
-                {
-                    var missingGmdGames = await migrationService.ScanForMissingGmdFilesAsync(games);
-                    if (missingGmdGames.Count > 0)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"发现 {missingGmdGames.Count} 个游戏缺少.gmd文件，开始迁移...");
-                        var progress = new Progress<MigrationProgress>(p =>
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[迁移进度] {p.Percentage:F0}% - {p.CurrentGameName}");
-                        });
-                        await migrationService.MigrateAllGamesAsync(games, progress);
-                        System.Diagnostics.Debug.WriteLine("数据迁移完成");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"数据迁移失败: {ex.Message}");
-                    // 迁移失败不阻塞游戏加载
-                }
-
-                try
-                {
-                    var progress = new Progress<MigrationProgress>(p =>
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[图片迁移进度] {p.Percentage:F0}% - {p.CurrentGameName}");
-                    });
-                    var imageMigrationStatus = await migrationService.MigrateGameImagesToGlobalDirectoryAsync(games, progress);
-                    if (imageMigrationStatus.MigratedGames > 0)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[图片迁移] 迁移了 {imageMigrationStatus.MigratedGames} 个游戏的图片");
-                        // 重新加载游戏数据以获取最新路径
-                        games = await _gameService.GetAllGamesAsync();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[图片迁移] 迁移失败: {ex.Message}");
-                }
-
-                try
-                {
-                    var cleanedCount = await migrationService.CleanOldImageDirectoriesAsync(games);
-                    if (cleanedCount > 0)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[图片迁移] 清理了 {cleanedCount} 个旧图片目录");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[图片迁移] 清理旧目录失败: {ex.Message}");
-                }
-
-                try
-                {
-                    var tempBaseDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "GameLauncher");
-                    if (System.IO.Directory.Exists(tempBaseDir))
-                    {
-                        var fallbackDir = System.IO.Path.Combine(tempBaseDir, "GmdFallback");
-                        if (System.IO.Directory.Exists(fallbackDir))
-                        {
-                            System.IO.Directory.Delete(fallbackDir, true);
-                            System.Diagnostics.Debug.WriteLine("[临时清理] 已清理 GmdFallback 临时目录");
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[临时清理] 清理临时目录失败: {ex.Message}");
-                }
-
-                // 数据一致性校验
-                try
-                {
-                    var consistencyService = new DataConsistencyService(gmdService);
-                    var report = await consistencyService.CheckAllGamesConsistencyAsync(games);
-                    if (report.InconsistentGames > 0)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"发现 {report.InconsistentGames} 个游戏数据不一致，开始解决...");
-                        // 自动解决冲突
-                        foreach (var detail in report.Details.Where(d => !d.IsConsistent))
-                        {
-                            var game = games.FirstOrDefault(g => g.Id == detail.GameId);
-                            if (game != null && !string.IsNullOrEmpty(game.GmdFilePath))
-                            {
-                                var resolvedGame = await consistencyService.ResolveConflictAsync(game, game.GmdFilePath);
-                                if (resolvedGame != null)
-                                {
-                                    var existingGame = games.FirstOrDefault(g => g.Id == resolvedGame.Id);
-                                    if (existingGame != null)
-                                    {
-                                        existingGame.Name = resolvedGame.Name;
-                                        existingGame.Description = resolvedGame.Description;
-                                        existingGame.LaunchCount = resolvedGame.LaunchCount;
-                                        existingGame.TotalPlayTime = resolvedGame.TotalPlayTime;
-                                        existingGame.LastRunTime = resolvedGame.LastRunTime;
-                                        existingGame.Tags.Clear();
-                                        foreach (var tag in resolvedGame.Tags)
-                                        {
-                                            if (!existingGame.Tags.Contains(tag))
-                                            {
-                                                existingGame.Tags.Add(tag);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        System.Diagnostics.Debug.WriteLine("数据一致性解决完成");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"数据一致性校验失败: {ex.Message}");
-                    // 一致性校验失败不阻塞游戏加载
-                }
 
                 _games.Clear();
                 _filteredGames.Clear();
                 _allTags.Clear();
 
-                // 收集所有唯一标签
                 var uniqueTags = new HashSet<string>();
                 foreach (var game in games)
                 {
                     foreach (var tag in game.Tags)
-                    {
                         uniqueTags.Add(tag);
-                    }
                 }
-
-                // 排序并添加到标签集合
                 var sortedTags = uniqueTags.OrderBy(t => t).ToList();
                 foreach (var tag in sortedTags)
-                {
                     _allTags.Add(tag);
-                }
-
-                // 更新标签筛选下拉框
                 UpdateTagFilterComboBox();
 
                 foreach (var game in games)
                 {
                     _games.Add(game);
                     _filteredGames.Add(game);
-
                     if (game.IsRunning && !_runningGames.ContainsKey(game.Id))
-                    {
                         _runningGames[game.Id] = DateTime.UtcNow;
-                    }
                 }
 
                 await _gameService.PopulateGameCollectionsAsync(games);
-
-                // 应用筛选
                 ApplyFilters();
-
                 await RefreshCollectionFilterAsync();
-
                 UpdateEmptyState();
 
                 var dispatcher = DispatcherQueue;
@@ -748,20 +511,134 @@ namespace GameLauncher
                         var capturedGame = game;
                         dispatcher.TryEnqueue(() =>
                         {
-                            try
-                            {
-                                capturedGame.LoadIcon();
-                                capturedGame.LoadImages();
-                            }
+                            try { _gameImageLoader.LoadIcon(capturedGame); }
                             catch { }
                         });
                     }
+                });
+
+                _ = Task.Run(async () =>
+                {
+                    await RunBackgroundMaintenanceAsync(games);
                 });
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"加载游戏数据失败: {ex.Message}");
                 throw;
+            }
+        }
+
+        private async Task RunBackgroundMaintenanceAsync(List<Game> games)
+        {
+            var migrationService = App.Services.GetRequiredService<DataMigrationService>();
+            var consistencyService = App.Services.GetRequiredService<DataConsistencyService>();
+            bool needsRefresh = false;
+
+            try
+            {
+                if (!await migrationService.IsMigrationCompletedAsync("GidAssignment"))
+                {
+                    var assignedCount = await migrationService.AssignGameIdsToExistingGamesAsync();
+                    if (assignedCount > 0) needsRefresh = true;
+                    await migrationService.MarkMigrationCompletedAsync("GidAssignment");
+                }
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[后台] GID分配: {ex.Message}"); }
+
+            try
+            {
+                if (!await migrationService.IsMigrationCompletedAsync("GmdScan"))
+                {
+                    var missingGmdGames = await migrationService.ScanForMissingGmdFilesAsync(games);
+                    if (missingGmdGames.Count > 0)
+                    {
+                        await migrationService.MigrateAllGamesAsync(games);
+                        needsRefresh = true;
+                    }
+                    await migrationService.MarkMigrationCompletedAsync("GmdScan");
+                }
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[后台] GMD迁移: {ex.Message}"); }
+
+            try
+            {
+                if (!await migrationService.IsMigrationCompletedAsync("ImageMigration"))
+                {
+                    var imageMigrationStatus = await migrationService.MigrateGameImagesToGlobalDirectoryAsync(games);
+                    if (imageMigrationStatus.MigratedGames > 0) needsRefresh = true;
+                    await migrationService.MarkMigrationCompletedAsync("ImageMigration");
+                }
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[后台] 图片迁移: {ex.Message}"); }
+
+            try
+            {
+                if (!await migrationService.IsMigrationCompletedAsync("DirectoryClean"))
+                {
+                    await migrationService.CleanOldImageDirectoriesAsync(games);
+                    await migrationService.MarkMigrationCompletedAsync("DirectoryClean");
+                }
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[后台] 目录清理: {ex.Message}"); }
+
+            try
+            {
+                var report = await consistencyService.CheckModifiedGamesConsistencyAsync(games);
+                if (report.InconsistentGames > 0)
+                {
+                    foreach (var detail in report.Details.Where(d => !d.IsConsistent))
+                    {
+                        var game = games.FirstOrDefault(g => g.Id == detail.GameId);
+                        if (game != null && !string.IsNullOrEmpty(game.GmdFilePath))
+                        {
+                            await consistencyService.ResolveConflictAsync(game, game.GmdFilePath);
+                        }
+                    }
+                    needsRefresh = true;
+                }
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[后台] 一致性校验: {ex.Message}"); }
+
+            try
+            {
+                var fallbackGames = games.Where(g => g.NeedsGmdFallback && g.IsGmdFileReady).ToList();
+                if (fallbackGames.Count > 0)
+                {
+                    var gmdService = App.Services.GetRequiredService<GmdFileService>();
+                    foreach (var game in fallbackGames)
+                    {
+                        try
+                        {
+                            var gmdGame = await gmdService.DeserializeGameFromGmdAsync(game.GmdFilePath);
+                            if (gmdGame == null) continue;
+
+                            bool changed = false;
+                            if (string.IsNullOrEmpty(game.Description) && !string.IsNullOrEmpty(gmdGame.Description))
+                            { game.Description = gmdGame.Description; changed = true; }
+                            if (string.IsNullOrEmpty(game.IconPath) && !string.IsNullOrEmpty(gmdGame.IconPath))
+                            { game.IconPath = gmdGame.IconPath; changed = true; }
+                            if (game.ImagePaths.Count == 0 && gmdGame.ImagePaths.Count > 0)
+                            { foreach (var p in gmdGame.ImagePaths) game.ImagePaths.Add(p); changed = true; }
+                            if (game.Tags.Count == 0 && gmdGame.Tags.Count > 0)
+                            { foreach (var t in gmdGame.Tags) game.Tags.Add(t); changed = true; }
+
+                            if (changed)
+                            {
+                                await _gameService.UpdateGameAsync(game);
+                                game.NeedsGmdFallback = false;
+                                needsRefresh = true;
+                            }
+                        }
+                        catch { }
+                    }
+                }
+            }
+            catch (Exception ex) { Debug.WriteLine($"[后台] GMD回退处理: {ex.Message}"); }
+
+            if (needsRefresh)
+            {
+                RunOnUi(async () => await SilentRefreshGamesAsync(forceUiUpdate: true));
             }
         }
 
@@ -800,95 +677,6 @@ namespace GameLauncher
         }
 
 
-
-        private void UpdateEmptyState()
-        {
-            if (EmptyState == null || GamesGridView == null)
-            {
-                return;
-            }
-            EmptyState.Visibility = _filteredGames.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-            GamesGridView.Visibility = _filteredGames.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
-        }
-
-        private void UpdateGameCardStatistics()
-        {
-            RunOnUi(() =>
-            {
-                try
-                {
-                    if (GamesGridView == null || _games == null)
-                    {
-                        return;
-                    }
-
-                    var currentRunningIds = new HashSet<int>(_games.Where(g => g.IsRunning).Select(g => g.Id));
-                    bool runningStateChanged = !currentRunningIds.SetEquals(_lastRunningGameIds);
-
-                    if (runningStateChanged)
-                    {
-                        _lastRunningGameIds.Clear();
-                        foreach (var id in currentRunningIds)
-                            _lastRunningGameIds.Add(id);
-                    }
-
-                    foreach (var game in _games)
-                    {
-                        try
-                        {
-                            var container = GamesGridView.ContainerFromItem(game) as GridViewItem;
-                            if (container == null) continue;
-
-                            var root = container.ContentTemplateRoot as FrameworkElement;
-                            if (root == null) continue;
-
-                            if (runningStateChanged)
-                            {
-                                var runningIndicatorGrid = root.FindName("RunningIndicatorGrid") as Grid;
-                                if (runningIndicatorGrid != null)
-                                {
-                                    runningIndicatorGrid.Visibility = game.IsRunning ? Visibility.Visible : Visibility.Collapsed;
-                                }
-
-                                var launchBtn = root.FindName("LaunchButton") as Button;
-                                var stopBtn = root.FindName("StopButton") as Button;
-                                if (launchBtn != null && stopBtn != null)
-                                {
-                                    launchBtn.Visibility = game.IsRunning ? Visibility.Collapsed : Visibility.Visible;
-                                    stopBtn.Visibility = game.IsRunning ? Visibility.Visible : Visibility.Collapsed;
-                                }
-                            }
-
-                            var launchCountText = root.FindName("LaunchCountText") as TextBlock;
-                            if (launchCountText != null)
-                            {
-                                launchCountText.Text = $"{game.LaunchCount}次";
-                            }
-
-                            var playTimeText = root.FindName("PlayTimeText") as TextBlock;
-                            if (playTimeText != null)
-                            {
-                                playTimeText.Text = FormatPlayTime(game.TotalPlayTime);
-                            }
-                        }
-                        catch
-                        {
-                        }
-                    }
-                }
-                catch
-                {
-                }
-            });
-        }
-
-        private static string FormatPlayTime(long totalSeconds)
-        {
-            if (totalSeconds < 60) return $"{totalSeconds}秒";
-            if (totalSeconds < 3600) return $"{totalSeconds / 60}分钟";
-            var hours = totalSeconds / 3600;
-            return hours >= 24 ? $"{hours / 24}天" : $"{hours}小时";
-        }
 
         private async void AddGameButton_Click(object sender, RoutedEventArgs e)
         {
@@ -933,7 +721,7 @@ namespace GameLauncher
                             else
                             {
                                 // 确保图片目录已创建
-                                var imageService = new Services.ImageService();
+                                var imageService = _imageService;
                                 imageService.EnsureGameImageDirectory(importedGame.GameId);
 
                                 // 使用统一的 _gameService 保存到数据库
@@ -966,8 +754,8 @@ namespace GameLauncher
                                     }
                                 }
 
-                                importedGame.ReloadIcon();
-                                importedGame.ReloadImages();
+                                _gameImageLoader.ReloadIcon(importedGame);
+                                _gameImageLoader.ReloadImages(importedGame);
 
                                 LoadingOverlay.Visibility = Visibility.Collapsed;
                                 await SilentRefreshGamesAsync(forceUiUpdate: true);
@@ -995,8 +783,8 @@ namespace GameLauncher
                             newGame.Tags.Add(tag);
                         }
 
-                        newGame.LoadIcon();
-                        newGame.LoadImages();
+                        _gameImageLoader.LoadIcon(newGame);
+                        _gameImageLoader.LoadImages(newGame);
 
                         LoadingOverlay.Visibility = Visibility.Visible;
 
@@ -1010,7 +798,7 @@ namespace GameLauncher
                             }
 
                             // GameId 已由数据库分配，现在保存图片到全局目录
-                            var imageService = new Services.ImageService();
+                            var imageService = _imageService;
                             imageService.EnsureGameImageDirectory(newGame.GameId);
                             bool needsUpdate = false;
 
@@ -1050,8 +838,8 @@ namespace GameLauncher
                                 await _gameService.UpdateGameAsync(newGame);
                             }
 
-                            newGame.ReloadIcon();
-                            newGame.ReloadImages();
+                            _gameImageLoader.ReloadIcon(newGame);
+                            _gameImageLoader.ReloadImages(newGame);
 
                             LoadingOverlay.Visibility = Visibility.Collapsed;
                             await SilentRefreshGamesAsync(forceUiUpdate: true);
@@ -1074,34 +862,6 @@ namespace GameLauncher
                 _isDialogOpen = false;
             }
         }
-
-        private async void LaunchButton_Click(object sender, RoutedEventArgs e)
-                {
-                    if (sender is Button button && button.DataContext is Game game)
-                    {
-                        var success = await _gameService.LaunchGameAsync(game);
-                        if (success)
-                        {
-                            if (!_runningGames.ContainsKey(game.Id))
-                            {
-                                _runningGames[game.Id] = DateTime.UtcNow;
-                            }
-                            // 确保 UI 反映运行状态
-                            RunOnUi(() => {
-                                game.IsRunning = true;
-                            });
-                            // 延迟更新 UI，确保 IsRunning 属性已经生效
-                            await Task.Delay(100);
-                            UpdateGameCardStatistics();
-                            // 最小化到托盘
-                            _trayService.MinimizeToTray();
-                        }
-                        else
-                        {
-                            await ShowErrorDialog("启动失败", "无法启动游戏，请检查游戏路径是否正确");
-                        }
-                    }
-                }
 
         private async void StopButton_Click(object sender, RoutedEventArgs e)
         {
@@ -1138,7 +898,7 @@ namespace GameLauncher
                 _isDialogOpen = true;
                 if (sender is Button button && button.DataContext is Game game)
                 {
-                    var dialog = new AddGameDialog(game)
+                    var dialog = new AddGameDialog(game, _imageService)
                     {
                         XamlRoot = Content.XamlRoot
                     };
@@ -1154,82 +914,12 @@ namespace GameLauncher
 
                     if (result == ContentDialogResult.Primary)
                     {
-                        game.Name = dialog.GameName;
-                        game.ExecutablePath = dialog.ExecutablePath;
-                        game.Description = dialog.Description;
-
-                        // 使用 ImageService 保存图标和预览图到全局目录
-                        var imageService = new Services.ImageService();
-                        imageService.EnsureGameImageDirectory(game.GameId);
-
-                        // 保存图标：如果用户选择了新图标
-                        if (!string.IsNullOrEmpty(dialog.IconPath) && dialog.IconPath != game.IconPath)
+                        await _gameService.UpdateGameFromDialogAsync(game, dialog, _imageService, () =>
                         {
-                            var savedIcon = await imageService.SaveIconAsync(game.GameId, dialog.IconPath);
-                            if (!string.IsNullOrEmpty(savedIcon))
-                                game.IconPath = savedIcon;
-                        }
-
-                        // 更新预览图
-                        var oldImagePaths = game.ImagePaths.ToList();
-                        game.ImagePaths.Clear();
-
-                        int previewIndex = 1;
-                        foreach (var imagePath in dialog.ImagePaths)
-                        {
-                            var savedImage = await imageService.SavePreviewImageAsync(game.GameId, imagePath, previewIndex);
-                            if (!string.IsNullOrEmpty(savedImage))
-                            {
-                                game.ImagePaths.Add(savedImage);
-                                previewIndex++;
-                            }
-                        }
-
-                        // 删除被移除的旧图片文件
-                        var currentPaths = new HashSet<string>(game.ImagePaths);
-                        foreach (var oldPath in oldImagePaths)
-                        {
-                            if (!currentPaths.Contains(oldPath) && System.IO.File.Exists(oldPath))
-                            {
-                                try { System.IO.File.Delete(oldPath); } catch { }
-                            }
-                        }
-
-                        game.ReloadIcon();
-                        game.ReloadImages();
-
-                        try
-                        {
-                            await _gameService.UpdateGameAsync(game);
-                            var newColIds = dialog.SelectedCollectionIds;
-                            var currentCols = await _gameService.GetCollectionsForGameAsync(game.Id);
-                            var currentColIds = currentCols.Select(c => c.Id).ToList();
-
-                            foreach (var colId in currentColIds.Where(id => !newColIds.Contains(id)))
-                            {
-                                await _gameService.RemoveGameFromCollectionAsync(game.Id, colId);
-                            }
-                            foreach (var colId in newColIds.Where(id => !currentColIds.Contains(id)))
-                            {
-                                await _gameService.AddGameToCollectionAsync(game.Id, colId);
-                            }
-
-                            game.Collections.Clear();
-                            foreach (var colId in newColIds)
-                            {
-                                var collection = collections.FirstOrDefault(c => c.Id == colId);
-                                if (collection != null)
-                                {
-                                    game.Collections.Add(collection);
-                                }
-                            }
-
-                            await SilentRefreshGamesAsync(forceUiUpdate: true);
-                        }
-                        catch (Exception ex)
-                        {
-                            await ShowErrorDialog("更新游戏失败", ex.Message);
-                        }
+                            _gameImageLoader.ReloadIcon(game);
+                            _gameImageLoader.ReloadImages(game);
+                        });
+                        await SilentRefreshGamesAsync(forceUiUpdate: true);
                     }
                 }
             }
@@ -1313,47 +1003,6 @@ namespace GameLauncher
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"显示错误对话框时出错: {ex.Message}");
-            }
-        }
-
-        private void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
-        {
-            if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
-            {
-                if (_searchDebounceTimer != null)
-                {
-                    _searchDebounceTimer.Stop();
-                    _searchDebounceTimer.Tick -= SearchDebounceTimer_Tick;
-                }
-
-                _searchDebounceTimer = new DispatcherTimer
-                {
-                    Interval = TimeSpan.FromMilliseconds(300)
-                };
-                _searchDebounceTimer.Tick += SearchDebounceTimer_Tick;
-                _searchDebounceTimer.Start();
-            }
-        }
-
-        private void SearchDebounceTimer_Tick(object? sender, object e)
-        {
-            if (_searchDebounceTimer != null)
-            {
-                _searchDebounceTimer.Stop();
-                _searchDebounceTimer.Tick -= SearchDebounceTimer_Tick;
-                _searchDebounceTimer = null;
-            }
-            ApplyFilters();
-        }
-
-        private void TagFilterComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (TagFilterComboBox == null) return;
-
-            if (TagFilterComboBox.SelectedItem is string selectedTag)
-            {
-                _selectedTagFilter = selectedTag;
-                ApplyFilters();
             }
         }
 
@@ -1582,7 +1231,7 @@ namespace GameLauncher
                     startTime = _runningGames[game.Id];
                 }
 
-                var detailDialog = new Views.GameDetailDialog(game, _gameService, _allTags.ToList(), startTime)
+                var detailDialog = new Views.GameDetailDialog(game, _gameService, _gameImageLoader, _allTags.ToList(), startTime)
                 {
                     XamlRoot = Content.XamlRoot
                 };
@@ -1621,226 +1270,6 @@ namespace GameLauncher
             _isDialogOpen = false;
         }
     }
-
-        private void GamesGridView_DragOver(object sender, DragEventArgs e)
-        {
-            // 只接受文件
-            if (e.DataView.Contains(StandardDataFormats.StorageItems))
-            {
-                e.AcceptedOperation = DataPackageOperation.Copy;
-                e.DragUIOverride.Caption = "释放以添加游戏";
-            }
-            else
-            {
-                e.AcceptedOperation = DataPackageOperation.None;
-            }
-        }
-
-        private async void GamesGridView_Drop(object sender, DragEventArgs e)
-        {
-            if (!e.DataView.Contains(StandardDataFormats.StorageItems))
-            {
-                return;
-            }
-
-            try
-            {
-                var items = await e.DataView.GetStorageItemsAsync();
-                if (items == null || items.Count == 0u)
-                {
-                    return;
-                }
-
-                foreach (var item in items)
-                {
-                    if (item is IStorageFile file)
-                    {
-                        var extension = Path.GetExtension(file.Path).ToLowerInvariant();
-                        
-                        if (extension == ".gmd")
-                        {
-                            await AddGameFromGmdDragDrop(file.Path);
-                        }
-                        else if (extension == ".exe" || extension == ".bat" || extension == ".lnk")
-                        {
-                            await AddGameFromDragDrop(file.Path);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"拖放添加游戏时出错: {ex.Message}");
-                await ShowErrorDialog("错误", $"添加游戏时发生错误：{ex.Message}");
-            }
-        }
-
-        private async System.Threading.Tasks.Task AddGameFromDragDrop(string filePath)
-        {
-            if (_isDialogOpen)
-            {
-                return;
-            }
-
-            try
-            {
-                _isDialogOpen = true;
-                
-                // 检查是否已存在相同路径的游戏
-                var existingGame = _games.FirstOrDefault(g => 
-                    string.Equals(g.ExecutablePath, filePath, StringComparison.OrdinalIgnoreCase));
-                
-                if (existingGame != null)
-                {
-                    var infoDialog = new ContentDialog
-                    {
-                        Title = "游戏已存在",
-                        Content = $"游戏「{existingGame.Name}」已经存在于库中",
-                        CloseButtonText = "确定",
-                        XamlRoot = Content.XamlRoot,
-                        Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
-                    };
-                    await infoDialog.ShowAsync();
-                    return;
-                }
-
-                var fileName = Path.GetFileNameWithoutExtension(filePath);
-                var newGame = new Game
-                {
-                    Name = fileName,
-                    ExecutablePath = filePath,
-                    IconPath = string.Empty,
-                    Description = string.Empty
-                };
-
-                newGame.LoadIcon();
-                newGame.LoadImages();
-
-                try
-                {
-                    await _gameService.AddGameAsync(newGame);
-                    await SilentRefreshGamesAsync(forceUiUpdate: true);
-                    
-                    var successDialog = new ContentDialog
-                    {
-                        Title = "添加成功",
-                        Content = $"已成功添加游戏「{fileName}」",
-                        CloseButtonText = "确定",
-                        XamlRoot = Content.XamlRoot,
-                        Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
-                    };
-                    await successDialog.ShowAsync();
-                }
-                catch (Exception ex)
-                {
-                    await ShowErrorDialog("添加游戏失败", ex.Message);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"从拖放添加游戏时出错: {ex.Message}");
-                await ShowErrorDialog("错误", $"添加游戏时发生错误：{ex.Message}");
-            }
-            finally
-            {
-                _isDialogOpen = false;
-            }
-        }
-
-        private async System.Threading.Tasks.Task AddGameFromGmdDragDrop(string gmdFilePath)
-        {
-            if (_isDialogOpen) return;
-
-            try
-            {
-                _isDialogOpen = true;
-
-                if (!System.IO.File.Exists(gmdFilePath))
-                {
-                    await ShowErrorDialog("文件不存在", $"文件「{gmdFilePath}」不存在。");
-                    return;
-                }
-
-                var gmdService = new Services.GmdFileService();
-                Game importedGame;
-                try
-                {
-                    importedGame = await gmdService.DeserializeGameFromGmdAsync(gmdFilePath);
-                }
-                catch (Exception ex)
-                {
-                    await ShowErrorDialog("导入失败", $"无法解析 .gmd 文件：{ex.Message}");
-                    return;
-                }
-
-                if (!string.IsNullOrWhiteSpace(importedGame.GameId) && await _gameService.GameIdExistsAsync(importedGame.GameId))
-                {
-                    await ShowErrorDialog("提示", $"游戏「{importedGame.Name}」已存在于数据库中，无需重复添加。");
-                    return;
-                }
-
-                LoadingOverlay.Visibility = Visibility.Visible;
-                try
-                {
-                    var imageService = new Services.ImageService();
-                    imageService.EnsureGameImageDirectory(importedGame.GameId);
-
-                    var gameId = await _gameService.AddGameAsync(importedGame);
-
-                    if (importedGame.Collections != null && importedGame.Collections.Count > 0)
-                    {
-                        var allCollections = await _gameService.GetAllCollectionsAsync();
-                        foreach (var col in importedGame.Collections.ToList())
-                        {
-                            if (string.IsNullOrWhiteSpace(col.Name)) continue;
-                            int colId;
-                            var existing = allCollections.FirstOrDefault(c => string.Equals(c.Name, col.Name, StringComparison.OrdinalIgnoreCase));
-                            if (existing != null)
-                            {
-                                colId = existing.Id;
-                            }
-                            else
-                            {
-                                var newCol = await _gameService.AddCollectionAsync(col.Name);
-                                allCollections.Add(newCol);
-                                colId = newCol.Id;
-                            }
-                            await _gameService.AddGameToCollectionAsync(gameId, colId);
-                        }
-                    }
-
-                    importedGame.ReloadIcon();
-                    importedGame.ReloadImages();
-
-                    LoadingOverlay.Visibility = Visibility.Collapsed;
-                    await SilentRefreshGamesAsync(forceUiUpdate: true);
-
-                    var successDialog = new ContentDialog
-                    {
-                        Title = "导入成功",
-                        Content = $"已成功导入游戏「{importedGame.Name}」",
-                        CloseButtonText = "确定",
-                        XamlRoot = Content.XamlRoot,
-                        Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
-                    };
-                    await successDialog.ShowAsync();
-                }
-                catch (Exception ex)
-                {
-                    LoadingOverlay.Visibility = Visibility.Collapsed;
-                    await ShowErrorDialog("导入失败", ex.Message);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"从.gmd拖放导入时出错: {ex.Message}");
-                await ShowErrorDialog("错误", $"导入游戏时发生错误：{ex.Message}");
-            }
-            finally
-            {
-                _isDialogOpen = false;
-            }
-        }
 
         private void SortComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -1882,64 +1311,6 @@ namespace GameLauncher
             }
         }
 
-        private void ApplyFilters()
-        {
-            if (_filteredGames == null || _games == null) return;
-
-            var settings = Models.UserSettings.Instance;
-            var searchText = SearchBox?.Text?.ToLowerInvariant() ?? string.Empty;
-            var hasSearch = !string.IsNullOrWhiteSpace(searchText);
-            var hasTagFilter = _selectedTagFilter != null && _selectedTagFilter != "全部标签";
-            var hasCollectionFilter = _selectedCollectionFilter != null && _selectedCollectionFilter != "全部游戏";
-            var hideUnavailable = settings.HideUnavailableGames;
-
-            var filtered = new List<Game>();
-
-            foreach (var game in _games)
-            {
-                if (hasSearch && !game.Name.ToLowerInvariant().Contains(searchText) &&
-                    !(game.Description?.ToLowerInvariant().Contains(searchText) ?? false) &&
-                    !game.Tags.Any(tag => tag.ToLowerInvariant().Contains(searchText))) continue;
-                if (hasTagFilter && !game.Tags.Contains(_selectedTagFilter)) continue;
-                if (hasCollectionFilter)
-                {
-                    var collectionName = _selectedCollectionFilter!.Split('(')[0].Trim();
-                    if (!game.Collections.Any(c => c.Name == collectionName)) continue;
-                }
-                if (hideUnavailable && (string.IsNullOrEmpty(game.ExecutablePath) || !System.IO.File.Exists(game.ExecutablePath))) continue;
-                filtered.Add(game);
-            }
-
-            filtered = SortGames(filtered).ToList();
-
-            _filteredGames.Clear();
-            foreach (var game in filtered)
-            {
-                _filteredGames.Add(game);
-            }
-
-            UpdateEmptyState();
-        }
-
-        private IEnumerable<Game> SortGames(IEnumerable<Game> games)
-        {
-            switch (_currentSortMode)
-            {
-                case "Name":
-                    return games.OrderBy(g => g.Name);
-                case "LaunchCount":
-                    return games.OrderByDescending(g => g.LaunchCount);
-                case "TotalPlayTime":
-                    return games.OrderByDescending(g => g.TotalPlayTime);
-                case "CreatedAt":
-                    return games.OrderByDescending(g => g.CreatedAt);
-                case "LastRunTime":
-                    return games.OrderByDescending(g => g.LastRunTime ?? DateTime.MinValue);
-                default:
-                    return games.OrderByDescending(g => g.CreatedAt);
-            }
-        }
-
         private void VersionWatermark_Click(object sender, RoutedEventArgs e)
         {
             ShowChangelogDialog();
@@ -1948,7 +1319,30 @@ namespace GameLauncher
         {
             var sb = new System.Text.StringBuilder();
             var sep = "----------------------------------";
-            sb.AppendLine("v3.1 (2026-05-13)");
+            sb.AppendLine("v3.2 (2026-05-22)");
+            sb.AppendLine(sep);
+            sb.AppendLine("  Bug 修复");
+            sb.AppendLine("    修复图片加载同步阻塞导致的死锁风险");
+            sb.AppendLine("    修复磁盘扫描服务黑名单目录遍历效率问题");
+            sb.AppendLine("    修复自动扫描循环内重复创建服务实例");
+            sb.AppendLine("    修复收藏夹管理 N+1 数据库查询问题");
+            sb.AppendLine("    修复窗口激活竞态条件导致并发数据库冲突");
+            sb.AppendLine();
+            sb.AppendLine("  性能优化");
+            sb.AppendLine("    消除图片转换代码重复，提取共享工具方法");
+            sb.AppendLine("    统一时间格式化逻辑，移除三处重复实现");
+            sb.AppendLine("    优化游戏卡片统计刷新，按需更新减少 UI 遍历");
+            sb.AppendLine("    数据同步签名计算改为轻量级 COUNT+MAX 检查");
+            sb.AppendLine("    修复 GMD 文件锁字典内存泄漏隐患");
+            sb.AppendLine();
+            sb.AppendLine("  架构重构");
+            sb.AppendLine("    重构 UpdateChecker 静态状态管理为实例模式");
+            sb.AppendLine("    引入依赖注入容器 (Microsoft.Extensions.DI)");
+            sb.AppendLine("    MainWindow 代码通过 partial class 拆分");
+            sb.AppendLine("    提取 GameImageLoader 独立服务类");
+            sb.AppendLine("    删除冗余 DatabaseInitializer 类");
+            sb.AppendLine();
+            sb.AppendLine("v3.1 (2026-05-18)");
             sb.AppendLine(sep);
             sb.AppendLine("  游戏唯一标识符系统 (GID)");
             sb.AppendLine("    为每个游戏分配独立唯一ID");
@@ -2215,8 +1609,7 @@ namespace GameLauncher
             {
                 _isDialogOpen = true;
 
-                var updateChecker = new UpdateCheckerService();
-                var updateInfo = await updateChecker.CheckForUpdateAsync(forceCheck: true);
+                var updateInfo = await _updateChecker.CheckForUpdateAsync(forceCheck: true);
 
                 if (updateInfo != null)
                 {
@@ -2226,7 +1619,7 @@ namespace GameLauncher
                 {
                     var accentColor = (Windows.UI.Color)App.Current.Resources["SystemAccentColor"];
                     var accentBrush = new SolidColorBrush(accentColor);
-                    var currentVersion = UpdateCheckerService.CurrentVersionValue;
+                    var currentVersion = _updateChecker.CurrentVersion;
 
                     var upToDateDialog = new ContentDialog
                     {
@@ -2276,7 +1669,7 @@ namespace GameLauncher
             try
             {
                 _isDialogOpen = true;
-                var dialog = new Views.DiskScanDialog(_gameService, _games)
+                var dialog = new Views.DiskScanDialog(_gameService, _gameImageLoader, _games)
                 {
                     XamlRoot = Content.XamlRoot
                 };
@@ -2303,7 +1696,7 @@ namespace GameLauncher
                     {
                         try
                         {
-                            var imageService = new Services.ImageService();
+                            var imageService = _imageService;
                             imageService.DeleteGameImages(game.GameId);
                         }
                         catch { }
@@ -2340,58 +1733,6 @@ namespace GameLauncher
             finally
             {
                 _isDialogOpen = false;
-            }
-        }
-
-        private void CollectionFilterComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (CollectionFilterComboBox == null) return;
-            if (CollectionFilterComboBox.SelectedItem is string selected)
-            {
-                _selectedCollectionFilter = selected;
-                ApplyFilters();
-            }
-        }
-
-        private async Task RefreshCollectionFilterAsync()
-        {
-            if (CollectionFilterComboBox == null) return;
-
-            CollectionFilterComboBox.Items.Clear();
-            CollectionFilterComboBox.Items.Add("全部游戏");
-
-            try
-            {
-                var collections = await _gameService.GetAllCollectionsAsync();
-                var counts = await _gameService.GetCollectionGameCountsAsync();
-                foreach (var col in collections)
-                {
-                    var count = counts.TryGetValue(col.Id, out var c) ? c : 0;
-                    CollectionFilterComboBox.Items.Add($"{col.Name} ({count})");
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"刷新收藏夹筛选失败: {ex.Message}");
-            }
-
-            if (_selectedCollectionFilter != null)
-            {
-                var idx = -1;
-                for (int i = 0; i < CollectionFilterComboBox.Items.Count; i++)
-                {
-                    if (CollectionFilterComboBox.Items[i] is string item &&
-                        item.StartsWith(_selectedCollectionFilter.Split('(')[0].Trim()))
-                    {
-                        idx = i;
-                        break;
-                    }
-                }
-                CollectionFilterComboBox.SelectedIndex = idx >= 0 ? idx : 0;
-            }
-            else
-            {
-                CollectionFilterComboBox.SelectedIndex = 0;
             }
         }
 
@@ -2449,8 +1790,6 @@ namespace GameLauncher
             menuFlyout.ShowAt(target);
         }
 
-        private DispatcherTimer _toastTimer;
-
         private async System.Threading.Tasks.Task ShowAutoScanResultDialog(AutoScanResult scanResult)
         {
             if (_isDialogOpen) return;
@@ -2498,7 +1837,7 @@ namespace GameLauncher
 
                 foreach (var game in scanResult.DiscoveredGames)
                 {
-                    try { game.LoadIcon(); } catch { }
+                    try { _gameImageLoader.LoadIcon(game); } catch { }
                     gameList.Items.Add(game);
                     gameList.SelectedItems.Add(game);
                 }
@@ -2552,8 +1891,7 @@ namespace GameLauncher
                     {
                         try
                         {
-                            var imageService = new Services.ImageService();
-                            imageService.DeleteGameImages(game.GameId);
+                            _imageService.DeleteGameImages(game.GameId);
                         }
                         catch { }
                     }
@@ -2564,8 +1902,7 @@ namespace GameLauncher
                     {
                         try
                         {
-                            var imageService = new Services.ImageService();
-                            imageService.DeleteGameImages(game.GameId);
+                            _imageService.DeleteGameImages(game.GameId);
                         }
                         catch { }
                     }
@@ -2598,120 +1935,6 @@ namespace GameLauncher
     </StackPanel>
 </DataTemplate>";
             return (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(xaml);
-        }
-
-        private void ShowScanToast(AutoScanResult result)
-        {
-            if (ScanToastPanel == null || ScanToastMessage == null || ScanToastBorder == null)
-                return;
-
-            var gameNames = result.NewGameNames.Take(3).ToList();
-            var message = gameNames.Count switch
-            {
-                1 => $"发现新游戏「{gameNames[0]}」，已自动添加到库中。",
-                2 => $"发现新游戏「{gameNames[0]}」和「{gameNames[1]}」，已自动添加到库中。",
-                _ => $"发现「{gameNames[0]}」等 {result.NewGamesFound} 个新游戏，已自动添加到库中。"
-            };
-            ScanToastMessage.Text = message;
-
-            ScanToastPanel.Visibility = Visibility.Visible;
-
-            var storyboard = new Storyboard();
-
-            var opacityAnim = new DoubleAnimation
-            {
-                From = 0,
-                To = 1,
-                Duration = new Duration(TimeSpan.FromMilliseconds(300)),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-            };
-            Storyboard.SetTarget(opacityAnim, ScanToastBorder);
-            Storyboard.SetTargetProperty(opacityAnim, "Opacity");
-            storyboard.Children.Add(opacityAnim);
-
-            var translateAnim = new DoubleAnimation
-            {
-                From = 20,
-                To = 0,
-                Duration = new Duration(TimeSpan.FromMilliseconds(400)),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-            };
-            Storyboard.SetTarget(translateAnim, ScanToastTransform);
-            Storyboard.SetTargetProperty(translateAnim, "TranslateX");
-            storyboard.Children.Add(translateAnim);
-
-            var scaleAnim = new DoubleAnimation
-            {
-                From = 0.95,
-                To = 1.0,
-                Duration = new Duration(TimeSpan.FromMilliseconds(400)),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-            };
-            Storyboard.SetTarget(scaleAnim, ScanToastTransform);
-            Storyboard.SetTargetProperty(scaleAnim, "ScaleX");
-            storyboard.Children.Add(scaleAnim);
-
-            var scaleYAnim = new DoubleAnimation
-            {
-                From = 0.95,
-                To = 1.0,
-                Duration = new Duration(TimeSpan.FromMilliseconds(400)),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-            };
-            Storyboard.SetTarget(scaleYAnim, ScanToastTransform);
-            Storyboard.SetTargetProperty(scaleYAnim, "ScaleY");
-            storyboard.Children.Add(scaleYAnim);
-
-            storyboard.Begin();
-
-            if (_toastTimer != null)
-            {
-                _toastTimer.Stop();
-                _toastTimer.Tick -= ToastTimer_Tick;
-            }
-
-            _toastTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(8)
-            };
-            _toastTimer.Tick += ToastTimer_Tick;
-            _toastTimer.Start();
-        }
-
-        private void ToastTimer_Tick(object sender, object e)
-        {
-            HideScanToast();
-        }
-
-        private void HideScanToast()
-        {
-            if (_toastTimer != null)
-            {
-                _toastTimer.Stop();
-                _toastTimer.Tick -= ToastTimer_Tick;
-                _toastTimer = null;
-            }
-
-            if (ScanToastPanel == null) return;
-
-            var storyboard = new Storyboard();
-
-            var opacityAnim = new DoubleAnimation
-            {
-                From = 1,
-                To = 0,
-                Duration = new Duration(TimeSpan.FromMilliseconds(250)),
-                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
-            };
-            Storyboard.SetTarget(opacityAnim, ScanToastBorder);
-            Storyboard.SetTargetProperty(opacityAnim, "Opacity");
-            storyboard.Children.Add(opacityAnim);
-
-            storyboard.Completed += (s, args) =>
-            {
-                ScanToastPanel.Visibility = Visibility.Collapsed;
-            };
-            storyboard.Begin();
         }
 
         private void ScanToastCloseButton_Click(object sender, RoutedEventArgs e)

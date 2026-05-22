@@ -12,6 +12,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Graphics.Imaging;
+using Windows.Storage;
 using Windows.Storage.Streams;
 
 namespace GameLauncher.Services
@@ -23,6 +24,12 @@ namespace GameLauncher.Services
         private const string ImagesDirectoryName = "images";
 
         private static readonly ConcurrentDictionary<string, SemaphoreSlim> _fileLocks = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ImageService? _imageService;
+
+        public GmdFileService(ImageService? imageService = null)
+        {
+            _imageService = imageService;
+        }
 
         public string GetGmdFilePath(string executablePath, string gameId)
         {
@@ -43,7 +50,7 @@ namespace GameLauncher.Services
             return File.Exists(gmdFilePath);
         }
 
-        public async Task SerializeGameToGmdAsync(Game game)
+        public async Task SerializeGameToGmdAsync(Game game, ImageService? imageService = null)
         {
             if (game == null)
                 throw new ArgumentNullException(nameof(game));
@@ -57,6 +64,26 @@ namespace GameLauncher.Services
 
             if (!Directory.Exists(directory))
                 Directory.CreateDirectory(directory);
+
+            var effectiveIconPath = game.IconPath;
+            var effectiveImagePaths = game.ImagePaths.ToList();
+
+            if (imageService != null && !string.IsNullOrWhiteSpace(game.GameId))
+            {
+                if (string.IsNullOrEmpty(effectiveIconPath) || !File.Exists(effectiveIconPath))
+                {
+                    var globalIcon = imageService.GetIconPath(game.GameId);
+                    if (File.Exists(globalIcon))
+                        effectiveIconPath = globalIcon;
+                }
+
+                if (effectiveImagePaths.Count == 0 || effectiveImagePaths.Any(p => !File.Exists(p)))
+                {
+                    var globalPreviews = imageService.GetAllPreviewImagePaths(game.GameId);
+                    if (globalPreviews.Count > 0)
+                        effectiveImagePaths = globalPreviews;
+                }
+            }
 
             var semaphore = _fileLocks.GetOrAdd(gmdFilePath, _ => new SemaphoreSlim(1, 1));
             await semaphore.WaitAsync();
@@ -85,8 +112,8 @@ namespace GameLauncher.Services
                             await writer.WriteAsync(json);
                         }
 
-                        await AddIconToArchiveAsync(archive, game.IconPath);
-                        await AddImagesToArchiveAsync(archive, game.ImagePaths);
+                        await AddIconToArchiveAsync(archive, effectiveIconPath);
+                        await AddImagesToArchiveAsync(archive, effectiveImagePaths);
                     }
 
                     game.GmdFilePath = gmdFilePath;
@@ -98,7 +125,6 @@ namespace GameLauncher.Services
             finally
             {
                 semaphore.Release();
-                _fileLocks.TryRemove(gmdFilePath, out _);
             }
         }
 
@@ -112,7 +138,7 @@ namespace GameLauncher.Services
             return await Task.Run(async () =>
             {
                 var tempDir = Path.Combine(Path.GetTempPath(), "GameLauncher", "GmdExtract", Guid.NewGuid().ToString());
-                var imageService = new ImageService();
+                var imageService = _imageService ?? new ImageService();
 
                 try
                 {
@@ -361,7 +387,6 @@ namespace GameLauncher.Services
             finally
             {
                 semaphore.Release();
-                _fileLocks.TryRemove(gmdFilePath, out _);
             }
         }
 
@@ -492,7 +517,7 @@ namespace GameLauncher.Services
             }
         }
 
-        private async Task AddImagesToArchiveAsync(ZipArchive archive, System.Collections.ObjectModel.ObservableCollection<string> imagePaths)
+        private async Task AddImagesToArchiveAsync(ZipArchive archive, List<string> imagePaths)
         {
             if (imagePaths == null || imagePaths.Count == 0)
             {
@@ -554,77 +579,13 @@ namespace GameLauncher.Services
         {
             try
             {
-                using (var stream = new FileStream(sourceImagePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                using (var randomAccessStream = stream.AsRandomAccessStream())
+                var imageFile = await StorageFile.GetFileFromPathAsync(sourceImagePath);
+                var jpegBytes = await ImageService.DecodeResizeAndEncodeToJpegBytesAsync(imageFile);
+
+                var entry = archive.CreateEntry(entryName);
+                using (var entryStream = entry.Open())
                 {
-                    var decoder = await BitmapDecoder.CreateAsync(randomAccessStream);
-
-                    var width = decoder.OrientedPixelWidth;
-                    var height = decoder.OrientedPixelHeight;
-                    double scale = 1.0;
-
-                    const int maxWidth = 1920;
-                    const int maxHeight = 1080;
-                    if (width > maxWidth || height > maxHeight)
-                    {
-                        var scaleX = (double)maxWidth / width;
-                        var scaleY = (double)maxHeight / height;
-                        scale = Math.Min(scaleX, scaleY);
-                    }
-
-                    var newWidth = width;
-                    var newHeight = height;
-                    var transform = new BitmapTransform();
-                    if (scale < 1.0)
-                    {
-                        transform.ScaledWidth = (uint)(width * scale);
-                        transform.ScaledHeight = (uint)(height * scale);
-                        newWidth = (uint)(width * scale);
-                        newHeight = (uint)(height * scale);
-                    }
-
-                    var pixelData = await decoder.GetPixelDataAsync(
-                        BitmapPixelFormat.Bgra8,
-                        BitmapAlphaMode.Ignore,
-                        transform,
-                        ExifOrientationMode.IgnoreExifOrientation,
-                        ColorManagementMode.ColorManageToSRgb);
-
-                    var entry = archive.CreateEntry(entryName);
-
-                    var ms = new MemoryStream();
-                    byte[] jpegBytes;
-                    var ras = ms.AsRandomAccessStream();
-                    try
-                    {
-                        var props = new BitmapPropertySet();
-                        var qualityValue = new BitmapTypedValue(0.75, Windows.Foundation.PropertyType.Single);
-                        props.Add("ImageQuality", qualityValue);
-
-                        var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, ras, props);
-
-                        encoder.SetPixelData(
-                            BitmapPixelFormat.Bgra8,
-                            BitmapAlphaMode.Ignore,
-                            (uint)newWidth,
-                            (uint)newHeight,
-                            decoder.DpiX,
-                            decoder.DpiY,
-                            pixelData.DetachPixelData());
-
-                        await encoder.FlushAsync();
-                        jpegBytes = ms.ToArray();
-                    }
-                    finally
-                    {
-                        ras.Dispose();
-                        ms.Dispose();
-                    }
-
-                    using (var entryStream = entry.Open())
-                    {
-                        await entryStream.WriteAsync(jpegBytes, 0, jpegBytes.Length);
-                    }
+                    await entryStream.WriteAsync(jpegBytes, 0, jpegBytes.Length);
                 }
             }
             catch (Exception ex)
@@ -653,7 +614,7 @@ namespace GameLauncher.Services
             }
         }
 
-        public async Task SyncGameToGmdAsync(Game game)
+        public async Task SyncGameToGmdAsync(Game game, ImageService? imageService = null)
         {
             if (game == null)
                 throw new ArgumentNullException(nameof(game));
@@ -672,7 +633,7 @@ namespace GameLauncher.Services
                 }
                 else
                 {
-                    await SerializeGameToGmdAsync(game);
+                    await SerializeGameToGmdAsync(game, imageService);
                 }
             }
             catch (Exception ex)

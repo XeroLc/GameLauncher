@@ -38,10 +38,11 @@ namespace GameLauncher.Views
             try
             {
                 var collections = await _gameService.GetAllCollectionsAsync();
+                var counts = await _gameService.GetCollectionGameCountsAsync();
                 _displayItems.Clear();
                 foreach (var col in collections)
                 {
-                    var count = await _gameService.GetCollectionGameCountAsync(col.Id);
+                    counts.TryGetValue(col.Id, out var count);
                     _displayItems.Add(new CollectionDisplayItem
                     {
                         Id = col.Id,

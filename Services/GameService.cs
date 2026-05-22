@@ -1,8 +1,10 @@
 using GameLauncher.Data;
 using GameLauncher.Models;
+using GameLauncher.Views;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
@@ -16,13 +18,15 @@ namespace GameLauncher.Services
         private readonly CollectionRepository _collectionRepo;
         private readonly DiskScanService _diskScanService;
         private readonly GmdFileService _gmdFileService;
+        private readonly ImageService _imageService;
 
-        public GameService(GameRepository repository, DatabaseContext dbContext)
+        public GameService(GameRepository repository, CollectionRepository collectionRepo, DiskScanService diskScanService, GmdFileService gmdFileService, ImageService imageService)
         {
             _repository = repository;
-            _collectionRepo = new CollectionRepository(dbContext);
-            _diskScanService = new DiskScanService();
-            _gmdFileService = new GmdFileService();
+            _collectionRepo = collectionRepo;
+            _diskScanService = diskScanService;
+            _gmdFileService = gmdFileService;
+            _imageService = imageService;
         }
 
         public async Task<List<Game>> GetAllGamesAsync()
@@ -81,6 +85,83 @@ namespace GameLauncher.Services
 
             var result = await _repository.UpdateGameAsync(game);
             return result;
+        }
+
+        public async Task UpdateGameFromDialogAsync(Game game, AddGameDialog dialog,
+            ImageService imageService, Action? onImageChanged = null)
+        {
+            game.Name = dialog.GameName;
+            game.ExecutablePath = dialog.ExecutablePath;
+            game.Description = dialog.Description;
+
+            if (!string.IsNullOrEmpty(dialog.IconPath))
+            {
+                if (dialog.IconPath != game.IconPath)
+                {
+                    var savedIcon = await imageService.SaveIconAsync(game.GameId, dialog.IconPath);
+                    if (!string.IsNullOrEmpty(savedIcon))
+                        game.IconPath = savedIcon;
+                }
+            }
+            else
+            {
+                game.IconPath = string.Empty;
+            }
+
+            var oldImagePaths = game.ImagePaths.ToList();
+            game.ImagePaths.Clear();
+            int imageIndex = 1;
+            if (dialog.ImagePaths != null)
+            {
+                foreach (var imgPath in dialog.ImagePaths)
+                {
+                    if (string.IsNullOrEmpty(imgPath)) continue;
+                    if (oldImagePaths.Contains(imgPath))
+                    {
+                        game.ImagePaths.Add(imgPath);
+                    }
+                    else
+                    {
+                        var saved = await imageService.SavePreviewImageAsync(game.GameId, imgPath, imageIndex);
+                        if (!string.IsNullOrEmpty(saved))
+                            game.ImagePaths.Add(saved);
+                    }
+                    imageIndex++;
+                }
+            }
+
+            foreach (var oldPath in oldImagePaths)
+            {
+                if (!game.ImagePaths.Contains(oldPath) && File.Exists(oldPath))
+                {
+                    try { File.Delete(oldPath); } catch { }
+                }
+            }
+
+            if (dialog.Tags != null)
+            {
+                game.Tags.Clear();
+                foreach (var t in dialog.Tags)
+                    game.Tags.Add(t);
+            }
+
+            await UpdateGameAsync(game);
+
+            var allCollections = await GetAllCollectionsAsync();
+            var currentCols = await GetCollectionsForGameAsync(game.Id);
+            var currentColIds = currentCols.Select(c => c.Id).ToList();
+            foreach (var col in allCollections)
+            {
+                bool shouldBeIn = dialog.SelectedCollectionIds?.Contains(col.Id) == true;
+                bool isIn = currentColIds.Contains(col.Id);
+
+                if (shouldBeIn && !isIn)
+                    await AddGameToCollectionAsync(game.Id, col.Id);
+                else if (!shouldBeIn && isIn)
+                    await RemoveGameFromCollectionAsync(game.Id, col.Id);
+            }
+
+            onImageChanged?.Invoke();
         }
 
         public async Task<bool> DeleteGameAsync(int id)
@@ -189,6 +270,19 @@ namespace GameLauncher.Services
                 {
                     try
                     {
+                        try
+                        {
+                            var processPath = process.MainModule?.FileName;
+                            if (!string.IsNullOrEmpty(processPath) &&
+                                !string.Equals(processPath, game.ExecutablePath, StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue;
+                            }
+                        }
+                        catch
+                        {
+                        }
+
                         process.Kill();
                     }
                     catch (Exception ex)
@@ -338,7 +432,7 @@ namespace GameLauncher.Services
                     game.Collections.Add(col);
                 }
 
-                await _gmdFileService.SyncGameToGmdAsync(game);
+                await _gmdFileService.SyncGameToGmdAsync(game, _imageService);
             }
             catch (Exception ex)
             {
@@ -355,7 +449,6 @@ namespace GameLauncher.Services
         {
             int imported = 0;
             var allCollections = await _collectionRepo.GetAllCollectionsAsync();
-            var scanService = new DiskScanService();
 
             foreach (var game in games)
             {
@@ -363,10 +456,9 @@ namespace GameLauncher.Services
                 {
                     if (!string.IsNullOrWhiteSpace(game.GmdFilePath) && System.IO.File.Exists(game.GmdFilePath))
                     {
-                        var imageService = new ImageService();
-                        imageService.EnsureGameImageDirectory(game.GameId);
+                        _imageService.EnsureGameImageDirectory(game.GameId);
 
-                        var (_, previewPaths) = await scanService.ExtractImagesFromGmdToLocalAsync(game.GmdFilePath, game.GameId);
+                        var (_, previewPaths) = await _diskScanService.ExtractImagesFromGmdToLocalAsync(game.GmdFilePath, game.GameId);
 
                         if (previewPaths.Count > 0)
                         {

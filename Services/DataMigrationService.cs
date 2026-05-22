@@ -48,11 +48,13 @@ namespace GameLauncher.Services
     {
         private readonly GmdFileService _gmdFileService;
         private readonly DatabaseContext _dbContext;
+        private readonly ImageService _imageService;
 
-        public DataMigrationService(GmdFileService gmdFileService, DatabaseContext dbContext)
+        public DataMigrationService(GmdFileService gmdFileService, DatabaseContext dbContext, ImageService imageService)
         {
             _gmdFileService = gmdFileService ?? throw new ArgumentNullException(nameof(gmdFileService));
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+            _imageService = imageService ?? throw new ArgumentNullException(nameof(imageService));
         }
 
         public Task<List<Game>> ScanForMissingGmdFilesAsync(IEnumerable<Game> games)
@@ -120,7 +122,7 @@ namespace GameLauncher.Services
                 }
 
                 Debug.WriteLine($"[DataMigrationService] 开始迁移游戏: {game.Name}");
-                await _gmdFileService.SerializeGameToGmdAsync(game);
+                await _gmdFileService.SerializeGameToGmdAsync(game, _imageService);
 
                 detail.Result = MigrationResult.Success;
                 detail.Message = "迁移成功";
@@ -357,7 +359,6 @@ namespace GameLauncher.Services
                 throw new ArgumentNullException(nameof(games));
 
             var gamesList = games.ToList();
-            var imageService = new ImageService();
             var status = new MigrationStatus
             {
                 TotalGames = gamesList.Count
@@ -365,136 +366,151 @@ namespace GameLauncher.Services
 
             Debug.WriteLine($"[DataMigrationService] 开始图片迁移，共 {gamesList.Count} 个游戏需要处理");
 
+            using var connection = _dbContext.GetConnection();
+            await connection.OpenAsync();
+            using var transaction = await connection.BeginTransactionAsync();
+
             int currentIndex = 0;
-            foreach (var game in gamesList)
+            try
             {
-                if (game == null || string.IsNullOrWhiteSpace(game.GameId))
+                foreach (var game in gamesList)
                 {
-                    currentIndex++;
-                    continue;
-                }
-
-                var progressInfo = new MigrationProgress
-                {
-                    CurrentGameIndex = currentIndex,
-                    TotalGames = gamesList.Count,
-                    CurrentGameName = game.Name ?? string.Empty,
-                    Percentage = gamesList.Count > 0 ? (double)currentIndex / gamesList.Count * 100 : 100,
-                    Message = $"正在迁移图片: {game.Name}"
-                };
-
-                progress?.Report(progressInfo);
-
-                var detail = new MigrationDetail
-                {
-                    GameId = game.Id,
-                    GameName = game.Name ?? string.Empty,
-                    Timestamp = DateTime.Now
-                };
-
-                try
-                {
-                    bool needsUpdate = false;
-                    bool iconPathUpdated = false;
-                    List<string> newImagePaths = new List<string>();
-
-                    // 迁移图标
-                    if (!string.IsNullOrEmpty(game.IconPath) && System.IO.File.Exists(game.IconPath))
+                    if (game == null || string.IsNullOrWhiteSpace(game.GameId))
                     {
-                        bool isInGlobalDir = game.IconPath.Contains("GameLauncher_Images");
-                        if (!isInGlobalDir)
-                        {
-                            var newPath = await imageService.SaveIconAsync(game.GameId, game.IconPath);
-                            if (!string.IsNullOrEmpty(newPath))
-                            {
-                                game.IconPath = newPath;
-                                iconPathUpdated = true;
-                                needsUpdate = true;
-                            }
-                        }
+                        currentIndex++;
+                        continue;
                     }
 
-                    // 迁移预览图
-                    var oldImagePaths = game.ImagePaths.ToList();
-                    int previewIndex = 1;
-                    foreach (var oldPath in oldImagePaths)
+                    var progressInfo = new MigrationProgress
                     {
-                        if (string.IsNullOrEmpty(oldPath) || !System.IO.File.Exists(oldPath))
+                        CurrentGameIndex = currentIndex,
+                        TotalGames = gamesList.Count,
+                        CurrentGameName = game.Name ?? string.Empty,
+                        Percentage = gamesList.Count > 0 ? (double)currentIndex / gamesList.Count * 100 : 100,
+                        Message = $"正在迁移图片: {game.Name}"
+                    };
+
+                    progress?.Report(progressInfo);
+
+                    var detail = new MigrationDetail
+                    {
+                        GameId = game.Id,
+                        GameName = game.Name ?? string.Empty,
+                        Timestamp = DateTime.Now
+                    };
+
+                    try
+                    {
+                        bool needsUpdate = false;
+                        bool iconPathUpdated = false;
+                        List<string> newImagePaths = new List<string>();
+
+                        if (!string.IsNullOrEmpty(game.IconPath) && System.IO.File.Exists(game.IconPath))
                         {
-                            previewIndex++;
-                            continue;
+                            bool isInGlobalDir = game.IconPath.Contains("GameLauncher_Images");
+                            if (!isInGlobalDir)
+                            {
+                                var newPath = await _imageService.SaveIconAsync(game.GameId, game.IconPath);
+                                if (!string.IsNullOrEmpty(newPath))
+                                {
+                                    game.IconPath = newPath;
+                                    iconPathUpdated = true;
+                                    needsUpdate = true;
+                                }
+                            }
                         }
 
-                        bool isInGlobalDir = oldPath.Contains("GameLauncher_Images");
-                        if (!isInGlobalDir)
+                        var oldImagePaths = game.ImagePaths.ToList();
+                        int previewIndex = 1;
+                        foreach (var oldPath in oldImagePaths)
                         {
-                            var newPath = await imageService.SavePreviewImageAsync(game.GameId, oldPath, previewIndex);
-                            if (!string.IsNullOrEmpty(newPath))
+                            if (string.IsNullOrEmpty(oldPath) || !System.IO.File.Exists(oldPath))
                             {
-                                newImagePaths.Add(newPath);
-                                needsUpdate = true;
+                                previewIndex++;
+                                continue;
                             }
+
+                            bool isInGlobalDir = oldPath.Contains("GameLauncher_Images");
+                            if (!isInGlobalDir)
+                            {
+                                var newPath = await _imageService.SavePreviewImageAsync(game.GameId, oldPath, previewIndex);
+                                if (!string.IsNullOrEmpty(newPath))
+                                {
+                                    newImagePaths.Add(newPath);
+                                    needsUpdate = true;
+                                }
+                            }
+                            else
+                            {
+                                newImagePaths.Add(oldPath);
+                            }
+                            previewIndex++;
+                        }
+
+                        if (needsUpdate)
+                        {
+                            if (iconPathUpdated)
+                            {
+                                using var cmd = connection.CreateCommand();
+                                cmd.Transaction = (Microsoft.Data.Sqlite.SqliteTransaction)transaction;
+                                cmd.CommandText = "UPDATE Games SET IconPath = @IconPath WHERE Id = @Id";
+                                cmd.Parameters.AddWithValue("@IconPath", game.IconPath);
+                                cmd.Parameters.AddWithValue("@Id", game.Id);
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+
+                            var imagePathJson = System.Text.Json.JsonSerializer.Serialize(newImagePaths);
+                            using var cmd2 = connection.CreateCommand();
+                            cmd2.Transaction = (Microsoft.Data.Sqlite.SqliteTransaction)transaction;
+                            cmd2.CommandText = "UPDATE Games SET ImagePaths = @ImagePaths WHERE Id = @Id";
+                            cmd2.Parameters.AddWithValue("@ImagePaths", imagePathJson);
+                            cmd2.Parameters.AddWithValue("@Id", game.Id);
+                            await cmd2.ExecuteNonQueryAsync();
+
+                            game.ImagePaths.Clear();
+                            foreach (var path in newImagePaths)
+                            {
+                                game.ImagePaths.Add(path);
+                            }
+                        }
+
+                        detail.Result = needsUpdate ? MigrationResult.Success : MigrationResult.AlreadyMigrated;
+                        detail.Message = needsUpdate ? "图片迁移成功" : "图片已在全局目录";
+
+                        if (needsUpdate)
+                        {
+                            status.MigratedGames++;
                         }
                         else
                         {
-                            newImagePaths.Add(oldPath);
-                        }
-                        previewIndex++;
-                    }
-
-                    // 更新数据库
-                    if (needsUpdate)
-                    {
-                        using var connection = _dbContext.GetConnection();
-                        await connection.OpenAsync();
-
-                        if (iconPathUpdated)
-                        {
-                            using var cmd = connection.CreateCommand();
-                            cmd.CommandText = "UPDATE Games SET IconPath = @IconPath WHERE Id = @Id";
-                            cmd.Parameters.AddWithValue("@IconPath", game.IconPath);
-                            cmd.Parameters.AddWithValue("@Id", game.Id);
-                            await cmd.ExecuteNonQueryAsync();
-                        }
-
-                        // 更新 ImagePaths（JSON 格式）
-                        var imagePathJson = System.Text.Json.JsonSerializer.Serialize(newImagePaths);
-                        using var cmd2 = connection.CreateCommand();
-                        cmd2.CommandText = "UPDATE Games SET ImagePaths = @ImagePaths WHERE Id = @Id";
-                        cmd2.Parameters.AddWithValue("@ImagePaths", imagePathJson);
-                        cmd2.Parameters.AddWithValue("@Id", game.Id);
-                        await cmd2.ExecuteNonQueryAsync();
-
-                        // 更新内存中的游戏对象
-                        game.ImagePaths.Clear();
-                        foreach (var path in newImagePaths)
-                        {
-                            game.ImagePaths.Add(path);
+                            status.PendingGames++;
                         }
                     }
-
-                    detail.Result = needsUpdate ? MigrationResult.Success : MigrationResult.AlreadyMigrated;
-                    detail.Message = needsUpdate ? "图片迁移成功" : "图片已在全局目录";
-
-                    if (needsUpdate)
+                    catch (Exception ex)
                     {
-                        status.MigratedGames++;
+                        detail.Result = MigrationResult.Failed;
+                        detail.Message = $"图片迁移异常: {ex.Message}";
+                        status.FailedGames++;
+                        Debug.WriteLine($"[DataMigrationService] 游戏 {game.Name} 图片迁移失败: {ex.Message}");
                     }
-                    else
-                    {
-                        status.PendingGames++; // 已经迁移过的也算作 pending（不需要再迁移）
-                    }
+
+                    status.MigrationDetails.Add(detail);
+                    currentIndex++;
                 }
-                catch (Exception ex)
+
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                try
                 {
-                    detail.Result = MigrationResult.Failed;
-                    detail.Message = $"图片迁移异常: {ex.Message}";
-                    status.FailedGames++;
-                    Debug.WriteLine($"[DataMigrationService] 游戏 {game.Name} 图片迁移失败: {ex.Message}");
+                    await transaction.RollbackAsync();
                 }
-
-                status.MigrationDetails.Add(detail);
-                currentIndex++;
+                catch (Exception rollbackEx)
+                {
+                    Debug.WriteLine($"[DataMigrationService] 事务回滚失败: {rollbackEx.Message}");
+                }
+                throw;
             }
 
             var finalProgress = new MigrationProgress
@@ -511,6 +527,27 @@ namespace GameLauncher.Services
             Debug.WriteLine($"[DataMigrationService] 图片迁移完成: 总计 {gamesList.Count} 个游戏, 成功 {status.MigratedGames} 个, 失败 {status.FailedGames} 个");
 
             return status;
+        }
+
+        public async Task<bool> IsMigrationCompletedAsync(string migrationKey)
+        {
+            using var connection = _dbContext.GetConnection();
+            await connection.OpenAsync();
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = "SELECT Value FROM SchemaVersion WHERE Key = @Key";
+            cmd.Parameters.AddWithValue("@Key", migrationKey);
+            var result = await cmd.ExecuteScalarAsync();
+            return result != null && result.ToString() == "1";
+        }
+
+        public async Task MarkMigrationCompletedAsync(string migrationKey)
+        {
+            using var connection = _dbContext.GetConnection();
+            await connection.OpenAsync();
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = "INSERT OR REPLACE INTO SchemaVersion (Key, Value) VALUES (@Key, '1')";
+            cmd.Parameters.AddWithValue("@Key", migrationKey);
+            await cmd.ExecuteNonQueryAsync();
         }
 
         public async Task<int> CleanOldImageDirectoriesAsync(IEnumerable<Game> games)

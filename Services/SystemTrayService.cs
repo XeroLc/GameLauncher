@@ -142,6 +142,10 @@ namespace GameLauncher.Services
 
             private IntPtr LoadDefaultIcon()
             {
+                var hInstance = Marshal.GetHINSTANCE(typeof(TrayIcon).Module);
+                var iconHandle = LoadIconW(hInstance, 32512);
+                if (iconHandle != IntPtr.Zero)
+                    return iconHandle;
                 return LoadIconW(IntPtr.Zero, 32512);
             }
 

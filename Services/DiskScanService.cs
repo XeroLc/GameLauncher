@@ -30,6 +30,7 @@ namespace GameLauncher.Services
     public class DiskScanService
     {
         private readonly GmdFileService _gmdService;
+        private readonly ImageService _imageService;
         private static readonly HashSet<string> SkipDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "Windows",
@@ -41,9 +42,10 @@ namespace GameLauncher.Services
             "node_modules"
         };
 
-        public DiskScanService()
+        public DiskScanService(GmdFileService gmdService, ImageService imageService)
         {
-            _gmdService = new GmdFileService();
+            _gmdService = gmdService;
+            _imageService = imageService;
         }
 
         public List<DriveInfo> GetAvailableDrives()
@@ -89,48 +91,7 @@ namespace GameLauncher.Services
                         return;
                     }
 
-                    var options = new EnumerationOptions
-                    {
-                        RecurseSubdirectories = true,
-                        IgnoreInaccessible = true,
-                        AttributesToSkip = FileAttributes.Hidden | FileAttributes.System
-                    };
-
-                    foreach (var filePath in Directory.EnumerateFiles(driveRoot, "*.gmd", options))
-                    {
-                        ct.ThrowIfCancellationRequested();
-
-                        try
-                        {
-                            var directory = Path.GetDirectoryName(filePath);
-                            if (!string.IsNullOrEmpty(directory))
-                            {
-                                var shouldSkip = false;
-                                var dirInfo = new DirectoryInfo(directory);
-
-                                var current = dirInfo;
-                                while (current != null)
-                                {
-                                    if (SkipDirectories.Contains(current.Name))
-                                    {
-                                        shouldSkip = true;
-                                        break;
-                                    }
-                                    current = current.Parent;
-                                }
-
-                                if (!shouldSkip)
-                                {
-                                    result.Add(filePath);
-                                    Debug.WriteLine($"[DiskScanService] 发现.gmd文件: {filePath}");
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"[DiskScanService] 处理文件路径失败: {filePath}, 错误: {ex.Message}");
-                        }
-                    }
+                    EnumerateGmdFilesRecursive(driveRoot, result, ct);
                 }
                 catch (OperationCanceledException)
                 {
@@ -145,6 +106,44 @@ namespace GameLauncher.Services
             return result;
         }
 
+        private void EnumerateGmdFilesRecursive(string directory, List<string> result, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            try
+            {
+                var options = new EnumerationOptions
+                {
+                    RecurseSubdirectories = false,
+                    IgnoreInaccessible = true,
+                    AttributesToSkip = FileAttributes.Hidden | FileAttributes.System
+                };
+
+                foreach (var filePath in Directory.EnumerateFiles(directory, "*.gmd", options))
+                {
+                    result.Add(filePath);
+                    Debug.WriteLine($"[DiskScanService] 发现.gmd文件: {filePath}");
+                }
+
+                foreach (var subDir in Directory.EnumerateDirectories(directory, "*", options))
+                {
+                    var dirName = Path.GetFileName(subDir);
+                    if (!SkipDirectories.Contains(dirName))
+                    {
+                        EnumerateGmdFilesRecursive(subDir, result, ct);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[DiskScanService] 扫描目录失败: {directory}, 错误: {ex.Message}");
+            }
+        }
+
         public async Task<(string? iconPath, List<string> previewPaths)> ExtractImagesFromGmdToLocalAsync(string gmdFilePath, string gameId)
         {
             string? iconPath = null;
@@ -152,7 +151,6 @@ namespace GameLauncher.Services
 
             try
             {
-                var imageService = new ImageService();
                 var tempDir = Path.Combine(Path.GetTempPath(), "GameLauncher", "GmdExtract", Guid.NewGuid().ToString());
 
                 try
@@ -169,7 +167,7 @@ namespace GameLauncher.Services
                             iconEntry.ExtractToFile(tempIconPath, overwrite: true);
                             if (System.IO.File.Exists(tempIconPath))
                             {
-                                iconPath = await imageService.SaveIconAsync(gameId, tempIconPath);
+                                iconPath = await _imageService.SaveIconAsync(gameId, tempIconPath);
                             }
                         }
 
@@ -186,7 +184,7 @@ namespace GameLauncher.Services
                                 entry.ExtractToFile(tempPath, overwrite: true);
                                 if (System.IO.File.Exists(tempPath))
                                 {
-                                    var savedPath = await imageService.SavePreviewImageAsync(gameId, tempPath, index);
+                                    var savedPath = await _imageService.SavePreviewImageAsync(gameId, tempPath, index);
                                     if (!string.IsNullOrEmpty(savedPath))
                                     {
                                         previewPaths.Add(savedPath);
@@ -222,8 +220,7 @@ namespace GameLauncher.Services
 
                 game.GmdFilePath = gmdFilePath;
 
-                var imageService = new ImageService();
-                imageService.EnsureGameImageDirectory(game.GameId);
+                _imageService.EnsureGameImageDirectory(game.GameId);
 
                 var (iconPath, _) = await ExtractImagesFromGmdToLocalAsync(gmdFilePath, game.GameId);
                 if (!string.IsNullOrEmpty(iconPath))

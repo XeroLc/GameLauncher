@@ -79,6 +79,18 @@ namespace GameLauncher.Data
                         PRIMARY KEY (GameId, CollectionId),
                         FOREIGN KEY (GameId) REFERENCES Games(Id) ON DELETE CASCADE,
                         FOREIGN KEY (CollectionId) REFERENCES GameCollections(Id) ON DELETE CASCADE
+                    );
+
+                    CREATE TABLE IF NOT EXISTS ConsistencyCheckLog (
+                        GameId INTEGER PRIMARY KEY,
+                        LastCheckTime TEXT NOT NULL,
+                        WasConsistent INTEGER NOT NULL DEFAULT 1,
+                        FOREIGN KEY (GameId) REFERENCES Games(Id)
+                    );
+
+                    CREATE TABLE IF NOT EXISTS SchemaVersion (
+                        Key TEXT PRIMARY KEY,
+                        Value TEXT NOT NULL
                     )";
 
                 await command.ExecuteNonQueryAsync();
@@ -92,6 +104,34 @@ namespace GameLauncher.Data
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"数据库升级失败（非致命，继续使用现有结构）: {ex.Message}");
+                }
+
+                try
+                {
+                    using var ensureConn = GetConnection();
+                    await ensureConn.OpenAsync();
+
+                    using var ensureCmd1 = ensureConn.CreateCommand();
+                    ensureCmd1.CommandText = @"
+                        CREATE TABLE IF NOT EXISTS ConsistencyCheckLog (
+                            GameId INTEGER PRIMARY KEY,
+                            LastCheckTime TEXT NOT NULL,
+                            WasConsistent INTEGER NOT NULL DEFAULT 1,
+                            FOREIGN KEY (GameId) REFERENCES Games(Id)
+                        )";
+                    await ensureCmd1.ExecuteNonQueryAsync();
+
+                    using var ensureCmd2 = ensureConn.CreateCommand();
+                    ensureCmd2.CommandText = @"
+                        CREATE TABLE IF NOT EXISTS SchemaVersion (
+                            Key TEXT PRIMARY KEY,
+                            Value TEXT NOT NULL
+                        )";
+                    await ensureCmd2.ExecuteNonQueryAsync();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"确保新表存在失败（非致命）: {ex.Message}");
                 }
             }
 

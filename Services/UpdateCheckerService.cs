@@ -7,48 +7,65 @@ using System.Threading.Tasks;
 using System.Xml.Linq;
 
 namespace GameLauncher.Services
+{
+    public class UpdateCheckerConfig
     {
-        public class UpdateCheckerService
+        public string CurrentVersion { get; set; } = "3.2";
+        public int MaxConsecutiveFailures { get; set; } = 3;
+        public string GitHubApiUrl { get; set; } = "https://api.github.com/repos/XeroLc/GameLauncher/releases/latest";
+        public string GitHubAtomUrl { get; set; } = "https://github.com/XeroLc/GameLauncher/releases.atom";
+        public string ReleasesPageUrl { get; set; } = "https://github.com/XeroLc/GameLauncher/releases";
+        public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(15);
+    }
+
+    public class UpdateCheckerService
+    {
+        private readonly HttpClient _httpClient;
+        private readonly UpdateCheckerConfig _config;
+        private int _consecutiveFailures;
+        private bool _hasCheckedAutomatically;
+        private readonly object _stateLock = new object();
+
+        public string CurrentVersion => _config.CurrentVersion;
+
+        public UpdateCheckerService(UpdateCheckerConfig? config = null)
         {
-            private const string GitHubApiUrl = "https://api.github.com/repos/XeroLc/GameLauncher/releases/latest";
-            private const string GitHubAtomUrl = "https://github.com/XeroLc/GameLauncher/releases.atom";
-            private const string ReleasesPageUrl = "https://github.com/XeroLc/GameLauncher/releases";
-            private const string CurrentVersion = "3.1";
-            private static readonly HttpClient _httpClient = new HttpClient();
+            _config = config ?? new UpdateCheckerConfig();
+            _consecutiveFailures = 0;
+            _hasCheckedAutomatically = false;
 
-            public static int MaxConsecutiveFailures = 3;
-            private static int _consecutiveFailures = 0;
-            private static bool _hasCheckedAutomatically = false;
-
-            public static string CurrentVersionValue => CurrentVersion;
-
-            static UpdateCheckerService()
-        {
+            _httpClient = new HttpClient();
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "GameLauncher");
             _httpClient.DefaultRequestHeaders.Add("Accept", "application/vnd.github+json");
             _httpClient.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
-            _httpClient.Timeout = TimeSpan.FromSeconds(15);
+            _httpClient.Timeout = _config.RequestTimeout;
         }
 
         public async Task<UpdateInfo?> CheckForUpdateAsync(bool forceCheck = false)
         {
-            if (!forceCheck && _hasCheckedAutomatically)
+            lock (_stateLock)
             {
-                System.Diagnostics.Debug.WriteLine("[UpdateCheck] 自动检查已在本次启动时执行过，跳过");
-                return null;
-            }
+                if (!forceCheck && _hasCheckedAutomatically)
+                {
+                    System.Diagnostics.Debug.WriteLine("[UpdateCheck] 自动检查已在本次启动时执行过，跳过");
+                    return null;
+                }
 
-            if (!forceCheck && _consecutiveFailures >= MaxConsecutiveFailures)
-            {
-                System.Diagnostics.Debug.WriteLine($"[UpdateCheck] 连续失败次数已达上限 ({MaxConsecutiveFailures})，跳过检查");
-                return null;
+                if (!forceCheck && _consecutiveFailures >= _config.MaxConsecutiveFailures)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[UpdateCheck] 连续失败次数已达上限 ({_config.MaxConsecutiveFailures})，跳过检查");
+                    return null;
+                }
             }
 
             UpdateInfo? result = await TryApiCheckAsync();
             if (result != null)
             {
-                _consecutiveFailures = 0;
-                if (!forceCheck) _hasCheckedAutomatically = true;
+                lock (_stateLock)
+                {
+                    _consecutiveFailures = 0;
+                    if (!forceCheck) _hasCheckedAutomatically = true;
+                }
                 return result;
             }
 
@@ -56,8 +73,11 @@ namespace GameLauncher.Services
             result = await TryAtomFeedAsync();
             if (result != null)
             {
-                _consecutiveFailures = 0;
-                if (!forceCheck) _hasCheckedAutomatically = true;
+                lock (_stateLock)
+                {
+                    _consecutiveFailures = 0;
+                    if (!forceCheck) _hasCheckedAutomatically = true;
+                }
                 return result;
             }
 
@@ -65,24 +85,39 @@ namespace GameLauncher.Services
             result = await TryPageScrapeAsync();
             if (result != null)
             {
-                _consecutiveFailures = 0;
-                if (!forceCheck) _hasCheckedAutomatically = true;
+                lock (_stateLock)
+                {
+                    _consecutiveFailures = 0;
+                    if (!forceCheck) _hasCheckedAutomatically = true;
+                }
                 return result;
             }
 
-            _consecutiveFailures++;
-            if (!forceCheck) _hasCheckedAutomatically = true;
-            System.Diagnostics.Debug.WriteLine($"[UpdateCheck] 所有检查方式均失败，连续失败次数: {_consecutiveFailures}/{MaxConsecutiveFailures}");
+            lock (_stateLock)
+            {
+                _consecutiveFailures++;
+                if (!forceCheck) _hasCheckedAutomatically = true;
+                System.Diagnostics.Debug.WriteLine($"[UpdateCheck] 所有检查方式均失败，连续失败次数: {_consecutiveFailures}/{_config.MaxConsecutiveFailures}");
+            }
             return null;
+        }
+
+        public void ResetCheckState()
+        {
+            lock (_stateLock)
+            {
+                _consecutiveFailures = 0;
+                _hasCheckedAutomatically = false;
+            }
         }
 
         private async Task<UpdateInfo?> TryApiCheckAsync()
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"[UpdateCheck] 尝试 API: {GitHubApiUrl}");
+                System.Diagnostics.Debug.WriteLine($"[UpdateCheck] 尝试 API: {_config.GitHubApiUrl}");
 
-                var response = await _httpClient.GetAsync(GitHubApiUrl);
+                var response = await _httpClient.GetAsync(_config.GitHubApiUrl);
                 System.Diagnostics.Debug.WriteLine($"[UpdateCheck] API HTTP 状态码: {(int)response.StatusCode}");
 
                 if (!response.IsSuccessStatusCode)
@@ -98,16 +133,16 @@ namespace GameLauncher.Services
                 if (latestVersion == null)
                     return null;
 
-                if (!IsNewerVersion(latestVersion, CurrentVersion))
+                if (!IsNewerVersion(latestVersion, _config.CurrentVersion))
                     return null;
 
                 System.Diagnostics.Debug.WriteLine($"[UpdateCheck] API 发现新版本: {latestVersion}");
                 return new UpdateInfo
                 {
                     LatestVersion = latestVersion,
-                    CurrentVersion = CurrentVersion,
+                    CurrentVersion = _config.CurrentVersion,
                     ReleaseNotes = release.Body ?? "暂无更新说明",
-                    DownloadUrl = release.HtmlUrl ?? ReleasesPageUrl,
+                    DownloadUrl = release.HtmlUrl ?? _config.ReleasesPageUrl,
                     PublishedAt = release.PublishedAt
                 };
             }
@@ -122,9 +157,9 @@ namespace GameLauncher.Services
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"[UpdateCheck] 尝试 Atom Feed: {GitHubAtomUrl}");
+                System.Diagnostics.Debug.WriteLine($"[UpdateCheck] 尝试 Atom Feed: {_config.GitHubAtomUrl}");
 
-                var response = await _httpClient.GetAsync(GitHubAtomUrl);
+                var response = await _httpClient.GetAsync(_config.GitHubAtomUrl);
                 System.Diagnostics.Debug.WriteLine($"[UpdateCheck] Atom HTTP 状态码: {(int)response.StatusCode}");
 
                 if (!response.IsSuccessStatusCode)
@@ -141,7 +176,7 @@ namespace GameLauncher.Services
                 var title = firstEntry.Element(ns + "title")?.Value ?? "";
                 var link = firstEntry.Elements(ns + "link")
                     .FirstOrDefault(e => e.Attribute("rel")?.Value == "alternate")
-                    ?.Attribute("href")?.Value ?? ReleasesPageUrl;
+                    ?.Attribute("href")?.Value ?? _config.ReleasesPageUrl;
                 var published = firstEntry.Element(ns + "published")?.Value;
                 var content = firstEntry.Element(ns + "content")?.Value ?? "";
 
@@ -149,7 +184,7 @@ namespace GameLauncher.Services
                 if (latestVersion == null)
                     return null;
 
-                if (!IsNewerVersion(latestVersion, CurrentVersion))
+                if (!IsNewerVersion(latestVersion, _config.CurrentVersion))
                     return null;
 
                 DateTime? pubDate = null;
@@ -160,7 +195,7 @@ namespace GameLauncher.Services
                 return new UpdateInfo
                 {
                     LatestVersion = latestVersion,
-                    CurrentVersion = CurrentVersion,
+                    CurrentVersion = _config.CurrentVersion,
                     ReleaseNotes = StripHtml(content),
                     DownloadUrl = link,
                     PublishedAt = pubDate
@@ -177,9 +212,9 @@ namespace GameLauncher.Services
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"[UpdateCheck] 尝试页面抓取: {ReleasesPageUrl}");
+                System.Diagnostics.Debug.WriteLine($"[UpdateCheck] 尝试页面抓取: {_config.ReleasesPageUrl}");
 
-                var response = await _httpClient.GetAsync(ReleasesPageUrl);
+                var response = await _httpClient.GetAsync(_config.ReleasesPageUrl);
                 System.Diagnostics.Debug.WriteLine($"[UpdateCheck] 页面 HTTP 状态码: {(int)response.StatusCode}");
 
                 if (!response.IsSuccessStatusCode)
@@ -191,16 +226,16 @@ namespace GameLauncher.Services
                 if (latestVersion == null)
                     return null;
 
-                if (!IsNewerVersion(latestVersion, CurrentVersion))
+                if (!IsNewerVersion(latestVersion, _config.CurrentVersion))
                     return null;
 
                 System.Diagnostics.Debug.WriteLine($"[UpdateCheck] 页面抓取发现新版本: {latestVersion}");
                 return new UpdateInfo
                 {
                     LatestVersion = latestVersion,
-                    CurrentVersion = CurrentVersion,
+                    CurrentVersion = _config.CurrentVersion,
                     ReleaseNotes = "请访问 GitHub Releases 查看更新详情",
-                    DownloadUrl = ReleasesPageUrl,
+                    DownloadUrl = _config.ReleasesPageUrl,
                     PublishedAt = null
                 };
             }

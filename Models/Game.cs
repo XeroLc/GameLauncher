@@ -1,17 +1,14 @@
-using GameLauncher.Services;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace GameLauncher.Models
 {
     public class Game : INotifyPropertyChanged
     {
-        private static readonly Services.ImageService _sharedImageService = new();
-
         private int _id;
         private string _name = string.Empty;
         private string _executablePath = string.Empty;
@@ -121,67 +118,6 @@ namespace GameLauncher.Models
                     OnPropertyChanged(nameof(IconSource));
                 }
             }
-        }
-
-        public void LoadIcon()
-        {
-            if (!string.IsNullOrEmpty(_iconPath) && System.IO.File.Exists(_iconPath))
-            {
-                try
-                {
-                    var bitmapImage = new BitmapImage();
-                    bitmapImage.UriSource = new Uri(_iconPath);
-                    IconSource = bitmapImage;
-                    return;
-                }
-                catch { }
-            }
-
-            if (!string.IsNullOrEmpty(_gmdFilePath) && System.IO.File.Exists(_gmdFilePath) && !string.IsNullOrEmpty(GameId))
-            {
-                try
-                {
-                    var iconPath = _sharedImageService.GetIconPath(GameId);
-
-                    if (!System.IO.File.Exists(iconPath))
-                    {
-                        var tempIconPath = Services.GmdFileService.ExtractIconFromGmd(_gmdFilePath);
-                        if (!string.IsNullOrEmpty(tempIconPath) && System.IO.File.Exists(tempIconPath))
-                        {
-                            iconPath = _sharedImageService.SaveIconAsync(GameId, tempIconPath).GetAwaiter().GetResult();
-                        }
-                    }
-
-                    if (!string.IsNullOrEmpty(iconPath) && System.IO.File.Exists(iconPath))
-                    {
-                        _iconPath = iconPath;
-                        var bitmapImage = new BitmapImage();
-                        bitmapImage.UriSource = new Uri(iconPath);
-                        IconSource = bitmapImage;
-                        return;
-                    }
-                }
-                catch { }
-            }
-
-            IconSource = null;
-        }
-
-        public void ReloadIcon()
-        {
-            if (!string.IsNullOrEmpty(_iconPath) && System.IO.File.Exists(_iconPath))
-            {
-                try
-                {
-                    var bitmapImage = new BitmapImage();
-                    bitmapImage.UriSource = new Uri(_iconPath);
-                    bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-                    IconSource = bitmapImage;
-                    return;
-                }
-                catch { }
-            }
-            IconSource = null;
         }
 
         public string Description
@@ -313,6 +249,13 @@ namespace GameLauncher.Models
             }
         }
 
+        private bool _needsGmdFallback;
+        public bool NeedsGmdFallback
+        {
+            get => _needsGmdFallback;
+            set { if (_needsGmdFallback != value) { _needsGmdFallback = value; OnPropertyChanged(nameof(NeedsGmdFallback)); } }
+        }
+
         public ObservableCollection<string> ImagePaths
         {
             get => _imagePaths;
@@ -322,7 +265,6 @@ namespace GameLauncher.Models
                 {
                     _imagePaths = value ?? new ObservableCollection<string>();
                     OnPropertyChanged(nameof(ImagePaths));
-                    LoadImages();
                 }
             }
         }
@@ -332,7 +274,6 @@ namespace GameLauncher.Models
             if (!string.IsNullOrEmpty(path) && !_imagePaths.Contains(path))
             {
                 _imagePaths.Add(path);
-                LoadImages();
             }
         }
 
@@ -358,98 +299,6 @@ namespace GameLauncher.Models
                 {
                     _tags = value ?? new ObservableCollection<string>();
                     OnPropertyChanged(nameof(Tags));
-                }
-            }
-        }
-
-        public void LoadImages()
-        {
-            _imageSources.Clear();
-            var hasValidImages = false;
-
-            foreach (var imagePath in _imagePaths)
-            {
-                if (!string.IsNullOrEmpty(imagePath) && System.IO.File.Exists(imagePath))
-                {
-                    try
-                    {
-                        var bitmapImage = new BitmapImage();
-                        bitmapImage.UriSource = new Uri(imagePath);
-                        _imageSources.Add(bitmapImage);
-                        hasValidImages = true;
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"加载图片失败: {imagePath}, 错误: {ex.Message}");
-                    }
-                }
-            }
-
-            if (!hasValidImages && !string.IsNullOrEmpty(_gmdFilePath) && System.IO.File.Exists(_gmdFilePath) && !string.IsNullOrEmpty(GameId))
-            {
-                try
-                {
-                    var previewFiles = _sharedImageService.GetAllPreviewImagePaths(GameId);
-
-                    if (previewFiles.Count == 0)
-                    {
-                        var tempImagePaths = Services.GmdFileService.ExtractImagesFromGmd(_gmdFilePath);
-                        int index = 1;
-                        foreach (var tempPath in tempImagePaths)
-                        {
-                            if (System.IO.File.Exists(tempPath))
-                            {
-                                var savedPath = _sharedImageService.SavePreviewImageAsync(GameId, tempPath, index).GetAwaiter().GetResult();
-                                if (!string.IsNullOrEmpty(savedPath))
-                                {
-                                    _imagePaths.Add(savedPath);
-                                    var bitmapImage = new BitmapImage();
-                                    bitmapImage.UriSource = new Uri(savedPath);
-                                    _imageSources.Add(bitmapImage);
-                                }
-                                index++;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        foreach (var imgPath in previewFiles)
-                        {
-                            if (System.IO.File.Exists(imgPath))
-                            {
-                                _imagePaths.Add(imgPath);
-                                var bitmapImage = new BitmapImage();
-                                bitmapImage.UriSource = new Uri(imgPath);
-                                _imageSources.Add(bitmapImage);
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"从.gmd加载图片失败: {ex.Message}");
-                }
-            }
-        }
-
-        public void ReloadImages()
-        {
-            _imageSources.Clear();
-            foreach (var imagePath in _imagePaths)
-            {
-                if (!string.IsNullOrEmpty(imagePath) && System.IO.File.Exists(imagePath))
-                {
-                    try
-                    {
-                        var bitmapImage = new BitmapImage();
-                        bitmapImage.UriSource = new Uri(imagePath);
-                        bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-                        _imageSources.Add(bitmapImage);
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"加载图片失败: {imagePath}, 错误: {ex.Message}");
-                    }
                 }
             }
         }

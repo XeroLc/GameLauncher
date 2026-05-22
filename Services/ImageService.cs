@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.Graphics.Imaging;
+using Windows.Storage;
 using Windows.Storage.Streams;
 
 namespace GameLauncher.Services
@@ -194,17 +195,22 @@ namespace GameLauncher.Services
             if (!File.Exists(sourcePath))
                 return;
 
-            using (var stream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-            using (var randomAccessStream = stream.AsRandomAccessStream())
+            var file = await StorageFile.GetFileFromPathAsync(sourcePath);
+            var jpegBytes = await DecodeResizeAndEncodeToJpegBytesAsync(file);
+            await File.WriteAllBytesAsync(targetPath, jpegBytes);
+        }
+
+        public static async Task<byte[]> DecodeResizeAndEncodeToJpegBytesAsync(StorageFile file,
+            uint maxWidth = 1920, uint maxHeight = 1080, double quality = 0.75)
+        {
+            using (IRandomAccessStream stream = await file.OpenReadAsync())
             {
-                var decoder = await BitmapDecoder.CreateAsync(randomAccessStream);
+                var decoder = await BitmapDecoder.CreateAsync(stream);
 
                 var width = decoder.OrientedPixelWidth;
                 var height = decoder.OrientedPixelHeight;
                 double scale = 1.0;
 
-                const int maxWidth = 1920;
-                const int maxHeight = 1080;
                 if (width > maxWidth || height > maxHeight)
                 {
                     var scaleX = (double)maxWidth / width;
@@ -230,15 +236,13 @@ namespace GameLauncher.Services
                     ExifOrientationMode.IgnoreExifOrientation,
                     ColorManagementMode.ColorManageToSRgb);
 
-                var pixels = pixelData.DetachPixelData();
-
-                var props = new BitmapPropertySet();
-                var qualityValue = new BitmapTypedValue(0.75, Windows.Foundation.PropertyType.Single);
-                props.Add("ImageQuality", qualityValue);
-
-                using (var fileStream = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                using (var ras = fileStream.AsRandomAccessStream())
+                using (var memoryStream = new MemoryStream())
+                using (var ras = memoryStream.AsRandomAccessStream())
                 {
+                    var props = new BitmapPropertySet();
+                    var qualityValue = new BitmapTypedValue(quality, Windows.Foundation.PropertyType.Single);
+                    props.Add("ImageQuality", qualityValue);
+
                     var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, ras, props);
 
                     encoder.SetPixelData(
@@ -248,9 +252,10 @@ namespace GameLauncher.Services
                         (uint)newHeight,
                         decoder.DpiX,
                         decoder.DpiY,
-                        pixels);
+                        pixelData.DetachPixelData());
 
                     await encoder.FlushAsync();
+                    return memoryStream.ToArray();
                 }
             }
         }

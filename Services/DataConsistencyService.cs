@@ -1,3 +1,4 @@
+using GameLauncher.Data;
 using GameLauncher.Models;
 using System;
 using System.Collections.Generic;
@@ -38,10 +39,12 @@ namespace GameLauncher.Services
     public class DataConsistencyService
     {
         private readonly GmdFileService _gmdFileService;
+        private readonly DatabaseContext _dbContext;
 
-        public DataConsistencyService(GmdFileService gmdFileService)
+        public DataConsistencyService(GmdFileService gmdFileService, DatabaseContext dbContext)
         {
             _gmdFileService = gmdFileService ?? throw new ArgumentNullException(nameof(gmdFileService));
+            _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         }
 
         public async Task<ConsistencyResult> CheckConsistencyAsync(Game dbGame, string gmdFilePath)
@@ -254,6 +257,66 @@ namespace GameLauncher.Services
             }
 
             Debug.WriteLine($"[DataConsistencyService] 一致性检查完成: 总计 {report.TotalGames}, 一致 {report.ConsistentGames}, 不一致 {report.InconsistentGames}, 缺少.gmd {report.MissingGmdGames}");
+
+            return report;
+        }
+
+        public async Task<ConsistencyReport> CheckModifiedGamesConsistencyAsync(IEnumerable<Game> games)
+        {
+            var gamesList = games.ToList();
+            var gamesToCheck = new List<Game>();
+
+            using var connection = _dbContext.GetConnection();
+            await connection.OpenAsync();
+
+            var checkLog = new Dictionary<int, string>();
+            using (var cmd = connection.CreateCommand())
+            {
+                cmd.CommandText = "SELECT GameId, LastCheckTime FROM ConsistencyCheckLog";
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    checkLog[reader.GetInt32(0)] = reader.GetString(1);
+                }
+            }
+
+            foreach (var game in gamesList)
+            {
+                if (!checkLog.TryGetValue(game.Id, out var lastCheckStr))
+                {
+                    gamesToCheck.Add(game);
+                }
+                else
+                {
+                    if (DateTime.TryParse(lastCheckStr, out var lastCheck))
+                    {
+                        if (game.LastRunTime.HasValue && game.LastRunTime.Value > lastCheck)
+                            gamesToCheck.Add(game);
+                    }
+                    else
+                    {
+                        gamesToCheck.Add(game);
+                    }
+                }
+            }
+
+            Debug.WriteLine($"[DataConsistencyService] 增量校验: {gamesToCheck.Count}/{gamesList.Count} 需要检查");
+
+            var report = await CheckAllGamesConsistencyAsync(gamesToCheck);
+
+            var now = DateTime.UtcNow.ToString("o");
+            foreach (var game in gamesToCheck)
+            {
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
+                    INSERT OR REPLACE INTO ConsistencyCheckLog (GameId, LastCheckTime, WasConsistent)
+                    VALUES (@GameId, @Time, @Consistent)";
+                cmd.Parameters.AddWithValue("@GameId", game.Id);
+                cmd.Parameters.AddWithValue("@Time", now);
+                cmd.Parameters.AddWithValue("@Consistent",
+                    report.Details.FirstOrDefault(d => d.GameId == game.Id)?.IsConsistent == true ? 1 : 0);
+                await cmd.ExecuteNonQueryAsync();
+            }
 
             return report;
         }

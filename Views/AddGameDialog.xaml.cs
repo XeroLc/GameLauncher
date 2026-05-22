@@ -54,7 +54,7 @@ namespace GameLauncher.Views
             CollectionsItemsControl.ItemsSource = _collectionItems;
         }
 
-        public AddGameDialog(Game game) : this()
+        public AddGameDialog(Game game, Services.ImageService? imageService = null) : this()
         {
             _existingGame = game;
             GameNameTextBox.Text = game.Name;
@@ -64,14 +64,31 @@ namespace GameLauncher.Views
             DescriptionTextBox.Text = game.Description ?? string.Empty;
             Title = "编辑游戏";
 
-            // 加载已有的预览图
-            foreach (var imagePath in game.ImagePaths)
+            if (string.IsNullOrEmpty(_iconPath) || !File.Exists(_iconPath))
+            {
+                if (imageService != null && !string.IsNullOrWhiteSpace(game.GameId))
+                {
+                    var globalIcon = imageService.GetIconPath(game.GameId);
+                    if (File.Exists(globalIcon))
+                        _iconPath = globalIcon;
+                }
+            }
+
+            var pathsToLoad = game.ImagePaths.Where(p => File.Exists(p)).ToList();
+
+            if (pathsToLoad.Count == 0 && imageService != null && !string.IsNullOrWhiteSpace(game.GameId))
+            {
+                var globalPreviews = imageService.GetAllPreviewImagePaths(game.GameId);
+                if (globalPreviews.Count > 0)
+                    pathsToLoad = globalPreviews;
+            }
+
+            foreach (var imagePath in pathsToLoad)
             {
                 _imagePaths.Add(imagePath);
             }
             LoadImages();
 
-            // 加载已有的标签
             foreach (var tag in game.Tags)
             {
                 _tags.Add(tag);
