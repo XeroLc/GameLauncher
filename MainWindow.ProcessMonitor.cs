@@ -131,7 +131,7 @@ namespace GameLauncher
                 }
                 else
                 {
-                    await ShowErrorDialog("启动失败", "无法启动游戏，请检查游戏路径是否正确");
+                    RunOnUi(() => ShowToast("启动失败", "无法启动游戏，请检查游戏路径是否正确", ToastType.Error));
                 }
             }
         }

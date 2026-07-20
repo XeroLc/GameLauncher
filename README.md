@@ -2,7 +2,7 @@
 
 一款简洁、高效的游戏启动器，帮助您轻松管理本地游戏。
 
-![Version](https://img.shields.io/badge/version-3.2-blue)
+![Version](https://img.shields.io/badge/version-3.3-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![.NET](https://img.shields.io/badge/.NET-8.0-purple)
 
@@ -125,9 +125,9 @@ A: 所有游戏数据存储在本地数据库中，位于程序目录下的 Data
 
 ## 项目信息
 
-- **版本**：3.2
+- **版本**：3.3
 - **作者**：@XeroLc
-- **发布日期**：2026-05-22
+- **发布日期**：2026-07-20
 - **开发框架**：.NET 8.0 + WinUI 3 + Windows App SDK 1.8
 - **数据库**：SQLite
 
@@ -136,6 +136,11 @@ A: 所有游戏数据存储在本地数据库中，位于程序目录下的 Data
 本项目仅供学习交流使用。
 
 ## 更新日志
+
+### v3.3 (2026-07-20) - 功能与体验优化
+- 🆕 **5 项功能新增** - 列表分页、打开游戏路径、Ctrl+K 搜索、模糊搜索、.gmd 删除选项
+- ✨ **5 项体验优化** - Toast 通知系统、右键菜单删除、GMD 同步清理、动画优化、托盘缩入
+- 🐛 **4 项 Bug 修复** - 自动扫描阻塞、外键约束、分页失效、.lnk 进程追踪
 
 ### v3.2 (2026-05-22) - 稳定与性能
 - 🔴 **5 项 Bug 修复** - 死锁风险、磁盘扫描效率、N+1 查询、竞态条件等关键问题

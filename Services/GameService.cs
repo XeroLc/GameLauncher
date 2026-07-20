@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,6 +30,45 @@ namespace GameLauncher.Services
             _imageService = imageService;
         }
 
+        /// <summary>
+        /// 解析 .lnk 快捷方式，返回实际目标路径
+        /// </summary>
+        public static string ResolveShortcut(string filePath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(filePath)) return filePath;
+                var ext = Path.GetExtension(filePath).ToLowerInvariant();
+                if (ext != ".lnk" && ext != ".url") return filePath;
+                if (!File.Exists(filePath)) return filePath;
+
+                // Use Shell32 COM to resolve .lnk
+                Type shellType = Type.GetTypeFromProgID("WScript.Shell");
+                if (shellType == null) return filePath;
+
+                dynamic shell = Activator.CreateInstance(shellType);
+                if (shell == null) return filePath;
+
+                dynamic shortcut = shell.CreateShortcut(filePath);
+                string targetPath = shortcut.TargetPath;
+
+                // Clean up COM objects
+                Marshal.ReleaseComObject(shortcut);
+                Marshal.ReleaseComObject(shell);
+
+                if (!string.IsNullOrEmpty(targetPath) && File.Exists(targetPath))
+                {
+                    return targetPath;
+                }
+
+                return filePath;
+            }
+            catch
+            {
+                return filePath;
+            }
+        }
+
         public async Task<List<Game>> GetAllGamesAsync()
         {
             return await _repository.GetAllGamesAsync();
@@ -50,6 +90,9 @@ namespace GameLauncher.Services
             {
                 throw new ArgumentException("游戏路径不能为空");
             }
+
+            // Resolve .lnk shortcut to actual executable path
+            game.ExecutablePath = ResolveShortcut(game.ExecutablePath);
 
             var fileExists = await Task.Run(() => System.IO.File.Exists(game.ExecutablePath));
             if (!fileExists)
@@ -91,7 +134,7 @@ namespace GameLauncher.Services
             ImageService imageService, Action? onImageChanged = null)
         {
             game.Name = dialog.GameName;
-            game.ExecutablePath = dialog.ExecutablePath;
+            game.ExecutablePath = ResolveShortcut(dialog.ExecutablePath);
             game.Description = dialog.Description;
 
             if (!string.IsNullOrEmpty(dialog.IconPath))
@@ -164,14 +207,14 @@ namespace GameLauncher.Services
             onImageChanged?.Invoke();
         }
 
-        public async Task<bool> DeleteGameAsync(int id)
+        public async Task<bool> DeleteGameAsync(int gameId, bool deleteGmd = true)
         {
-            return await _repository.DeleteGameAsync(id);
+            return await _repository.DeleteGameAsync(gameId, deleteGmd);
         }
 
-        public async Task<int> DeleteGamesAsync(IEnumerable<int> ids)
+        public async Task<int> DeleteGamesAsync(IEnumerable<int> ids, bool deleteGmd = true)
         {
-            return await _repository.DeleteGamesAsync(ids);
+            return await _repository.DeleteGamesAsync(ids, deleteGmd);
         }
 
         public async Task<bool> LaunchGameAsync(Game game)
@@ -182,6 +225,14 @@ namespace GameLauncher.Services
                 if (!fileExists)
                 {
                     return false;
+                }
+
+                // Resolve .lnk shortcut for existing entries that still have the shortcut path
+                var resolvedPath = ResolveShortcut(game.ExecutablePath);
+                if (resolvedPath != game.ExecutablePath)
+                {
+                    game.ExecutablePath = resolvedPath;
+                    await _repository.UpdateGameAsync(game);
                 }
 
                 var extension = System.IO.Path.GetExtension(game.ExecutablePath).ToLowerInvariant();
@@ -454,6 +505,9 @@ namespace GameLauncher.Services
             {
                 try
                 {
+                    // Resolve .lnk shortcut to actual executable path
+                    game.ExecutablePath = ResolveShortcut(game.ExecutablePath);
+
                     if (!string.IsNullOrWhiteSpace(game.GmdFilePath) && System.IO.File.Exists(game.GmdFilePath))
                     {
                         _imageService.EnsureGameImageDirectory(game.GameId);

@@ -179,10 +179,36 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <Button x:Name="EditButton"
+                <Button x:Name="DeleteButton"
                         Grid.Column="0"
+                        Click="DeleteButton_Click"
+                        Style="{StaticResource FrostedStopButtonStyle}"
+                        HorizontalAlignment="Stretch"
+                        Height="40">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE107;" FontSize="14"/>
+                        <TextBlock Text="删除"/>
+                    </StackPanel>
+                </Button>
+
+                <Button x:Name="OpenPathButton"
+                        Grid.Column="1"
+                        Click="OpenPathButton_Click"
+                        Style="{StaticResource FrostedDefaultButtonStyle}"
+                        HorizontalAlignment="Stretch"
+                        Height="40">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE838;" FontSize="14"/>
+                        <TextBlock Text="打开路径"/>
+                    </StackPanel>
+                </Button>
+
+                <Button x:Name="EditButton"
+                        Grid.Column="2"
                         Click="EditButton_Click"
                         Style="{StaticResource FrostedDefaultButtonStyle}"
                         HorizontalAlignment="Stretch"
@@ -193,7 +219,7 @@
                     </StackPanel>
                 </Button>
 
-                <Grid Grid.Column="1" HorizontalAlignment="Stretch" Height="40">
+                <Grid Grid.Column="3" HorizontalAlignment="Stretch" Height="40">
                     <Button x:Name="LaunchButton"
                             Click="LaunchButton_Click"
                             Style="{StaticResource FrostedAccentButtonStyle}"

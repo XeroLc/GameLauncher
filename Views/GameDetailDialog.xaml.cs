@@ -27,6 +27,9 @@ namespace GameLauncher.Views
         public event Action<Game, DateTime>? GameLaunched;
         public event Action<Game>? GameStopped;
         public event Action? DataChanged;
+        public event Action<string, string>? ShowToastRequested;
+
+        public bool DeleteRequested { get; private set; } = false;
 
         // 绑定属性
         public string GameName => _game?.Name ?? string.Empty;
@@ -252,6 +255,12 @@ namespace GameLauncher.Views
             }
         }
 
+        private void DeleteButton_Click(object sender, RoutedEventArgs e)
+        {
+            DeleteRequested = true;
+            Hide();
+        }
+
         private void OnGameDataChanged()
         {
             if (GameNameText != null)
@@ -264,6 +273,25 @@ namespace GameLauncher.Views
                 TagsItemsControl.ItemsSource = _game.Tags;
             if (PreviewImagesItemsControl != null)
                 PreviewImagesItemsControl.ItemsSource = _game.ImageSources;
+        }
+
+        private void OpenPathButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_game == null || string.IsNullOrEmpty(_game.ExecutablePath))
+                return;
+
+            try
+            {
+                var directory = System.IO.Path.GetDirectoryName(_game.ExecutablePath);
+                if (!string.IsNullOrEmpty(directory) && System.IO.Directory.Exists(directory))
+                {
+                    System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{_game.ExecutablePath}\"");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"打开游戏路径失败: {ex.Message}");
+            }
         }
 
         private async void LaunchButton_Click(object sender, RoutedEventArgs e)
@@ -282,15 +310,7 @@ namespace GameLauncher.Views
             }
             else
             {
-                var errorDialog = new ContentDialog
-                {
-                    Title = "启动失败",
-                    Content = "无法启动游戏，请检查游戏路径是否正确",
-                    CloseButtonText = "确定",
-                    XamlRoot = XamlRoot,
-                    Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
-                };
-                await errorDialog.ShowAsync();
+                ShowToastRequested?.Invoke("启动失败", "无法启动游戏，请检查游戏路径是否正确");
             }
         }
 

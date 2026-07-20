@@ -63,7 +63,7 @@ namespace GameLauncher
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"拖放添加游戏时出错: {ex.Message}");
-                await ShowErrorDialog("错误", $"添加游戏时发生错误：{ex.Message}");
+                RunOnUi(() => ShowToast("错误", $"添加游戏时发生错误：{ex.Message}", ToastType.Error));
             }
         }
 
@@ -83,15 +83,7 @@ namespace GameLauncher
                 
                 if (existingGame != null)
                 {
-                    var infoDialog = new ContentDialog
-                    {
-                        Title = "游戏已存在",
-                        Content = $"游戏「{existingGame.Name}」已经存在于库中",
-                        CloseButtonText = "确定",
-                        XamlRoot = Content.XamlRoot,
-                        Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
-                    };
-                    await infoDialog.ShowAsync();
+                    RunOnUi(() => ShowToast("游戏已存在", $"游戏「{existingGame.Name}」已经存在于库中", ToastType.Info));
                     return;
                 }
 
@@ -111,26 +103,17 @@ namespace GameLauncher
                 {
                     await _gameService.AddGameAsync(newGame);
                     await SilentRefreshGamesAsync(forceUiUpdate: true);
-                    
-                    var successDialog = new ContentDialog
-                    {
-                        Title = "添加成功",
-                        Content = $"已成功添加游戏「{fileName}」",
-                        CloseButtonText = "确定",
-                        XamlRoot = Content.XamlRoot,
-                        Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
-                    };
-                    await successDialog.ShowAsync();
+                    RunOnUi(() => ShowToast("添加成功", $"已成功添加游戏「{fileName}」", ToastType.Success));
                 }
                 catch (Exception ex)
                 {
-                    await ShowErrorDialog("添加游戏失败", ex.Message);
+                    RunOnUi(() => ShowToast("添加游戏失败", ex.Message, ToastType.Error));
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"从拖放添加游戏时出错: {ex.Message}");
-                await ShowErrorDialog("错误", $"添加游戏时发生错误：{ex.Message}");
+                RunOnUi(() => ShowToast("错误", $"添加游戏时发生错误：{ex.Message}", ToastType.Error));
             }
             finally
             {
@@ -148,7 +131,7 @@ namespace GameLauncher
 
                 if (!System.IO.File.Exists(gmdFilePath))
                 {
-                    await ShowErrorDialog("文件不存在", $"文件「{gmdFilePath}」不存在。");
+                    RunOnUi(() => ShowToast("文件不存在", $"文件「{gmdFilePath}」不存在。", ToastType.Error));
                     return;
                 }
 
@@ -159,13 +142,13 @@ namespace GameLauncher
                 }
                 catch (Exception ex)
                 {
-                    await ShowErrorDialog("导入失败", $"无法解析 .gmd 文件：{ex.Message}");
+                    RunOnUi(() => ShowToast("导入失败", $"无法解析 .gmd 文件：{ex.Message}", ToastType.Error));
                     return;
                 }
 
                 if (!string.IsNullOrWhiteSpace(importedGame.GameId) && await _gameService.GameIdExistsAsync(importedGame.GameId))
                 {
-                    await ShowErrorDialog("提示", $"游戏「{importedGame.Name}」已存在于数据库中，无需重复添加。");
+                    RunOnUi(() => ShowToast("提示", $"游戏「{importedGame.Name}」已存在于数据库中，无需重复添加。", ToastType.Info));
                     return;
                 }
 
@@ -204,27 +187,18 @@ namespace GameLauncher
 
                     LoadingOverlay.Visibility = Visibility.Collapsed;
                     await SilentRefreshGamesAsync(forceUiUpdate: true);
-
-                    var successDialog = new ContentDialog
-                    {
-                        Title = "导入成功",
-                        Content = $"已成功导入游戏「{importedGame.Name}」",
-                        CloseButtonText = "确定",
-                        XamlRoot = Content.XamlRoot,
-                        Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
-                    };
-                    await successDialog.ShowAsync();
+                    RunOnUi(() => ShowToast("导入成功", $"已成功导入游戏「{importedGame.Name}」", ToastType.Success));
                 }
                 catch (Exception ex)
                 {
                     LoadingOverlay.Visibility = Visibility.Collapsed;
-                    await ShowErrorDialog("导入失败", ex.Message);
+                    RunOnUi(() => ShowToast("导入失败", ex.Message, ToastType.Error));
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"从.gmd拖放导入时出错: {ex.Message}");
-                await ShowErrorDialog("错误", $"导入游戏时发生错误：{ex.Message}");
+                RunOnUi(() => ShowToast("错误", $"导入游戏时发生错误：{ex.Message}", ToastType.Error));
             }
             finally
             {

@@ -4,6 +4,7 @@ using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -477,9 +478,9 @@ namespace GameLauncher.Data
             return rowsAffected > 0;
         }
 
-        public async Task<bool> DeleteGameAsync(int id)
+        public async Task<bool> DeleteGameAsync(int gameId, bool deleteGmd = true)
         {
-            var game = await GetGameByIdAsync(id);
+            var game = await GetGameByIdAsync(gameId);
 
             using var connection = _context.GetConnection();
             await connection.OpenAsync();
@@ -494,16 +495,26 @@ namespace GameLauncher.Data
                         using var delCmd = connection.CreateCommand();
                         delCmd.Transaction = transaction;
                         delCmd.CommandText = "DELETE FROM GameCollectionItems WHERE GameId = @Id";
-                        delCmd.Parameters.AddWithValue("@Id", id);
+                        delCmd.Parameters.AddWithValue("@Id", gameId);
                         await delCmd.ExecuteNonQueryAsync();
                     }
                     catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"删除游戏集合关联失败: {ex.Message}"); }
+
+                    try
+                    {
+                        using var delLogCmd = connection.CreateCommand();
+                        delLogCmd.Transaction = transaction;
+                        delLogCmd.CommandText = "DELETE FROM ConsistencyCheckLog WHERE GameId = @Id";
+                        delLogCmd.Parameters.AddWithValue("@Id", gameId);
+                        await delLogCmd.ExecuteNonQueryAsync();
+                    }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"删除一致性检查日志失败: {ex.Message}"); }
                 }
 
                 using var command = connection.CreateCommand();
                 command.Transaction = transaction;
                 command.CommandText = "DELETE FROM Games WHERE Id = @Id";
-                command.Parameters.AddWithValue("@Id", id);
+                command.Parameters.AddWithValue("@Id", gameId);
                 int rowsAffected = await command.ExecuteNonQueryAsync();
 
                 transaction.Commit();
@@ -518,6 +529,26 @@ namespace GameLauncher.Data
                         }
                     }
                     catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"删除游戏图片目录失败: {ex.Message}"); }
+
+                    // Delete GMD file only if requested
+                    if (deleteGmd)
+                    {
+                        try
+                        {
+                            if (!string.IsNullOrEmpty(game.GmdFilePath) && File.Exists(game.GmdFilePath))
+                            {
+                                File.Delete(game.GmdFilePath);
+                            }
+                            else if (!string.IsNullOrWhiteSpace(game.GameId))
+                            {
+                                // Try to find GMD file by GameId pattern
+                                var gmdPath = _gmdService.GetGmdFilePath(game.ExecutablePath, game.GameId);
+                                if (File.Exists(gmdPath))
+                                    File.Delete(gmdPath);
+                            }
+                        }
+                        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"删除GMD文件失败: {ex.Message}"); }
+                    }
                 }
 
                 return rowsAffected > 0;
@@ -529,7 +560,7 @@ namespace GameLauncher.Data
             }
         }
 
-        public async Task<int> DeleteGamesAsync(IEnumerable<int> ids)
+        public async Task<int> DeleteGamesAsync(IEnumerable<int> ids, bool deleteGmd = true)
         {
             var idList = ids.ToList();
             if (idList.Count == 0) return 0;
@@ -555,6 +586,13 @@ namespace GameLauncher.Data
                     delItemsCmd.Parameters.AddWithValue($"@Id{i}", idList[i]);
                 await delItemsCmd.ExecuteNonQueryAsync();
 
+                using var delLogCmd = connection.CreateCommand();
+                delLogCmd.Transaction = transaction;
+                delLogCmd.CommandText = $"DELETE FROM ConsistencyCheckLog WHERE GameId IN ({itemParams})";
+                for (int i = 0; i < idList.Count; i++)
+                    delLogCmd.Parameters.AddWithValue($"@Id{i}", idList[i]);
+                await delLogCmd.ExecuteNonQueryAsync();
+
                 using var delGamesCmd = connection.CreateCommand();
                 delGamesCmd.Transaction = transaction;
                 delGamesCmd.CommandText = $"DELETE FROM Games WHERE Id IN ({itemParams})";
@@ -574,6 +612,26 @@ namespace GameLauncher.Data
                         }
                     }
                     catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"删除游戏图片目录失败: {ex.Message}"); }
+
+                    // Delete GMD file only if requested
+                    if (deleteGmd)
+                    {
+                        try
+                        {
+                            if (!string.IsNullOrEmpty(game.GmdFilePath) && File.Exists(game.GmdFilePath))
+                            {
+                                File.Delete(game.GmdFilePath);
+                            }
+                            else if (!string.IsNullOrWhiteSpace(game.GameId))
+                            {
+                                // Try to find GMD file by GameId pattern
+                                var gmdPath = _gmdService.GetGmdFilePath(game.ExecutablePath, game.GameId);
+                                if (File.Exists(gmdPath))
+                                    File.Delete(gmdPath);
+                            }
+                        }
+                        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"删除GMD文件失败: {ex.Message}"); }
+                    }
                 }
 
                 return rowsAffected;

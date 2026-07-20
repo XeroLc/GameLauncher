@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
@@ -23,6 +23,7 @@ using Microsoft.UI.Windowing;
 using WinRT.Interop;
 using Windows.Storage;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.System;
 
 
 namespace GameLauncher
@@ -55,6 +56,8 @@ namespace GameLauncher
         public MainWindow()
         {
             InitializeComponent();
+
+            Content.KeyDown += MainWindow_KeyDown;
 
             SetupFloatingNavBar();
 
@@ -264,9 +267,10 @@ namespace GameLauncher
                                     var result = await scanService.ScanAsync(settings.ScanPaths);
                                     if (result.NewGamesFound > 0)
                                     {
-                                        RunOnUi(async () =>
-                                        {
-                                            await ShowAutoScanResultDialog(result);
+                                        int imported = await _gameService.ImportGamesAsync(result.DiscoveredGames);
+                                        RunOnUi(() => {
+                                            ShowToast("自动扫描", $"发现 {result.NewGamesFound} 个新游戏，已自动导入 {imported} 个。", ToastType.Success);
+                                            _ = SilentRefreshGamesAsync(forceUiUpdate: true);
                                         });
                                     }
                                     Debug.WriteLine($"[AutoScan] 扫描完成: 扫描 {result.TotalScanned} 个文件, 发现 {result.NewGamesFound} 个新游戏");
@@ -305,12 +309,12 @@ namespace GameLauncher
                 catch (Microsoft.Data.Sqlite.SqliteException ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"数据库错误: {ex.Message}");
-                    await ShowErrorDialog("数据库错误", $"数据库操作失败：{ex.Message}\n\n请尝试删除应用程序数据文件夹中的 games.db 文件后重新启动。");
+                    ShowToast("数据库错误", $"数据库操作失败：{ex.Message}\n\n请尝试删除应用程序数据文件夹中的 games.db 文件后重新启动。", ToastType.Error);
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"初始化失败: {ex.Message}");
-                    await ShowErrorDialog("初始化失败", $"发生错误：{ex.Message}");
+                    ShowToast("初始化失败", $"发生错误：{ex.Message}", ToastType.Error);
                 }
             }
             finally
@@ -715,7 +719,7 @@ namespace GameLauncher
                             // 检查 GID 是否已存在
                             if (!string.IsNullOrWhiteSpace(importedGame.GameId) && await _gameService.GameIdExistsAsync(importedGame.GameId))
                             {
-                                await ShowErrorDialog("提示", $"游戏「{importedGame.Name}」已存在于数据库中，无需重复添加。");
+                                ShowToast("提示", $"游戏「{importedGame.Name}」已存在于数据库中，无需重复添加。", ToastType.Warning);
                                 LoadingOverlay.Visibility = Visibility.Collapsed;
                             }
                             else
@@ -764,7 +768,7 @@ namespace GameLauncher
                         catch (Exception ex)
                         {
                             LoadingOverlay.Visibility = Visibility.Collapsed;
-                            await ShowErrorDialog("添加游戏失败", ex.Message);
+                            ShowToast("添加游戏失败", ex.Message, ToastType.Error);
                         }
                     }
                     else
@@ -847,7 +851,7 @@ namespace GameLauncher
                         catch (Exception ex)
                         {
                             LoadingOverlay.Visibility = Visibility.Collapsed;
-                            await ShowErrorDialog("添加游戏失败", ex.Message);
+                            ShowToast("添加游戏失败", ex.Message, ToastType.Error);
                         }
                     }
                 }
@@ -855,7 +859,7 @@ namespace GameLauncher
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"添加游戏时出错: {ex.Message}");
-                await ShowErrorDialog("错误", $"添加游戏时发生错误：{ex.Message}");
+                ShowToast("错误", $"添加游戏时发生错误：{ex.Message}", ToastType.Error);
             }
             finally
             {
@@ -926,7 +930,7 @@ namespace GameLauncher
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"编辑游戏时出错: {ex.Message}");
-                await ShowErrorDialog("错误", $"编辑游戏时发生错误：{ex.Message}");
+                ShowToast("编辑失败", $"编辑游戏时发生错误：{ex.Message}", ToastType.Error);
             }
             finally
             {
@@ -947,29 +951,17 @@ namespace GameLauncher
                 _isDialogOpen = true;
                 if (sender is Button button && button.DataContext is Game game)
                 {
-                    var dialog = new ContentDialog
+                    var (confirmed, deleteGmd) = await ShowDeleteConfirmDialog(game.Name);
+                    if (confirmed)
                     {
-                        Title = "确认删除",
-                        Content = $"确定要删除游戏「{game.Name}」吗？",
-                        PrimaryButtonText = "删除",
-                        CloseButtonText = "取消",
-                        XamlRoot = Content.XamlRoot,
-                        DefaultButton = ContentDialogButton.Close,
-                        Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
-                    };
-
-                    var result = await dialog.ShowAsync();
-
-                    if (result == ContentDialogResult.Primary)
-                    {
-                        var success = await _gameService.DeleteGameAsync(game.Id);
+                        var success = await _gameService.DeleteGameAsync(game.Id, deleteGmd);
                         if (success)
                         {
                             await SilentRefreshGamesAsync(forceUiUpdate: true);
                         }
                         else
                         {
-                            await ShowErrorDialog("删除失败", "删除游戏时发生错误");
+                            RunOnUi(() => ShowToast("删除失败", "删除游戏时发生错误", ToastType.Error));
                         }
                     }
                 }
@@ -977,7 +969,7 @@ namespace GameLauncher
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"删除游戏时出错: {ex.Message}");
-                await ShowErrorDialog("错误", $"删除游戏时发生错误：{ex.Message}");
+                ShowToast("删除失败", $"删除游戏时发生错误：{ex.Message}", ToastType.Error);
             }
             finally
             {
@@ -985,24 +977,38 @@ namespace GameLauncher
             }
         }
 
-        private async System.Threading.Tasks.Task ShowErrorDialog(string title, string message)
+        private async Task<(bool confirmed, bool deleteGmd)> ShowDeleteConfirmDialog(string gameName)
         {
             try
             {
+                var deleteGmdCheckBox = new Microsoft.UI.Xaml.Controls.CheckBox
+                {
+                    Content = "同时删除 .gmd 文件",
+                    IsChecked = true,
+                    Margin = new Microsoft.UI.Xaml.Thickness(0, 12, 0, 0)
+                };
+
+                var panel = new StackPanel();
+                panel.Children.Add(new TextBlock { Text = $"确定要删除游戏「{gameName}」吗？", TextWrapping = TextWrapping.Wrap });
+                panel.Children.Add(deleteGmdCheckBox);
+
                 var dialog = new ContentDialog
                 {
-                    Title = title,
-                    Content = message,
-                    CloseButtonText = "确定",
+                    Title = "确认删除",
+                    Content = panel,
+                    PrimaryButtonText = "删除",
+                    CloseButtonText = "取消",
                     XamlRoot = Content.XamlRoot,
                     Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
                 };
 
-                await dialog.ShowAsync();
+                var result = await dialog.ShowAsync();
+                return (result == ContentDialogResult.Primary, deleteGmdCheckBox.IsChecked == true);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"显示错误对话框时出错: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"显示删除确认对话框出错: {ex.Message}");
+                return (false, false);
             }
         }
 
@@ -1125,33 +1131,18 @@ namespace GameLauncher
                     return;
                 }
 
-                var dialog = new ContentDialog
+                var (confirmed, deleteGmd) = await ShowDeleteConfirmDialog($"选中的 {selectedIds.Count} 个游戏");
+                if (confirmed)
                 {
-                    Title = "确认批量删除",
-                    Content = $"确定要删除选中的 {selectedIds.Count} 个游戏吗？",
-                    PrimaryButtonText = "删除",
-                    CloseButtonText = "取消",
-                    XamlRoot = Content.XamlRoot,
-                    DefaultButton = ContentDialogButton.Close,
-                    Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
-                };
-
-                var result = await dialog.ShowAsync();
-
-                if (result == ContentDialogResult.Primary)
-                {
-                    await _gameService.DeleteGamesAsync(selectedIds);
-
+                    await _gameService.DeleteGamesAsync(selectedIds, deleteGmd);
                     await SilentRefreshGamesAsync(forceUiUpdate: true);
-
-                    // 取消选择模式
-                    CancelSelectButton_Click(sender, e);
+                    RunOnUi(() => CancelSelectButton_Click(sender, e));
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"批量删除时出错: {ex.Message}");
-                await ShowErrorDialog("错误", $"批量删除时发生错误：{ex.Message}");
+                ShowToast("批量删除失败", $"批量删除时发生错误：{ex.Message}", ToastType.Error);
             }
             finally
             {
@@ -1242,12 +1233,18 @@ namespace GameLauncher
                     {
                         _runningGames[launchedGame.Id] = launchTime;
                     }
+                    _trayService.MinimizeToTray();
                 };
 
                 detailDialog.GameStopped += (stoppedGame) =>
                 {
                     _runningGames.TryRemove(stoppedGame.Id, out _);
                     RunOnUi(() => UpdateGameCardStatistics());
+                };
+
+                detailDialog.ShowToastRequested += (title, message) =>
+                {
+                    RunOnUi(() => ShowToast(title, message, ToastType.Error));
                 };
 
                 detailDialog.DataChanged += () =>
@@ -1257,13 +1254,35 @@ namespace GameLauncher
                 };
 
                 await detailDialog.ShowAsync();
+
+                if (detailDialog.DeleteRequested)
+                {
+                    var (confirmed, deleteGmd) = await ShowDeleteConfirmDialog(game.Name);
+                    if (confirmed)
+                    {
+                        var success = await _gameService.DeleteGameAsync(game.Id, deleteGmd);
+                        RunOnUi(async () =>
+                        {
+                            if (success)
+                            {
+                                ShowToast("删除成功", $"游戏「{game.Name}」已删除", ToastType.Success);
+                                await SilentRefreshGamesAsync(forceUiUpdate: true);
+                            }
+                            else
+                            {
+                                ShowToast("删除失败", "删除游戏时发生错误", ToastType.Error);
+                            }
+                        });
+                    }
+                }
+
                 RunOnUi(() => UpdateGameCardStatistics());
             }
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"打开游戏详情时出错: {ex.Message}");
-            await ShowErrorDialog("错误", $"打开游戏详情时发生错误：{ex.Message}");
+            ShowToast("错误", $"打开游戏详情时发生错误：{ex.Message}", ToastType.Error);
         }
         finally
         {
@@ -1319,6 +1338,28 @@ namespace GameLauncher
         {
             var sb = new System.Text.StringBuilder();
             var sep = "----------------------------------";
+            sb.AppendLine("v3.3 (2026-07-20)");
+            sb.AppendLine(sep);
+            sb.AppendLine("  功能新增");
+            sb.AppendLine("    游戏列表支持分页（10/15/30/50/100 条每页）");
+            sb.AppendLine("    游戏详情页新增「打开游戏路径」按钮");
+            sb.AppendLine("    添加 Ctrl+K 快捷键聚焦搜索框");
+            sb.AppendLine("    搜索升级为模糊搜索，支持拼音首字母匹配");
+            sb.AppendLine("    删除确认弹窗新增「同时删除 .gmd 文件」勾选项");
+            sb.AppendLine();
+            sb.AppendLine("  体验优化");
+            sb.AppendLine("    所有提示/确认对话框改为右下角 Toast 弹出通知");
+            sb.AppendLine("    右键游戏卡片菜单新增「删除游戏」选项");
+            sb.AppendLine("    删除游戏时同步清理 GMD 文件和图片目录");
+            sb.AppendLine("    Toast 通知支持动画滑入/滑出，新通知自动替换旧通知");
+            sb.AppendLine("    详情页启动游戏后自动缩至托盘");
+            sb.AppendLine();
+            sb.AppendLine("  Bug 修复");
+            sb.AppendLine("    修复自动扫描发现新游戏后弹出阻塞对话框");
+            sb.AppendLine("    修复删除游戏时 ConsistencyCheckLog 外键约束失败");
+            sb.AppendLine("    修复分页翻页因 _currentPage 无条件重置导致失效");
+            sb.AppendLine("    修复 .lnk 快捷方式启动后进程追踪不匹配");
+            sb.AppendLine();
             sb.AppendLine("v3.2 (2026-05-22)");
             sb.AppendLine(sep);
             sb.AppendLine("  Bug 修复");
@@ -1655,7 +1696,7 @@ namespace GameLauncher
             catch (Exception ex)
             {
                 Debug.WriteLine($"手动检查更新失败: {ex.Message}");
-                await ShowErrorDialog("检查更新失败", $"无法连接到GitHub服务器，请检查网络连接。\n\n错误信息: {ex.Message}");
+                ShowToast("检查更新失败", "无法连接到GitHub服务器，请检查网络连接。", ToastType.Error);
             }
             finally
             {
@@ -1787,135 +1828,33 @@ namespace GameLauncher
             }
 
             menuFlyout.Items.Add(addToCollectionItem);
+
+            menuFlyout.Items.Add(new MenuFlyoutSeparator());
+
+            var deleteItem = new MenuFlyoutItem { Text = "删除游戏" };
+            deleteItem.Click += async (s, e) =>
+            {
+                var (confirmed, deleteGmd) = await ShowDeleteConfirmDialog(game.Name);
+                if (confirmed)
+                {
+                    var success = await _gameService.DeleteGameAsync(game.Id, deleteGmd);
+                    RunOnUi(async () =>
+                    {
+                        if (success)
+                        {
+                            ShowToast("删除成功", $"游戏「{game.Name}」已删除", ToastType.Success);
+                            await SilentRefreshGamesAsync(forceUiUpdate: true);
+                        }
+                        else
+                        {
+                            ShowToast("删除失败", "删除游戏时发生错误", ToastType.Error);
+                        }
+                    });
+                }
+            };
+            menuFlyout.Items.Add(deleteItem);
+
             menuFlyout.ShowAt(target);
-        }
-
-        private async System.Threading.Tasks.Task ShowAutoScanResultDialog(AutoScanResult scanResult)
-        {
-            if (_isDialogOpen) return;
-
-            try
-            {
-                _isDialogOpen = true;
-
-                var accentColor = (Windows.UI.Color)App.Current.Resources["SystemAccentColor"];
-                var accentBrush = new SolidColorBrush(accentColor);
-                var secondaryBrush = (Microsoft.UI.Xaml.Media.Brush)App.Current.Resources["TextFillColorSecondaryBrush"];
-
-                var contentPanel = new StackPanel { Spacing = 12, Width = 460 };
-
-                contentPanel.Children.Add(new TextBlock
-                {
-                    Text = $"自动扫描发现 {scanResult.NewGamesFound} 个新游戏",
-                    Style = (Style)App.Current.Resources["SubtitleTextBlockStyle"],
-                    Foreground = accentBrush
-                });
-
-                contentPanel.Children.Add(new TextBlock
-                {
-                    Text = "共扫描 " + scanResult.TotalScanned + " 个 .gmd 文件，以下游戏尚未添加到库中：",
-                    Style = (Style)App.Current.Resources["CaptionTextBlockStyle"],
-                    Foreground = secondaryBrush,
-                    TextWrapping = TextWrapping.Wrap
-                });
-
-                var selectAllCheckBox = new CheckBox
-                {
-                    Content = "全选/取消",
-                    IsChecked = true
-                };
-                contentPanel.Children.Add(selectAllCheckBox);
-
-                var gameList = new ListView
-                {
-                    MaxHeight = 300,
-                    SelectionMode = ListViewSelectionMode.Multiple
-                };
-
-                var itemTemplate = CreateGameListItemTemplate();
-                gameList.ItemTemplate = itemTemplate;
-
-                foreach (var game in scanResult.DiscoveredGames)
-                {
-                    try { _gameImageLoader.LoadIcon(game); } catch { }
-                    gameList.Items.Add(game);
-                    gameList.SelectedItems.Add(game);
-                }
-
-                contentPanel.Children.Add(gameList);
-
-                selectAllCheckBox.Checked += (s, e) => { try { gameList.SelectAll(); } catch { } };
-                selectAllCheckBox.Unchecked += (s, e) => { try { gameList.SelectedItems.Clear(); } catch { } };
-
-                var dialog = new ContentDialog
-                {
-                    Title = "自动扫描结果",
-                    Content = contentPanel,
-                    PrimaryButtonText = "导入选中游戏",
-                    CloseButtonText = "跳过",
-                    DefaultButton = ContentDialogButton.Primary,
-                    XamlRoot = Content.XamlRoot,
-                    Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
-                };
-
-                var result = await dialog.ShowAsync();
-
-                if (result == ContentDialogResult.Primary)
-                {
-                    var selectedGames = gameList.SelectedItems.Cast<Game>().ToList();
-
-                    if (selectedGames.Count > 0)
-                    {
-                        LoadingOverlay.Visibility = Visibility.Visible;
-                        try
-                        {
-                            int imported = await _gameService.ImportGamesAsync(selectedGames);
-                            if (imported > 0)
-                            {
-                                await SilentRefreshGamesAsync(forceUiUpdate: true);
-                            }
-                        }
-                        finally
-                        {
-                            LoadingOverlay.Visibility = Visibility.Collapsed;
-                        }
-                    }
-
-                    var selectedIds = new HashSet<string>(
-                        selectedGames.Select(g => g.GameId),
-                        StringComparer.OrdinalIgnoreCase);
-                    var notSelected = scanResult.DiscoveredGames
-                        .Where(g => !string.IsNullOrWhiteSpace(g.GameId) && !selectedIds.Contains(g.GameId))
-                        .ToList();
-                    foreach (var game in notSelected)
-                    {
-                        try
-                        {
-                            _imageService.DeleteGameImages(game.GameId);
-                        }
-                        catch { }
-                    }
-                }
-                else
-                {
-                    foreach (var game in scanResult.DiscoveredGames)
-                    {
-                        try
-                        {
-                            _imageService.DeleteGameImages(game.GameId);
-                        }
-                        catch { }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"显示自动扫描结果对话框失败: {ex.Message}");
-            }
-            finally
-            {
-                _isDialogOpen = false;
-            }
         }
 
         private DataTemplate CreateGameListItemTemplate()
@@ -1937,9 +1876,45 @@ namespace GameLauncher
             return (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(xaml);
         }
 
-        private void ScanToastCloseButton_Click(object sender, RoutedEventArgs e)
+        private void MainWindow_KeyDown(object sender, KeyRoutedEventArgs e)
         {
-            HideScanToast();
+            var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
+            bool isCtrlPressed = ctrlState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+            if (isCtrlPressed && e.Key == Windows.System.VirtualKey.K)
+            {
+                e.Handled = true;
+                if (SearchBox != null)
+                {
+                    SearchBox.Focus(FocusState.Programmatic);
+                    var textBox = FindVisualChild<Microsoft.UI.Xaml.Controls.TextBox>(SearchBox);
+                    if (textBox != null)
+                    {
+                        textBox.SelectAll();
+                    }
+                }
+            }
+        }
+
+        private void PrevPageButton_Click(object sender, RoutedEventArgs e)
+        {
+            GoToPrevPage();
+        }
+
+        private void NextPageButton_Click(object sender, RoutedEventArgs e)
+        {
+            GoToNextPage();
+        }
+
+        private void PageSizeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (PageSizeComboBox?.SelectedItem is ComboBoxItem item && item.Tag is string tag)
+            {
+                if (int.TryParse(tag, out int size))
+                {
+                    PageSizeChanged(size);
+                }
+            }
         }
     }
 }
