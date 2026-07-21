@@ -136,7 +136,7 @@
                         <TextBox x:Name="TagInputTextBox"
                                  Grid.Column="0"
                                  Header="输入新标签"
-                                 PlaceholderText="输入标签名称或从下拉菜单选择"
+                                 PlaceholderText="输入标签，支持逗号/空格/竖线批量添加"
                                  KeyDown="TagInputTextBox_KeyDown"/>
 
                         <ComboBox x:Name="TagComboBox"

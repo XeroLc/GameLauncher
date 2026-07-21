@@ -452,16 +452,26 @@ namespace GameLauncher.Views
 
         private void AddTag(string tagText)
         {
-            if (!string.IsNullOrWhiteSpace(tagText))
+            if (string.IsNullOrWhiteSpace(tagText))
+                return;
+
+            // 支持分隔符批量添加：逗号、空格、竖线、分号、中文逗号、中文顿号
+            var separators = new[] { ',', ' ', '|', ';', '，', '、' };
+            var tags = tagText.Split(separators, StringSplitOptions.RemoveEmptyEntries)
+                              .Select(t => t.Trim())
+                              .Where(t => !string.IsNullOrWhiteSpace(t))
+                              .Distinct(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var tag in tags)
             {
-                var trimmedTag = tagText.Trim();
-                if (!_tags.Contains(trimmedTag))
+                if (!_tags.Contains(tag))
                 {
-                    _tags.Add(trimmedTag);
+                    _tags.Add(tag);
                 }
-                TagInputTextBox.Text = string.Empty;
-                UpdateTagComboBox();
             }
+
+            TagInputTextBox.Text = string.Empty;
+            UpdateTagComboBox();
         }
 
         private void RemoveTagButton_Click(object sender, RoutedEventArgs e)
