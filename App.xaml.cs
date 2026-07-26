@@ -52,6 +52,8 @@ namespace GameLauncher
             services.AddSingleton<GameImageLoader>();
             services.AddSingleton<DataSyncService>();
             services.AddSingleton<UpdateCheckerService>();
+            services.AddSingleton<DebugLogService>();
+            services.AddSingleton<DataExportImportService>();
 
             services.AddTransient<DiskScanService>();
             services.AddTransient<AutoScanService>();

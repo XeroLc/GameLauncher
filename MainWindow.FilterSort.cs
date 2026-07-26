@@ -421,6 +421,7 @@ namespace GameLauncher
             var hasTagFilter = _selectedTagFilter != null && _selectedTagFilter != "全部标签";
             var hasCollectionFilter = _selectedCollectionFilter != null && _selectedCollectionFilter != "全部游戏";
             var hideUnavailable = settings.HideUnavailableGames;
+            var isPrivateMode = PrivateModeService.Instance.IsPrivateMode;
 
             var scoredGames = new List<(Game game, int score)>();
 
@@ -434,6 +435,8 @@ namespace GameLauncher
                     if (!game.Collections.Any(c => c.Name == collectionName)) continue;
                 }
                 if (hideUnavailable && !IsGameExecutableAvailable(game)) continue;
+                if (isPrivateMode && !game.IsPrivate) continue;
+                if (!isPrivateMode && game.IsPrivate) continue;
 
                 if (hasSearch)
                 {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using GameLauncher.Models;
 using GameLauncher.Services;
@@ -52,6 +53,10 @@ namespace GameLauncher
                         if (extension == ".gmd")
                         {
                             await AddGameFromGmdDragDrop(file.Path);
+                        }
+                        else if (extension == ".glkey")
+                        {
+                            ResetPrivatePasswordFromFile(file.Path);
                         }
                         else if (extension == ".exe" || extension == ".bat" || extension == ".lnk")
                         {
@@ -203,6 +208,38 @@ namespace GameLauncher
             finally
             {
                 _isDialogOpen = false;
+            }
+        }
+
+        private void ResetPrivatePasswordFromFile(string filePath)
+        {
+            try
+            {
+                var json = File.ReadAllText(filePath);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                if (!root.TryGetProperty("action", out var action) ||
+                    action.GetString() != "reset_private_password")
+                {
+                    RunOnUi(() => ShowToast("无效文件", "该文件不是有效的私密密码重置文件", ToastType.Error));
+                    return;
+                }
+
+                if (!root.TryGetProperty("signature", out var signature) ||
+                    signature.GetString() != "GameLauncher_PrivateMode_Reset_2026_v1")
+                {
+                    RunOnUi(() => ShowToast("无效文件", "重置文件签名验证失败", ToastType.Error));
+                    return;
+                }
+
+                PrivateModeService.Instance.ResetToDefault();
+                RunOnUi(() => ShowToast("密码已重置", "私密模式密码已重置为默认密码（↑↑↓↓←←→→aabb）", ToastType.Success));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"重置私密密码失败: {ex.Message}");
+                RunOnUi(() => ShowToast("重置失败", "无法读取重置文件", ToastType.Error));
             }
         }
     }

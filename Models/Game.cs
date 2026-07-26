@@ -249,6 +249,21 @@ namespace GameLauncher.Models
             }
         }
 
+        private bool _isPrivate = false;
+
+        public bool IsPrivate
+        {
+            get => _isPrivate;
+            set
+            {
+                if (_isPrivate != value)
+                {
+                    _isPrivate = value;
+                    OnPropertyChanged(nameof(IsPrivate));
+                }
+            }
+        }
+
         private bool _needsGmdFallback;
         public bool NeedsGmdFallback
         {

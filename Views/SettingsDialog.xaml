@@ -96,6 +96,96 @@
                        TextWrapping="Wrap"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                        Margin="0,-16,0,0"/>
+
+            <Border Height="1" Background="{ThemeResource CardStrokeColorDefault}" Margin="0,-8,0,-8"/>
+
+            <TextBlock Text="数据管理"
+                       Style="{StaticResource SubtitleTextBlockStyle}"
+                       Margin="0,0,0,0"/>
+
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Button x:Name="ExportDataButton"
+                        Click="ExportDataButton_Click"
+                        Style="{StaticResource FrostedAccentButtonStyle}"
+                        Padding="16,8">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE792;" FontSize="14"/>
+                        <TextBlock Text="导出数据"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="ImportDataButton"
+                        Click="ImportDataButton_Click"
+                        Style="{StaticResource FrostedDefaultButtonStyle}"
+                        Padding="16,8">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE793;" FontSize="14"/>
+                        <TextBlock Text="导入数据"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+
+            <TextBlock Text="将游戏数据导出为 .gldata 备份文件，或从备份文件导入恢复数据。导入将覆盖现有数据。"
+                       Style="{StaticResource CaptionTextBlockStyle}"
+                       TextWrapping="Wrap"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Margin="0,-16,0,0"/>
+
+            <Border Height="1" Background="{ThemeResource CardStrokeColorDefault}" Margin="0,-8,0,-8"/>
+
+            <TextBlock Text="调试"
+                       Style="{StaticResource SubtitleTextBlockStyle}"
+                       Margin="0,0,0,0"/>
+
+            <ToggleSwitch x:Name="DebugModeToggle"
+                          Header="调试模式"
+                          OffContent="关闭"
+                          OnContent="开启"
+                          Toggled="DebugModeToggle_Toggled"/>
+
+            <TextBlock Text="开启后主界面右下角将显示调试信息面板，包含数据库统计和操作日志。"
+                       Style="{StaticResource CaptionTextBlockStyle}"
+                       TextWrapping="Wrap"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Margin="0,-16,0,0"/>
+
+            <Border Height="1" Background="{ThemeResource CardStrokeColorDefault}" Margin="0,-8,0,-8"/>
+
+            <!-- 私密模式设置（仅在私密模式下可见） -->
+            <StackPanel x:Name="PrivateModeSettingsPanel"
+                        Spacing="16"
+                        Visibility="Collapsed">
+                <TextBlock Text="私密模式"
+                           Style="{StaticResource SubtitleTextBlockStyle}"
+                           Margin="0,0,0,0"/>
+
+                <Button x:Name="SetPrivatePasswordButton"
+                        Click="SetPrivatePasswordButton_Click"
+                        Style="{StaticResource FrostedAccentButtonStyle}"
+                        Padding="16,8"
+                        HorizontalAlignment="Stretch">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE72E;" FontSize="14"/>
+                        <TextBlock x:Name="PrivatePasswordButtonText" Text="设置密码"/>
+                    </StackPanel>
+                </Button>
+
+                <Button x:Name="ResetPrivatePasswordButton"
+                        Click="ResetPrivatePasswordButton_Click"
+                        Style="{StaticResource FrostedDefaultButtonStyle}"
+                        Padding="16,8"
+                        HorizontalAlignment="Stretch">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE777;" FontSize="14"/>
+                        <TextBlock Text="重置为默认密码"/>
+                    </StackPanel>
+                </Button>
+
+                <TextBlock Text="设置键盘序列密码后，在主界面按下密码序列即可进入/退出私密模式。默认密码：↑↑↓↓←←→→aabb"
+                           Style="{StaticResource CaptionTextBlockStyle}"
+                           TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Margin="0,-4,0,0"/>
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </ContentDialog>

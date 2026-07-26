@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
@@ -49,6 +49,8 @@ namespace GameLauncher
         private readonly ImageService _imageService;
         private readonly GmdFileService _gmdService;
         private readonly GameImageLoader _gameImageLoader;
+        private readonly DebugLogService _debugLogService;
+        private readonly PrivateModeService _privateModeService;
 
         public ObservableCollection<Game> Games => _games;
         public ObservableCollection<Game> FilteredGames => _filteredGames;
@@ -72,6 +74,9 @@ namespace GameLauncher
             _imageService = App.Services.GetRequiredService<ImageService>();
             _gmdService = App.Services.GetRequiredService<GmdFileService>();
             _gameImageLoader = App.Services.GetRequiredService<GameImageLoader>();
+            _debugLogService = new DebugLogService(_dbContext);
+            _privateModeService = PrivateModeService.Instance;
+            _privateModeService.PropertyChanged += OnPrivateModeChanged;
 
             // 绑定窗口事件，确保每次激活时都刷新数据
             Activated += MainWindow_Activated;
@@ -506,6 +511,8 @@ namespace GameLauncher
                 ApplyFilters();
                 await RefreshCollectionFilterAsync();
                 UpdateEmptyState();
+                UpdateDebugPanelVisibility();
+                RefreshDebugPanel();
 
                 var dispatcher = DispatcherQueue;
                 _ = Task.Run(() =>
@@ -1319,6 +1326,8 @@ namespace GameLauncher
 
                 await dialog.ShowAsync();
                 RunOnUi(() => ApplyFilters());
+                UpdateDebugPanelVisibility();
+                RefreshDebugPanel();
             }
             catch (Exception ex)
             {
@@ -1338,6 +1347,16 @@ namespace GameLauncher
         {
             var sb = new System.Text.StringBuilder();
             var sep = "----------------------------------";
+            sb.AppendLine("v3.4.0 (2026-07-26)");
+            sb.AppendLine(sep);
+            sb.AppendLine("  功能新增");
+            sb.AppendLine("    数据导入导出（.gldata 备份文件，含私密模式数据）");
+            sb.AppendLine("    调试模式（数据库统计、操作日志）");
+            sb.AppendLine("    私密模式（键盘序列密码，隐藏私密游戏）");
+            sb.AppendLine();
+            sb.AppendLine("  Bug 修复");
+            sb.AppendLine("    修复私密游戏标记重启后丢失的问题");
+            sb.AppendLine();
             sb.AppendLine("v3.3.1 (2026-07-21)");
             sb.AppendLine(sep);
             sb.AppendLine("  功能新增");
@@ -1883,6 +1902,9 @@ namespace GameLauncher
 
         private void MainWindow_KeyDown(object sender, KeyRoutedEventArgs e)
         {
+            // Private mode key sequence detection
+            _privateModeService.RecordKey((int)e.Key);
+
             var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
             bool isCtrlPressed = ctrlState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
 
@@ -1919,6 +1941,359 @@ namespace GameLauncher
                 {
                     PageSizeChanged(size);
                 }
+            }
+        }
+
+        private void OnPrivateModeChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(PrivateModeService.IsPrivateMode))
+            {
+                RunOnUi(() =>
+                {
+                    UpdatePrivateModeUI();
+                    ApplyFilters();
+                });
+            }
+        }
+
+        private void UpdatePrivateModeUI()
+        {
+            bool isPrivate = _privateModeService.IsPrivateMode;
+
+            UpdateNavBarTitle(isPrivate);
+
+            if (ManagePrivateGamesButton != null)
+            {
+                ManagePrivateGamesButton.Visibility = isPrivate ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            UpdateEmptyStateForPrivateMode(isPrivate);
+        }
+
+        private void UpdateNavBarTitle(bool isPrivate)
+        {
+            if (NavBar != null)
+            {
+                var grid = NavBar.Child as Grid;
+                if (grid != null && grid.Children.Count > 0)
+                {
+                    var leftPanel = grid.Children[0] as StackPanel;
+                    if (leftPanel != null && leftPanel.Children.Count > 0)
+                    {
+                        var titleBlock = leftPanel.Children[0] as TextBlock;
+                        if (titleBlock != null)
+                        {
+                            titleBlock.Text = isPrivate ? "我的游戏（私密模式）" : "我的游戏";
+                        }
+                    }
+                }
+            }
+        }
+
+        private void UpdateEmptyStateForPrivateMode(bool isPrivate)
+        {
+            if (isPrivate && EmptyState != null)
+            {
+                var border = EmptyState.Children[0] as Border;
+                if (border != null)
+                {
+                    var stackPanel = border.Child as StackPanel;
+                    if (stackPanel != null && stackPanel.Children.Count >= 3)
+                    {
+                        if (stackPanel.Children[1] is TextBlock subtitleBlock)
+                        {
+                            subtitleBlock.Text = "还没有添加私密游戏";
+                        }
+                        if (stackPanel.Children[2] is TextBlock descBlock)
+                        {
+                            descBlock.Text = "点击右上角的「管理私密游戏」按钮选择要隐藏的游戏";
+                        }
+                    }
+                }
+            }
+        }
+
+        private async void ManagePrivateGamesButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_isDialogOpen) return;
+
+            try
+            {
+                _isDialogOpen = true;
+
+                var allGames = _games.ToList();
+                var gameCheckBoxes = new List<(Game game, CheckBox checkBox)>();
+
+                // 预创建所有 CheckBox
+                foreach (var game in allGames)
+                {
+                    var checkBox = new CheckBox
+                    {
+                        Content = game.Name,
+                        IsChecked = game.IsPrivate,
+                        Tag = game
+                    };
+                    gameCheckBoxes.Add((game, checkBox));
+                }
+
+                // 搜索框
+                var searchBox = new TextBox
+                {
+                    PlaceholderText = "搜索游戏名称...",
+                    Margin = new Microsoft.UI.Xaml.Thickness(0, 0, 0, 8)
+                };
+
+                // 全选/取消全选按钮
+                var btnPanel = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 8,
+                    Margin = new Microsoft.UI.Xaml.Thickness(0, 0, 0, 8)
+                };
+                var selectAllBtn = new Button
+                {
+                    Content = "全选",
+                    Style = (Style)Application.Current.Resources["DefaultButtonStyle"]
+                };
+                var deselectAllBtn = new Button
+                {
+                    Content = "取消全选",
+                    Style = (Style)Application.Current.Resources["DefaultButtonStyle"]
+                };
+                btnPanel.Children.Add(selectAllBtn);
+                btnPanel.Children.Add(deselectAllBtn);
+
+                // 游戏列表容器
+                var checkBoxStack = new StackPanel { Spacing = 4 };
+                var scrollViewer = new ScrollViewer
+                {
+                    MaxHeight = 380,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    Content = checkBoxStack
+                };
+
+                // 初始显示所有游戏
+                foreach (var (_, cb) in gameCheckBoxes)
+                    checkBoxStack.Children.Add(cb);
+
+                // 搜索过滤
+                searchBox.TextChanged += (s, args) =>
+                {
+                    var searchText = searchBox.Text?.Trim().ToLower() ?? "";
+                    checkBoxStack.Children.Clear();
+                    foreach (var (game, cb) in gameCheckBoxes)
+                    {
+                        if (string.IsNullOrEmpty(searchText) ||
+                            game.Name.ToLower().Contains(searchText))
+                        {
+                            checkBoxStack.Children.Add(cb);
+                        }
+                    }
+                };
+
+                // 全选
+                selectAllBtn.Click += (s, args) =>
+                {
+                    foreach (var (_, cb) in gameCheckBoxes)
+                        cb.IsChecked = true;
+                };
+
+                // 取消全选
+                deselectAllBtn.Click += (s, args) =>
+                {
+                    foreach (var (_, cb) in gameCheckBoxes)
+                        cb.IsChecked = false;
+                };
+
+                // 空状态
+                var emptyHint = new TextBlock
+                {
+                    Text = "还没有添加任何游戏",
+                    Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+                    Margin = new Microsoft.UI.Xaml.Thickness(0, 16, 0, 0),
+                    Visibility = allGames.Count == 0 ? Visibility.Visible : Visibility.Collapsed
+                };
+
+                var rootStack = new StackPanel();
+                rootStack.Children.Add(searchBox);
+                rootStack.Children.Add(btnPanel);
+                rootStack.Children.Add(scrollViewer);
+                rootStack.Children.Add(emptyHint);
+
+                var dialog = new ContentDialog
+                {
+                    Title = "管理私密游戏",
+                    PrimaryButtonText = "保存",
+                    CloseButtonText = "取消",
+                    DefaultButton = ContentDialogButton.Primary,
+                    XamlRoot = Content.XamlRoot,
+                    Content = rootStack
+                };
+
+                var result = await dialog.ShowAsync();
+
+                if (result == ContentDialogResult.Primary)
+                {
+                    foreach (var (game, checkBox) in gameCheckBoxes)
+                    {
+                        bool newValue = checkBox.IsChecked == true;
+                        if (game.IsPrivate != newValue)
+                        {
+                            game.IsPrivate = newValue;
+                            await _gameService.UpdateGameAsync(game);
+                        }
+                    }
+
+                    _debugLogService.Log("私密游戏标记已更新");
+                    ApplyFilters();
+                    ShowToast("已保存", "私密游戏标记已更新", ToastType.Success);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"管理私密游戏失败: {ex.Message}");
+            }
+            finally
+            {
+                _isDialogOpen = false;
+            }
+        }
+
+        public void RefreshDebugPanel()
+        {
+            if (DebugPanel == null || DebugPanel.Visibility != Visibility.Visible) return;
+
+            try
+            {
+                var stats = _debugLogService.GetDatabaseStats();
+                DebugGamesCount.Text = $"游戏总数: {stats.TotalGames}";
+                DebugPrivateCount.Text = $"私密游戏: {_games.Count(g => g.IsPrivate)}";
+                DebugCollectionsCount.Text = $"收藏夹数: {stats.TotalCollections}";
+                DebugDbSize.Text = $"数据库大小: {stats.DatabaseSize}";
+                DebugMemory.Text = $"内存占用: {FormatMemorySize(Environment.WorkingSet)}";
+                DebugPrivateMode.Text = $"私密模式: {(_privateModeService.IsPrivateMode ? "开启" : "关闭")}";
+                DebugDbPath.Text = $"数据库路径: {stats.DatabasePath}";
+
+                // 最近 5 条日志
+                var recentLogs = _debugLogService.GetRecentLogs(5);
+                DebugRecentLogs.Text = recentLogs.Count > 0
+                    ? string.Join("\n", recentLogs.Select(l => $"[{l.Timestamp:HH:mm:ss}] {l.Message}"))
+                    : "暂无日志";
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"刷新调试面板失败: {ex.Message}");
+            }
+        }
+
+        private static string FormatMemorySize(long bytes)
+        {
+            if (bytes < 1024 * 1024)
+                return $"{bytes / 1024.0:F1} KB";
+            if (bytes < 1024 * 1024 * 1024)
+                return $"{bytes / (1024.0 * 1024.0):F1} MB";
+            return $"{bytes / (1024.0 * 1024.0 * 1024.0):F2} GB";
+        }
+
+        private void ClearDebugLogsButton_Click(object sender, RoutedEventArgs e)
+        {
+            _debugLogService.ClearLogs();
+            DebugRecentLogs.Text = "日志已清除";
+        }
+
+        private async void CopyDebugInfoButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("=== GameLauncher 调试信息 ===");
+                sb.AppendLine($"版本: {_updateChecker.CurrentVersion}");
+                sb.AppendLine($"游戏总数: {_games.Count}");
+                sb.AppendLine($"私密游戏: {_games.Count(g => g.IsPrivate)}");
+                sb.AppendLine($"私密模式: {(_privateModeService.IsPrivateMode ? "开启" : "关闭")}");
+                var stats = _debugLogService.GetDatabaseStats();
+                sb.AppendLine($"收藏夹数: {stats.TotalCollections}");
+                sb.AppendLine($"数据库大小: {stats.DatabaseSize}");
+                sb.AppendLine($"内存占用: {FormatMemorySize(Environment.WorkingSet)}");
+                sb.AppendLine($"数据库路径: {stats.DatabasePath}");
+                sb.AppendLine();
+                sb.AppendLine("--- 最近日志 ---");
+                foreach (var (timestamp, message) in _debugLogService.GetRecentLogs(20))
+                    sb.AppendLine($"[{timestamp:HH:mm:ss}] {message}");
+
+                var dataPackage = new Windows.ApplicationModel.DataTransfer.DataPackage();
+                dataPackage.SetText(sb.ToString());
+                Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dataPackage);
+
+                ShowToast("已复制", "调试信息已复制到剪贴板", ToastType.Success);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"复制调试信息失败: {ex.Message}");
+            }
+        }
+
+        private async void ViewDebugLogsButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var logs = _debugLogService.GetRecentLogs(50);
+
+                var dialog = new ContentDialog
+                {
+                    Title = "调试日志",
+                    CloseButtonText = "关闭",
+                    DefaultButton = ContentDialogButton.Close,
+                    XamlRoot = Content.XamlRoot
+                };
+
+                var scrollViewer = new ScrollViewer
+                {
+                    MaxHeight = 400,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+                };
+
+                var stackPanel = new StackPanel { Spacing = 4 };
+
+                if (logs.Count == 0)
+                {
+                    stackPanel.Children.Add(new TextBlock
+                    {
+                        Text = "暂无日志",
+                        Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
+                    });
+                }
+                else
+                {
+                    foreach (var (timestamp, message) in logs)
+                    {
+                        stackPanel.Children.Add(new TextBlock
+                        {
+                            Text = $"[{timestamp:HH:mm:ss}] {message}",
+                            FontSize = 12,
+                            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
+                            TextWrapping = TextWrapping.Wrap
+                        });
+                    }
+                }
+
+                scrollViewer.Content = stackPanel;
+                dialog.Content = scrollViewer;
+
+                await dialog.ShowAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"查看日志失败: {ex.Message}");
+            }
+        }
+
+        private void UpdateDebugPanelVisibility()
+        {
+            if (DebugPanel != null)
+            {
+                var settings = Models.UserSettings.Instance;
+                DebugPanel.Visibility = settings.DebugModeEnabled ? Visibility.Visible : Visibility.Collapsed;
             }
         }
     }

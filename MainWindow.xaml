@@ -129,20 +129,22 @@
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
-                                            <FontIcon Glyph="&#xE768;" FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <FontIcon Glyph="&#xE768;" FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
                                             <TextBlock x:Name="LaunchCountText"
                                                        Style="{StaticResource CaptionTextBlockStyle}"
                                                        FontSize="11"
+                                                       VerticalAlignment="Center"
                                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                                        Text="{Binding LaunchCount}"/>
                                         </StackPanel>
 
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
-                                            <FontIcon Glyph="&#xE916;" FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <FontIcon Glyph="&#xE916;" FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
                                             <TextBlock x:Name="PlayTimeText"
                                                        Style="{StaticResource CaptionTextBlockStyle}"
                                                        FontSize="11"
+                                                       VerticalAlignment="Center"
                                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                                        Text="{Binding TotalPlayTime}"/>
                                         </StackPanel>
@@ -263,7 +265,7 @@
         <Grid VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="24,16">
             <Button Click="VersionWatermark_Click" Background="Transparent" BorderThickness="0" Padding="8,4" CornerRadius="4">
                 <StackPanel Orientation="Horizontal" Spacing="8" Opacity="0.5">
-                    <TextBlock Text="v3.3.1"
+                    <TextBlock Text="v3.4.0"
                                FontSize="12"
                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                     <TextBlock Text="|"
@@ -383,6 +385,16 @@
                             Style="{StaticResource FrostedDefaultButtonStyle}"
                             ToolTipService.ToolTip="管理收藏夹">
                         <FontIcon Glyph="&#xE8B7;"/>
+                    </Button>
+                    <Button x:Name="ManagePrivateGamesButton"
+                            Click="ManagePrivateGamesButton_Click"
+                            Style="{StaticResource FrostedDefaultButtonStyle}"
+                            Visibility="Collapsed"
+                            ToolTipService.ToolTip="管理私密游戏">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE72E;" FontSize="14"/>
+                            <TextBlock Text="管理私密游戏"/>
+                        </StackPanel>
                     </Button>
                     <Button x:Name="AddGameButton"
                             Click="AddGameButton_Click"
@@ -512,5 +524,86 @@
                 </StackPanel>
             </Border>
         </Grid>
+
+        <!-- Debug Info Panel -->
+        <Border x:Name="DebugPanel"
+                VerticalAlignment="Bottom"
+                HorizontalAlignment="Right"
+                Margin="0,0,20,80"
+                Background="{StaticResource FrostedGlassCardBrush}"
+                BorderBrush="{StaticResource FrostBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12"
+                Visibility="Collapsed"
+                Canvas.ZIndex="10"
+                MaxWidth="340">
+            <StackPanel Spacing="6">
+                <TextBlock Text="调试信息"
+                           Style="{StaticResource SubtitleTextBlockStyle}"
+                           FontSize="14"/>
+                <!-- 统计信息 -->
+                <StackPanel Spacing="3">
+                    <TextBlock x:Name="DebugGamesCount"
+                               Text="游戏总数: -"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock x:Name="DebugPrivateCount"
+                               Text="私密游戏: -"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock x:Name="DebugCollectionsCount"
+                               Text="收藏夹数: -"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock x:Name="DebugDbSize"
+                               Text="数据库大小: -"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock x:Name="DebugMemory"
+                               Text="内存占用: -"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock x:Name="DebugPrivateMode"
+                               Text="私密模式: 关闭"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock x:Name="DebugDbPath"
+                               Text="数据库路径: -"
+                               FontSize="12"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+                <!-- 最近日志 -->
+                <TextBlock x:Name="DebugRecentLogs"
+                           Text=""
+                           FontSize="11"
+                           FontFamily="Consolas"
+                           TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                           MaxHeight="80"/>
+                <!-- 按钮 -->
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Button x:Name="ViewDebugLogsButton"
+                            Click="ViewDebugLogsButton_Click"
+                            Style="{StaticResource FrostedDefaultButtonStyle}"
+                            Padding="6,3">
+                        <TextBlock Text="查看日志" FontSize="11"/>
+                    </Button>
+                    <Button x:Name="ClearDebugLogsButton"
+                            Click="ClearDebugLogsButton_Click"
+                            Style="{StaticResource FrostedDefaultButtonStyle}"
+                            Padding="6,3">
+                        <TextBlock Text="清除日志" FontSize="11"/>
+                    </Button>
+                    <Button x:Name="CopyDebugInfoButton"
+                            Click="CopyDebugInfoButton_Click"
+                            Style="{StaticResource FrostedDefaultButtonStyle}"
+                            Padding="6,3">
+                        <TextBlock Text="复制信息" FontSize="11"/>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

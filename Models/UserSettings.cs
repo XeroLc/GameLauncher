@@ -17,6 +17,14 @@ namespace GameLauncher.Models
         public bool HideUnavailableGames { get; set; } = false;
         public bool AutoScanEnabled { get; set; } = false;
         public List<string> ScanPaths { get; set; } = new List<string>();
+        public List<int> PrivateKeySequence { get; set; } = new List<int>();
+        public bool DebugModeEnabled { get; set; } = false;
+
+        [System.Text.Json.Serialization.JsonIgnore]
+        public bool HasPrivatePassword
+        {
+            get => PrivateKeySequence != null && PrivateKeySequence.Count > 0;
+        }
 
         public static UserSettings Instance
         {
@@ -54,6 +62,10 @@ namespace GameLauncher.Models
                         if (settings.ScanPaths == null)
                         {
                             settings.ScanPaths = new List<string>();
+                        }
+                        if (settings.PrivateKeySequence == null)
+                        {
+                            settings.PrivateKeySequence = new List<int>();
                         }
                         return settings;
                     }

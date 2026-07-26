@@ -82,6 +82,7 @@ namespace GameLauncher.Data
             if (columnMap.ContainsKey("IsRunning")) selectList.Add("IsRunning");
             if (columnMap.ContainsKey("ImagePaths")) selectList.Add("ImagePaths");
             if (columnMap.ContainsKey("Tags")) selectList.Add("Tags");
+            if (columnMap.ContainsKey("IsPrivate")) selectList.Add("IsPrivate");
 
             using var command = connection.CreateCommand();
             command.CommandText = $"SELECT {string.Join(", ", selectList)} FROM Games ORDER BY CreatedAt DESC";
@@ -174,6 +175,13 @@ namespace GameLauncher.Data
                         System.Diagnostics.Debug.WriteLine($"反序列化 Tags 失败: {ex.Message}");
                     }
                 }
+                if (columnMap.ContainsKey("Tags")) idx++;
+
+                if (columnMap.ContainsKey("IsPrivate") && !reader.IsDBNull(idx))
+                {
+                    game.IsPrivate = reader.GetInt32(idx) == 1;
+                }
+                if (columnMap.ContainsKey("IsPrivate")) idx++;
 
                 // 设置.gmd文件路径信息（仅用于备份/锚点标记）
                 try
@@ -285,7 +293,7 @@ namespace GameLauncher.Data
             using var command = connection.CreateCommand();
             command.CommandText = @"
                 SELECT Id, GameId, Name, ExecutablePath, IconPath, Description, CreatedAt,
-                       LaunchCount, TotalPlayTime, LastRunTime, IsRunning, ImagePaths, Tags
+                       LaunchCount, TotalPlayTime, LastRunTime, IsRunning, ImagePaths, Tags, IsPrivate
                 FROM Games
                 WHERE Id = @Id";
             command.Parameters.AddWithValue("@Id", id);
@@ -348,6 +356,8 @@ namespace GameLauncher.Data
                     }
                 }
 
+                game.IsPrivate = !reader.IsDBNull(13) && reader.GetInt32(13) == 1;
+
                 try
                 {
                     var collections = await _collectionRepo.GetCollectionsForGameAsync(game.Id);
@@ -377,8 +387,8 @@ namespace GameLauncher.Data
 
             using var command = connection.CreateCommand();
             command.CommandText = @"
-                INSERT INTO Games (GameId, Name, ExecutablePath, IconPath, Description, CreatedAt, ImagePaths, Tags)
-                VALUES (@GameId, @Name, @ExecutablePath, @IconPath, @Description, @CreatedAt, @ImagePaths, @Tags);
+                INSERT INTO Games (GameId, Name, ExecutablePath, IconPath, Description, CreatedAt, ImagePaths, Tags, IsPrivate)
+                VALUES (@GameId, @Name, @ExecutablePath, @IconPath, @Description, @CreatedAt, @ImagePaths, @Tags, @IsPrivate);
                 SELECT last_insert_rowid();";
 
             command.Parameters.AddWithValue("@GameId", game.GameId ?? (object)DBNull.Value);
@@ -393,6 +403,8 @@ namespace GameLauncher.Data
 
             var tagsJson = SerializeTags(game.Tags);
             command.Parameters.AddWithValue("@Tags", string.IsNullOrEmpty(tagsJson) ? (object)DBNull.Value : tagsJson);
+
+            command.Parameters.AddWithValue("@IsPrivate", game.IsPrivate ? 1 : 0);
 
             var result = await command.ExecuteScalarAsync();
             int gameId = Convert.ToInt32(result);
@@ -433,7 +445,8 @@ namespace GameLauncher.Data
                     LastRunTime = @LastRunTime,
                     IsRunning = @IsRunning,
                     ImagePaths = @ImagePaths,
-                    Tags = @Tags
+                    Tags = @Tags,
+                    IsPrivate = @IsPrivate
                 WHERE Id = @Id";
 
             command.Parameters.AddWithValue("@GameId", game.GameId ?? (object)DBNull.Value);
@@ -445,6 +458,7 @@ namespace GameLauncher.Data
             command.Parameters.AddWithValue("@TotalPlayTime", game.TotalPlayTime);
             command.Parameters.AddWithValue("@LastRunTime", game.LastRunTime ?? (object)DBNull.Value);
             command.Parameters.AddWithValue("@IsRunning", game.IsRunning ? 1 : 0);
+            command.Parameters.AddWithValue("@IsPrivate", game.IsPrivate ? 1 : 0);
             command.Parameters.AddWithValue("@Id", game.Id);
 
             var imagePathsJson = SerializeImagePaths(game.ImagePaths);
