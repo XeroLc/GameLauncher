@@ -179,6 +179,9 @@ namespace GameLauncher.Views
         {
             try
             {
+                // 先关闭设置弹窗，避免嵌套 ContentDialog 导致 COMException
+                this.Hide();
+
                 var confirmDialog = new ContentDialog
                 {
                     Title = "确认导入",
@@ -186,11 +189,15 @@ namespace GameLauncher.Views
                     PrimaryButtonText = "确认导入",
                     CloseButtonText = "取消",
                     DefaultButton = ContentDialogButton.Close,
-                    XamlRoot = this.XamlRoot
+                    XamlRoot = App.MainWindow?.Content?.XamlRoot
                 };
 
                 var result = await confirmDialog.ShowAsync();
-                if (result != ContentDialogResult.Primary) return;
+                if (result != ContentDialogResult.Primary)
+                {
+                    await ReopenSettingsDialog();
+                    return;
+                }
 
                 var fileOpenPicker = new FileOpenPicker();
                 fileOpenPicker.SuggestedStartLocation = PickerLocationId.Desktop;
@@ -199,7 +206,11 @@ namespace GameLauncher.Views
                     WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow));
 
                 var file = await fileOpenPicker.PickSingleFileAsync();
-                if (file == null) return;
+                if (file == null)
+                {
+                    await ReopenSettingsDialog();
+                    return;
+                }
 
                 var service = new DataExportImportService(
                     App.Services.GetRequiredService<DatabaseContext>(),
@@ -212,6 +223,7 @@ namespace GameLauncher.Views
                     {
                         mainWindow.ShowToast("导入失败", "文件格式不正确", ToastType.Error);
                     }
+                    await ReopenSettingsDialog();
                     return;
                 }
 
@@ -220,7 +232,8 @@ namespace GameLauncher.Views
                 {
                     if (App.MainWindow is MainWindow mainWindow)
                     {
-                        mainWindow.ShowToast("导入成功", "数据已成功导入，请重新打开设置以刷新列表", ToastType.Success);
+                        mainWindow.ShowToast("导入成功", "数据已成功导入", ToastType.Success);
+                        await mainWindow.RefreshGameListAsync();
                     }
                 }
                 else
@@ -230,10 +243,12 @@ namespace GameLauncher.Views
                         mainWindow.ShowToast("导入失败", "导入数据时发生错误", ToastType.Error);
                     }
                 }
+                await ReopenSettingsDialog();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"导入数据失败: {ex.Message}");
+                try { await ReopenSettingsDialog(); } catch { }
             }
         }
 

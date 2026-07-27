@@ -400,7 +400,7 @@ namespace GameLauncher
             if (_filteredGames == null || _games == null) return;
 
             // Compute filter hash to detect filter changes
-            var currentFilterHash = $"{SearchBox?.Text ?? ""}|{_selectedTagFilter ?? ""}|{_selectedCollectionFilter ?? ""}|{SortComboBox?.SelectedIndex ?? 0}";
+            var currentFilterHash = $"{SearchBox?.Text ?? ""}|{_selectedTagFilter ?? ""}|{_selectedCollectionFilter ?? ""}|{SortComboBox?.SelectedIndex ?? 0}|{PrivateModeService.Instance.IsPrivateMode}";
 
             if (currentFilterHash != _lastFilterHash)
             {
@@ -621,6 +621,14 @@ namespace GameLauncher
             _currentPage = 1;
             _lastFilterHash = string.Empty; // Force re-apply
             ApplyFilters();
+        }
+
+        /// <summary>
+        /// 从数据库重新加载游戏列表并刷新 UI（用于导入数据后）
+        /// </summary>
+        public async Task RefreshGameListAsync()
+        {
+            await SilentRefreshGamesAsync(forceUiUpdate: true);
         }
 
         private void PageSizeChanged(int newSize)

@@ -39,7 +39,7 @@ namespace GameLauncher.Services
 
     public class GameDataExport
     {
-        public string Version { get; set; } = "3.4.0";
+        public string Version { get; set; } = "3.4.1";
         public DateTime ExportDate { get; set; }
         public int GameCount { get; set; }
         public List<GameExportEntry> Games { get; set; } = new List<GameExportEntry>();
@@ -75,7 +75,7 @@ namespace GameLauncher.Services
                 var games = await _gameRepository.GetAllGamesAsync();
                 var export = new GameDataExport
                 {
-                    Version = "3.4.0",
+                    Version = "3.4.1",
                     ExportDate = DateTime.UtcNow,
                     GameCount = games.Count,
                     Games = games.Select(g => new GameExportEntry
@@ -199,6 +199,9 @@ namespace GameLauncher.Services
                         await delCmd3.ExecuteNonQueryAsync();
                     }
 
+                    // 为每个游戏分配递增的时间戳，保证导入后按时间排序顺序正确
+                    var baseTime = DateTime.UtcNow;
+                    int gameIndex = 0;
                     foreach (var entry in export.Games)
                     {
                         using var insertCmd = connection.CreateCommand();
@@ -224,7 +227,7 @@ namespace GameLauncher.Services
                         insertCmd.Parameters.AddWithValue("@p2", entry.ExecutablePath);
                         insertCmd.Parameters.AddWithValue("@p3", string.IsNullOrEmpty(entry.IconPath) ? (object)DBNull.Value : entry.IconPath);
                         insertCmd.Parameters.AddWithValue("@p4", string.IsNullOrEmpty(entry.Description) ? (object)DBNull.Value : entry.Description);
-                        insertCmd.Parameters.AddWithValue("@p5", DateTime.UtcNow.ToString("o"));
+                        insertCmd.Parameters.AddWithValue("@p5", baseTime.AddSeconds(-gameIndex).ToString("o"));
                         insertCmd.Parameters.AddWithValue("@p6", entry.LaunchCount);
                         insertCmd.Parameters.AddWithValue("@p7", entry.TotalPlayTime);
                         insertCmd.Parameters.AddWithValue("@p8", entry.LastRunTime.HasValue ? entry.LastRunTime.Value.ToString("o") : (object)DBNull.Value);
@@ -234,6 +237,7 @@ namespace GameLauncher.Services
                             insertCmd.Parameters.AddWithValue("@p11", entry.IsPrivate ? 1 : 0);
 
                         await insertCmd.ExecuteNonQueryAsync();
+                        gameIndex++;
                     }
 
                     transaction.Commit();

@@ -64,7 +64,8 @@ namespace GameLauncher.Data
                         IsRunning INTEGER DEFAULT 0,
                         IsFavorite INTEGER DEFAULT 0,
                         ImagePaths TEXT,
-                        Tags TEXT
+                        Tags TEXT,
+                        IsPrivate INTEGER DEFAULT 0
                     );
 
                     CREATE TABLE IF NOT EXISTS GameCollections (

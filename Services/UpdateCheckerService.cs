@@ -10,7 +10,7 @@ namespace GameLauncher.Services
 {
     public class UpdateCheckerConfig
     {
-        public string CurrentVersion { get; set; } = "3.4.0";
+        public string CurrentVersion { get; set; } = "3.4.1";
         public int MaxConsecutiveFailures { get; set; } = 3;
         public string GitHubApiUrl { get; set; } = "https://api.github.com/repos/XeroLc/GameLauncher/releases/latest";
         public string GitHubAtomUrl { get; set; } = "https://github.com/XeroLc/GameLauncher/releases.atom";
