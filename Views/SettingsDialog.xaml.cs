@@ -151,7 +151,8 @@ namespace GameLauncher.Views
                 var service = new DataExportImportService(
                     App.Services.GetRequiredService<DatabaseContext>(),
                     App.Services.GetRequiredService<GameRepository>(),
-                    App.Services.GetRequiredService<ImageService>());
+                    App.Services.GetRequiredService<ImageService>(),
+                    App.Services.GetRequiredService<CollectionRepository>());
 
                 var success = await service.ExportAsync(file.Path);
                 if (success)
@@ -215,7 +216,8 @@ namespace GameLauncher.Views
                 var service = new DataExportImportService(
                     App.Services.GetRequiredService<DatabaseContext>(),
                     App.Services.GetRequiredService<GameRepository>(),
-                    App.Services.GetRequiredService<ImageService>());
+                    App.Services.GetRequiredService<ImageService>(),
+                    App.Services.GetRequiredService<CollectionRepository>());
 
                 if (!service.ValidateImportFile(file.Path))
                 {

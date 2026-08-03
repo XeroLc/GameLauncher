@@ -1,5 +1,6 @@
 using GameLauncher.Data;
 using GameLauncher.Models;
+using System.Collections.ObjectModel;
 using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
@@ -26,6 +27,7 @@ namespace GameLauncher.Services
         public bool IsPrivate { get; set; }
         public string Tags { get; set; } = string.Empty;
         public string ImagePaths { get; set; } = string.Empty;
+        public string CollectionNames { get; set; } = string.Empty;
     }
 
     public class SettingsExport
@@ -43,6 +45,7 @@ namespace GameLauncher.Services
         public DateTime ExportDate { get; set; }
         public int GameCount { get; set; }
         public List<GameExportEntry> Games { get; set; } = new List<GameExportEntry>();
+        public List<string> CollectionNames { get; set; } = new List<string>();
     }
 
     public class DataExportImportService
@@ -50,6 +53,7 @@ namespace GameLauncher.Services
         private readonly DatabaseContext _dbContext;
         private readonly GameRepository _gameRepository;
         private readonly ImageService _imageService;
+        private readonly CollectionRepository _collectionRepo;
 
         private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
         {
@@ -57,11 +61,12 @@ namespace GameLauncher.Services
             PropertyNamingPolicy = null
         };
 
-        public DataExportImportService(DatabaseContext dbContext, GameRepository gameRepository, ImageService imageService)
+        public DataExportImportService(DatabaseContext dbContext, GameRepository gameRepository, ImageService imageService, CollectionRepository collectionRepo)
         {
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
             _gameRepository = gameRepository ?? throw new ArgumentNullException(nameof(gameRepository));
             _imageService = imageService ?? throw new ArgumentNullException(nameof(imageService));
+            _collectionRepo = collectionRepo ?? throw new ArgumentNullException(nameof(collectionRepo));
         }
 
         public async Task<bool> ExportAsync(string filePath)
@@ -75,7 +80,7 @@ namespace GameLauncher.Services
                 var games = await _gameRepository.GetAllGamesAsync();
                 var export = new GameDataExport
                 {
-                    Version = "3.4.1",
+                    Version = "3.4.2",
                     ExportDate = DateTime.UtcNow,
                     GameCount = games.Count,
                     Games = games.Select(g => new GameExportEntry
@@ -90,9 +95,14 @@ namespace GameLauncher.Services
                         LastRunTime = g.LastRunTime,
                         IsPrivate = g.IsPrivate,
                         Tags = SerializeStringList(g.Tags),
-                        ImagePaths = SerializeStringList(g.ImagePaths)
+                        ImagePaths = SerializeStringList(g.ImagePaths),
+                        CollectionNames = SerializeStringList(new ObservableCollection<string>(g.Collections.Select(c => c.Name).ToList()))
                     }).ToList()
                 };
+
+                // 导出收藏夹定义
+                var allCollections = await _collectionRepo.GetAllCollectionsAsync();
+                export.CollectionNames = allCollections.Select(c => c.Name).ToList();
 
                 var dataJson = JsonSerializer.Serialize(export, _jsonOptions);
                 await File.WriteAllTextAsync(Path.Combine(tempDir, "data.json"), dataJson);
@@ -172,8 +182,7 @@ namespace GameLauncher.Services
                     return false;
 
                 // 3. 导入游戏数据到数据库
-                using var connection = _dbContext.GetConnection();
-                await connection.OpenAsync();
+                using var connection = await _dbContext.GetOpenConnectionAsync();
 
                 var hasIsPrivate = await ColumnExistsAsync(connection, "Games", "IsPrivate");
 
@@ -202,6 +211,9 @@ namespace GameLauncher.Services
                     // 为每个游戏分配递增的时间戳，保证导入后按时间排序顺序正确
                     var baseTime = DateTime.UtcNow;
                     int gameIndex = 0;
+                    var gameIdToNewId = new Dictionary<string, int>();
+                    // 跟踪每个条目实际使用的 GameId，用于后续收藏夹关联映射
+                    var entryActualGameIds = new List<string>();
                     foreach (var entry in export.Games)
                     {
                         using var insertCmd = connection.CreateCommand();
@@ -219,9 +231,10 @@ namespace GameLauncher.Services
                         for (int i = 0; i < columns.Count; i++)
                             paramNames.Add($"@p{i}");
 
-                        insertCmd.CommandText = $"INSERT INTO Games ({string.Join(", ", columns)}) VALUES ({string.Join(", ", paramNames)})";
+                        insertCmd.CommandText = $"INSERT INTO Games ({string.Join(", ", columns)}) VALUES ({string.Join(", ", paramNames)}); SELECT last_insert_rowid();";
 
                         var gameId = string.IsNullOrWhiteSpace(entry.GameId) ? GenerateGameId() : entry.GameId;
+                        entryActualGameIds.Add(gameId);
                         insertCmd.Parameters.AddWithValue("@p0", gameId);
                         insertCmd.Parameters.AddWithValue("@p1", entry.Name);
                         insertCmd.Parameters.AddWithValue("@p2", entry.ExecutablePath);
@@ -236,8 +249,62 @@ namespace GameLauncher.Services
                         if (hasIsPrivate)
                             insertCmd.Parameters.AddWithValue("@p11", entry.IsPrivate ? 1 : 0);
 
-                        await insertCmd.ExecuteNonQueryAsync();
+                        var newGameId = Convert.ToInt32(await insertCmd.ExecuteScalarAsync());
+                        gameIdToNewId[gameId] = newGameId;
                         gameIndex++;
+                    }
+
+                    // 恢复收藏夹数据
+                    if (export.CollectionNames != null && export.CollectionNames.Count > 0)
+                    {
+                        // 插入收藏夹定义
+                        var collectionNameToId = new Dictionary<string, int>();
+                        foreach (var colName in export.CollectionNames)
+                        {
+                            using var insertColCmd = connection.CreateCommand();
+                            insertColCmd.Transaction = transaction;
+                            insertColCmd.CommandText = "INSERT OR IGNORE INTO GameCollections (Name, CreatedAt) VALUES (@Name, @CreatedAt)";
+                            insertColCmd.Parameters.AddWithValue("@Name", colName);
+                            insertColCmd.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow);
+                            await insertColCmd.ExecuteNonQueryAsync();
+                        }
+
+                        // 获取所有收藏夹 ID
+                        using var selectColsCmd = connection.CreateCommand();
+                        selectColsCmd.Transaction = transaction;
+                        selectColsCmd.CommandText = "SELECT Id, Name FROM GameCollections";
+                        using var colReader = await selectColsCmd.ExecuteReaderAsync();
+                        while (await colReader.ReadAsync())
+                        {
+                            collectionNameToId[colReader.GetString(1)] = colReader.GetInt32(0);
+                        }
+
+                        // 插入游戏-收藏夹关联
+                        int entryIndex = 0;
+                        foreach (var entry in export.Games)
+                        {
+                            var collectionNames = DeserializeStringList(entry.CollectionNames);
+                            if (collectionNames == null || collectionNames.Count == 0) { entryIndex++; continue; }
+
+                            // 使用插入阶段实际使用的 GameId 进行查找，确保一致性
+                            var actualGameId = entryIndex < entryActualGameIds.Count ? entryActualGameIds[entryIndex] : null;
+                            var gameKey = actualGameId ?? (string.IsNullOrWhiteSpace(entry.GameId) ? GenerateGameId() : entry.GameId);
+                            if (!gameIdToNewId.TryGetValue(gameKey, out var existingGameId))
+                            { entryIndex++; continue; }
+
+                            foreach (var colName in collectionNames)
+                            {
+                                if (!collectionNameToId.TryGetValue(colName, out var colId)) continue;
+
+                                using var insertMapCmd = connection.CreateCommand();
+                                insertMapCmd.Transaction = transaction;
+                                insertMapCmd.CommandText = "INSERT OR IGNORE INTO GameCollectionItems (GameId, CollectionId) VALUES (@GameId, @CollectionId)";
+                                insertMapCmd.Parameters.AddWithValue("@GameId", existingGameId);
+                                insertMapCmd.Parameters.AddWithValue("@CollectionId", colId);
+                                await insertMapCmd.ExecuteNonQueryAsync();
+                            }
+                            entryIndex++;
+                        }
                     }
 
                     transaction.Commit();
@@ -338,6 +405,13 @@ namespace GameLauncher.Services
             if (items == null || items.Count == 0) return string.Empty;
             try { return JsonSerializer.Serialize(items.ToList()); }
             catch { return string.Empty; }
+        }
+
+        private static List<string>? DeserializeStringList(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return null;
+            try { return JsonSerializer.Deserialize<List<string>>(json); }
+            catch { return null; }
         }
 
         private static async Task<bool> ColumnExistsAsync(SqliteConnection connection, string tableName, string columnName)

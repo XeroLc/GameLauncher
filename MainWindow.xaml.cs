@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
@@ -336,6 +336,46 @@ namespace GameLauncher
         {
             try
             {
+                // 强制刷新：直接重新加载所有数据（用于导入/导出等全量数据变更场景）
+                if (forceUiUpdate)
+                {
+                    var games = await _gameService.GetAllGamesAsync();
+                    await _gameService.PopulateGameCollectionsAsync(games);
+
+                    RunOnUi(() =>
+                    {
+                        _games.Clear();
+                        _filteredGames.Clear();
+                        _allTags.Clear();
+
+                        var uniqueTags = new HashSet<string>();
+                        foreach (var game in games)
+                        {
+                            foreach (var tag in game.Tags)
+                                uniqueTags.Add(tag);
+                        }
+                        var sortedTags = uniqueTags.OrderBy(t => t).ToList();
+                        foreach (var tag in sortedTags)
+                            _allTags.Add(tag);
+                        UpdateTagFilterComboBox();
+
+                        foreach (var game in games)
+                        {
+                            _gameImageLoader.LoadIcon(game);
+                            _gameImageLoader.LoadImages(game);
+                            _games.Add(game);
+                            _filteredGames.Add(game);
+                        }
+
+                        ApplyFilters();
+                        _ = RefreshCollectionFilterAsync();
+                        UpdateEmptyState();
+                        UpdateGameCardStatistics();
+                    });
+
+                    return new SyncSummary { HasChanges = true, Description = "强制刷新" };
+                }
+
                 var summary = await _syncService.SyncAsync(
                     existingGames: _games,
                     fetchLatestGames: async () =>
@@ -369,10 +409,12 @@ namespace GameLauncher
                     }
                 );
 
-                if (summary.HasChanges || forceUiUpdate)
+                if (summary.HasChanges)
                 {
                     RunOnUi(() =>
                     {
+                        UpdateTagFilterComboBox();
+                        _ = RefreshCollectionFilterAsync();
                         ApplyFilters();
                         UpdateEmptyState();
                         UpdateGameCardStatistics();
@@ -1347,6 +1389,14 @@ namespace GameLauncher
         {
             var sb = new System.Text.StringBuilder();
             var sep = "----------------------------------";
+            sb.AppendLine("v3.4.2 (2026-08-03)");
+            sb.AppendLine(sep);
+            sb.AppendLine("  Bug 修复");
+            sb.AppendLine("    修复导入数据后标签筛选器残留旧数据的问题");
+            sb.AppendLine("    修复导入数据后收藏夹筛选器没有刷新的问题");
+            sb.AppendLine("    修复数据加载列映射缓存并发访问的线程安全问题");
+            sb.AppendLine("    修复导入数据时未启用外键约束的问题");
+            sb.AppendLine();
             sb.AppendLine("v3.4.1 (2026-07-27)");
             sb.AppendLine(sep);
             sb.AppendLine("  Bug 修复");

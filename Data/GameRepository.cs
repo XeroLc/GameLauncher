@@ -7,6 +7,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GameLauncher.Data
@@ -18,6 +19,7 @@ namespace GameLauncher.Data
         private readonly CollectionRepository _collectionRepo;
         private readonly ImageService _imageService;
         private Dictionary<string, int>? _cachedColumnMap;
+        private readonly SemaphoreSlim _columnMapLock = new(1, 1);
 
         public GameRepository(DatabaseContext context, GmdFileService gmdService, CollectionRepository collectionRepo, ImageService imageService)
         {
@@ -241,18 +243,38 @@ namespace GameLauncher.Data
             if (_cachedColumnMap != null)
                 return _cachedColumnMap;
 
-            var columnMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            using var pragmaCommand = connection.CreateCommand();
-            pragmaCommand.CommandText = "PRAGMA table_info(Games)";
-            using var pragmaReader = await pragmaCommand.ExecuteReaderAsync();
-            while (await pragmaReader.ReadAsync())
+            await _columnMapLock.WaitAsync();
+            try
             {
-                var colName = pragmaReader.GetString(1);
-                if (!columnMap.ContainsKey(colName))
-                    columnMap[colName] = pragmaReader.GetInt32(0);
+                // 双重检查锁定
+                if (_cachedColumnMap != null)
+                    return _cachedColumnMap;
+
+                var columnMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                using var pragmaCommand = connection.CreateCommand();
+                pragmaCommand.CommandText = "PRAGMA table_info(Games)";
+                using var pragmaReader = await pragmaCommand.ExecuteReaderAsync();
+                while (await pragmaReader.ReadAsync())
+                {
+                    var colName = pragmaReader.GetString(1);
+                    if (!columnMap.ContainsKey(colName))
+                        columnMap[colName] = pragmaReader.GetInt32(0);
+                }
+                _cachedColumnMap = columnMap;
+                return columnMap;
             }
-            _cachedColumnMap = columnMap;
-            return columnMap;
+            finally
+            {
+                _columnMapLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// 使列映射缓存失效，下次查询时重新加载（用于数据库结构变更场景）
+        /// </summary>
+        public void InvalidateColumnMapCache()
+        {
+            _cachedColumnMap = null;
         }
 
         private async Task<List<Game>> GetAllGamesFallbackAsync()
