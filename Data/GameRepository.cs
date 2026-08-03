@@ -269,14 +269,6 @@ namespace GameLauncher.Data
             }
         }
 
-        /// <summary>
-        /// 使列映射缓存失效，下次查询时重新加载（用于数据库结构变更场景）
-        /// </summary>
-        public void InvalidateColumnMapCache()
-        {
-            _cachedColumnMap = null;
-        }
-
         private async Task<List<Game>> GetAllGamesFallbackAsync()
         {
             var games = new List<Game>();
@@ -305,6 +297,29 @@ namespace GameLauncher.Data
             }
 
             return games;
+        }
+
+        /// <summary>
+        /// 轻量结算游戏时长：单语句原子更新，避免全字段 UPDATE + 全量重建 .gmd 文件
+        /// </summary>
+        public async Task<bool> UpdateGamePlayTimeAsync(int gameId, long delta)
+        {
+            using var connection = _context.GetConnection();
+            await connection.OpenAsync();
+
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+                UPDATE Games
+                SET TotalPlayTime = TotalPlayTime + @Delta,
+                    IsRunning = 0,
+                    LastRunTime = @LastRunTime
+                WHERE Id = @Id";
+            command.Parameters.AddWithValue("@Delta", delta);
+            command.Parameters.AddWithValue("@LastRunTime", DateTime.UtcNow);
+            command.Parameters.AddWithValue("@Id", gameId);
+
+            int rowsAffected = await command.ExecuteNonQueryAsync();
+            return rowsAffected > 0;
         }
 
         public async Task<Game?> GetGameByIdAsync(int id)
@@ -692,24 +707,6 @@ namespace GameLauncher.Data
             return result != null && Convert.ToInt64(result) > 0;
         }
 
-        public async Task<Game?> GetGameByGameIdAsync(string gameId)
-        {
-            using var connection = _context.GetConnection();
-            await connection.OpenAsync();
-
-            using var command = connection.CreateCommand();
-            command.CommandText = "SELECT Id FROM Games WHERE GameId = @GameId";
-            command.Parameters.AddWithValue("@GameId", gameId);
-
-            var result = await command.ExecuteScalarAsync();
-            if (result != null)
-            {
-                int id = Convert.ToInt32(result);
-                return await GetGameByIdAsync(id);
-            }
-
-            return null;
-        }
         private string GenerateUniqueGameId(Microsoft.Data.Sqlite.SqliteConnection connection)
         {
             const int maxRetries = 10;

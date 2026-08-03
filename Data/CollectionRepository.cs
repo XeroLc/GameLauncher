@@ -250,38 +250,6 @@ namespace GameLauncher.Data
             }
         }
 
-        public async Task<List<int>> GetGameIdsForCollectionAsync(int collectionId)
-        {
-            try
-            {
-                var gameIds = new List<int>();
-
-                using var connection = _context.GetConnection();
-                await connection.OpenAsync();
-
-                using var command = connection.CreateCommand();
-                command.CommandText = @"
-                    SELECT GameId
-                    FROM GameCollectionItems
-                    WHERE CollectionId = @CollectionId";
-
-                command.Parameters.AddWithValue("@CollectionId", collectionId);
-
-                using var reader = await command.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    gameIds.Add(reader.GetInt32(0));
-                }
-
-                return gameIds;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"GetGameIdsForCollectionAsync 失败: {ex.Message}");
-                return new List<int>();
-            }
-        }
-
         public async Task<int> GetCollectionGameCountAsync(int collectionId)
         {
             try

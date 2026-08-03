@@ -68,19 +68,9 @@ namespace GameLauncher.Services
         public List<SyncSummary> SyncHistory { get; } = new();
         private const int MaxSyncHistoryCount = 50;
 
-        private readonly List<Func<Game, Game, List<string>>> _customComparers = new();
-
         public DataSyncService(DatabaseContext dbContext)
         {
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-        }
-
-        /// <summary>
-        /// 注册自定义字段对比规则
-        /// </summary>
-        public void RegisterCustomComparer(Func<Game, Game, List<string>> comparer)
-        {
-            _customComparers.Add(comparer);
         }
 
         /// <summary>
@@ -203,15 +193,6 @@ namespace GameLauncher.Services
 
             if (!AreGameCollectionsEqual(existing.Collections, latest.Collections))
                 changedFields.Add(nameof(Game.Collections));
-
-            foreach (var comparer in _customComparers)
-            {
-                var customChanges = comparer(existing, latest);
-                if (customChanges != null)
-                {
-                    changedFields.AddRange(customChanges);
-                }
-            }
 
             return changedFields;
         }

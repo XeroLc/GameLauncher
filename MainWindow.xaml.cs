@@ -44,6 +44,7 @@ namespace GameLauncher
         private bool _isNavBarScrolled = false;
         private bool _isFirstActivation = true;
         private volatile int _isActivatedHandling = 0;
+        private DateTime _lastRefreshTime = DateTime.MinValue;
         private readonly SolidColorBrush _hoverBorderBrush = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(80, 255, 255, 255));
         private readonly UpdateCheckerService _updateChecker;
         private readonly ImageService _imageService;
@@ -74,7 +75,7 @@ namespace GameLauncher
             _imageService = App.Services.GetRequiredService<ImageService>();
             _gmdService = App.Services.GetRequiredService<GmdFileService>();
             _gameImageLoader = App.Services.GetRequiredService<GameImageLoader>();
-            _debugLogService = new DebugLogService(_dbContext);
+            _debugLogService = App.Services.GetRequiredService<DebugLogService>();
             _privateModeService = PrivateModeService.Instance;
             _privateModeService.PropertyChanged += OnPrivateModeChanged;
 
@@ -208,20 +209,24 @@ namespace GameLauncher
         {
             _isClosing = true;
             _statusCheckTimer?.Stop();
-            
+
             var gamesToClose = _runningGames.ToList();
             _runningGames.Clear();
-            
+
+            // 并行结算运行中的游戏时长（每个任务独立容错，失败不影响托盘释放）
+            var settleTasks = new List<System.Threading.Tasks.Task>();
             foreach (var kvp in gamesToClose)
             {
                 var gameId = kvp.Key;
                 var game = _games.FirstOrDefault(g => g.Id == gameId);
-                if (game != null)
+                if (game == null) continue;
+
+                var runTime = (long)(DateTime.UtcNow - kvp.Value).TotalSeconds;
+                game.TotalPlayTime += runTime;
+                game.IsRunning = false;
+
+                settleTasks.Add(System.Threading.Tasks.Task.Run(async () =>
                 {
-                    var runTime = (long)(DateTime.UtcNow - kvp.Value).TotalSeconds;
-                    game.TotalPlayTime += runTime;
-                    game.IsRunning = false;
-                    
                     try
                     {
                         await _gameService.UpdateGamePlayTimeAsync(gameId, runTime);
@@ -230,9 +235,14 @@ namespace GameLauncher
                     {
                         System.Diagnostics.Debug.WriteLine($"关闭窗口时更新游戏时长失败: {ex.Message}");
                     }
-                }
+                }));
             }
-            
+
+            if (settleTasks.Count > 0)
+            {
+                await System.Threading.Tasks.Task.WhenAll(settleTasks);
+            }
+
             _trayService?.Dispose();
         }
 
@@ -245,6 +255,12 @@ namespace GameLauncher
 
             try
             {
+                // 非首次激活节流：10 秒内已有刷新则跳过，避免切换窗口时反复全量重载
+                if (!_isFirstActivation && (DateTime.UtcNow - _lastRefreshTime) < TimeSpan.FromSeconds(10))
+                {
+                    return;
+                }
+
                 await System.Threading.Tasks.Task.Delay(100);
 
                 try
@@ -373,6 +389,7 @@ namespace GameLauncher
                         UpdateGameCardStatistics();
                     });
 
+                    _lastRefreshTime = DateTime.UtcNow;
                     return new SyncSummary { HasChanges = true, Description = "强制刷新" };
                 }
 
@@ -420,6 +437,8 @@ namespace GameLauncher
                         UpdateGameCardStatistics();
                     });
                 }
+
+                _lastRefreshTime = DateTime.UtcNow;
 
                 return summary;
             }
@@ -559,15 +578,16 @@ namespace GameLauncher
                 var dispatcher = DispatcherQueue;
                 _ = Task.Run(() =>
                 {
-                    foreach (var game in games)
+                    // 合并为单次 UI 调度，避免每个游戏独立入队回调
+                    var gamesToLoad = games.ToList();
+                    dispatcher.TryEnqueue(() =>
                     {
-                        var capturedGame = game;
-                        dispatcher.TryEnqueue(() =>
+                        foreach (var game in gamesToLoad)
                         {
-                            try { _gameImageLoader.LoadIcon(capturedGame); }
+                            try { _gameImageLoader.LoadIcon(game); }
                             catch { }
-                        });
-                    }
+                        }
+                    });
                 });
 
                 _ = Task.Run(async () =>
@@ -1389,6 +1409,17 @@ namespace GameLauncher
         {
             var sb = new System.Text.StringBuilder();
             var sep = "----------------------------------";
+            sb.AppendLine("v3.4.3 (2026-08-03)");
+            sb.AppendLine(sep);
+            sb.AppendLine("  性能优化");
+            sb.AppendLine("    窗口激活刷新节流，避免切换窗口反复全量重载");
+            sb.AppendLine("    无游戏运行时跳过每 5 秒的系统进程枚举");
+            sb.AppendLine("    游戏时长结算改为轻量原子更新，不再重建 .gmd 文件");
+            sb.AppendLine("    图标加载合并为单次调度，降低启动 UI 压力");
+            sb.AppendLine("  Bug 修复与安全");
+            sb.AppendLine("    修复 .gmd/.gldata 解压路径校验缺失的安全隐患");
+            sb.AppendLine("    未处理异常写入 crash_log.txt 日志文件");
+            sb.AppendLine();
             sb.AppendLine("v3.4.2 (2026-08-03)");
             sb.AppendLine(sep);
             sb.AppendLine("  Bug 修复");
@@ -1938,25 +1969,6 @@ namespace GameLauncher
             menuFlyout.Items.Add(deleteItem);
 
             menuFlyout.ShowAt(target);
-        }
-
-        private DataTemplate CreateGameListItemTemplate()
-        {
-            var xaml = @"
-<DataTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'>
-    <StackPanel Orientation='Horizontal' Spacing='12'>
-        <Image Source='{Binding IconSource}' Width='32' Height='32' Stretch='Uniform'/>
-        <StackPanel>
-            <TextBlock Text='{Binding Name}' FontWeight='SemiBold'/>
-            <TextBlock Text='{Binding ExecutablePath}'
-                       FontSize='12'
-                       Foreground='Gray'
-                       TextTrimming='CharacterEllipsis'
-                       MaxWidth='350'/>
-        </StackPanel>
-    </StackPanel>
-</DataTemplate>";
-            return (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(xaml);
         }
 
         private void MainWindow_KeyDown(object sender, KeyRoutedEventArgs e)

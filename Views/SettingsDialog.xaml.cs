@@ -148,11 +148,7 @@ namespace GameLauncher.Views
                 var file = await fileSavePicker.PickSaveFileAsync();
                 if (file == null) return;
 
-                var service = new DataExportImportService(
-                    App.Services.GetRequiredService<DatabaseContext>(),
-                    App.Services.GetRequiredService<GameRepository>(),
-                    App.Services.GetRequiredService<ImageService>(),
-                    App.Services.GetRequiredService<CollectionRepository>());
+                var service = App.Services.GetRequiredService<DataExportImportService>();
 
                 var success = await service.ExportAsync(file.Path);
                 if (success)
@@ -213,11 +209,7 @@ namespace GameLauncher.Views
                     return;
                 }
 
-                var service = new DataExportImportService(
-                    App.Services.GetRequiredService<DatabaseContext>(),
-                    App.Services.GetRequiredService<GameRepository>(),
-                    App.Services.GetRequiredService<ImageService>(),
-                    App.Services.GetRequiredService<CollectionRepository>());
+                var service = App.Services.GetRequiredService<DataExportImportService>();
 
                 if (!service.ValidateImportFile(file.Path))
                 {

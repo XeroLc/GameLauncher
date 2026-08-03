@@ -11,6 +11,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -215,7 +216,7 @@ namespace GameLauncher.Views
                 if (file == null) return;
 
                 // 从 .gmd 文件加载游戏数据（图片已通过 ImageService 保存到全局目录）
-                var gmdService = new Services.GmdFileService();
+                var gmdService = App.Services.GetRequiredService<Services.GmdFileService>();
                 _importedGame = await gmdService.DeserializeGameFromGmdAsync(file.Path);
                 _gmdImportPath = file.Path;
 
@@ -229,56 +230,6 @@ namespace GameLauncher.Views
                 {
                     Title = "添加失败",
                     Content = $"无法从GMD文件添加游戏：{ex.Message}",
-                    CloseButtonText = "确定",
-                    XamlRoot = XamlRoot,
-                    Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]
-                };
-                await errorDialog.ShowAsync();
-            }
-        }
-
-        private async Task LoadFromGmdFileAsync(string gmdFilePath)
-        {
-            try
-            {
-                var gmdService = new Services.GmdFileService();
-                var game = await gmdService.DeserializeGameFromGmdAsync(gmdFilePath);
-
-                if (!string.IsNullOrEmpty(game.Name))
-                    GameNameTextBox.Text = game.Name;
-
-                if (!string.IsNullOrEmpty(game.ExecutablePath))
-                    ExecutablePathTextBox.Text = game.ExecutablePath;
-
-                if (!string.IsNullOrEmpty(game.IconPath))
-                {
-                    _iconPath = game.IconPath;
-                    UpdateIconButtonText();
-                }
-
-                if (!string.IsNullOrEmpty(game.Description))
-                    DescriptionTextBox.Text = game.Description;
-
-                _imagePaths.Clear();
-                foreach (var imagePath in game.ImagePaths)
-                {
-                    _imagePaths.Add(imagePath);
-                }
-                LoadImages();
-
-                foreach (var tag in game.Tags)
-                {
-                    if (!_tags.Contains(tag))
-                        _tags.Add(tag);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"从.gmd文件加载失败: {ex.Message}");
-                var errorDialog = new ContentDialog
-                {
-                    Title = "提示",
-                    Content = $"无法解析.gmd文件：{ex.Message}\n\n您可以手动填写游戏信息。",
                     CloseButtonText = "确定",
                     XamlRoot = XamlRoot,
                     Style = (Style)App.Current.Resources["DefaultContentDialogStyle"]

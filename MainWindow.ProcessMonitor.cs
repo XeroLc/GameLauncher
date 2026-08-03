@@ -47,8 +47,8 @@ namespace GameLauncher
                 return;
             }
 
-            bool hadRunningGames = _runningGames.Count > 0;
-
+            // 收养：把内存中标记为运行但尚未监控的游戏加入监控
+            // （数据库 IsRunning=1 的唯一补救途径，必须在早退判断之前执行）
             foreach (var game in _games.Where(g => g.IsRunning))
             {
                 if (!_runningGames.ContainsKey(game.Id))
@@ -56,6 +56,14 @@ namespace GameLauncher
                     _runningGames[game.Id] = DateTime.UtcNow;
                 }
             }
+
+            // 无运行中的游戏时跳过进程枚举与结算，避免每 5 秒全量枚举系统进程
+            if (_runningGames.Count == 0)
+            {
+                return;
+            }
+
+            bool hadRunningGames = _runningGames.Count > 0;
 
             HashSet<string> runningProcessNames;
             try
@@ -82,11 +90,11 @@ namespace GameLauncher
                 if (!isRunning)
                 {
                     var runTime = (long)(DateTime.UtcNow - kvp.Value).TotalSeconds;
-                    
+
                     _ = _gameService.UpdateGamePlayTimeAsync(gameId, runTime);
-                    
+
                     _runningGames.TryRemove(gameId, out _);
-                    
+
                     if (!_isClosing)
                     {
                         RunOnUi(() =>

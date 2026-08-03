@@ -261,20 +261,6 @@ namespace GameLauncher.Views
             Hide();
         }
 
-        private void OnGameDataChanged()
-        {
-            if (GameNameText != null)
-                GameNameText.Text = _game.Name;
-            if (GameIcon != null)
-                GameIcon.Source = _game.IconSource;
-            if (DescriptionText != null)
-                DescriptionText.Text = _game.Description ?? "暂无描述";
-            if (TagsItemsControl != null)
-                TagsItemsControl.ItemsSource = _game.Tags;
-            if (PreviewImagesItemsControl != null)
-                PreviewImagesItemsControl.ItemsSource = _game.ImageSources;
-        }
-
         private void OpenPathButton_Click(object sender, RoutedEventArgs e)
         {
             if (_game == null || string.IsNullOrEmpty(_game.ExecutablePath))

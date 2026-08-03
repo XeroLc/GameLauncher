@@ -599,6 +599,16 @@ namespace GameLauncher.Services
             try
             {
                 var targetPath = Path.Combine(tempDir, relativePath.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar));
+
+                // 防 ZipSlip：条目名含 ../ 等逃逸路径时跳过，避免越界写盘
+                var fullTempDir = Path.GetFullPath(tempDir);
+                var fullTarget = Path.GetFullPath(targetPath);
+                if (!fullTarget.StartsWith(fullTempDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                {
+                    Debug.WriteLine($"[GmdFileService] 跳过不安全条目: {entry.FullName}");
+                    return null;
+                }
+
                 var targetDir = Path.GetDirectoryName(targetPath);
 
                 if (!string.IsNullOrEmpty(targetDir) && !Directory.Exists(targetDir))

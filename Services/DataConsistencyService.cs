@@ -352,20 +352,6 @@ namespace GameLauncher.Services
             }
         }
 
-        private void CompareBooleanField(bool dbValue, bool gmdValue, string fieldName, List<ConsistencyConflictField> conflicts)
-        {
-            if (dbValue != gmdValue)
-            {
-                conflicts.Add(new ConsistencyConflictField
-                {
-                    FieldName = fieldName,
-                    DatabaseValue = dbValue.ToString(),
-                    GmdFileValue = gmdValue.ToString(),
-                    ConflictType = "布尔值差异"
-                });
-            }
-        }
-
         private void CompareDateTimeField(DateTime? dbValue, DateTime? gmdValue, string fieldName, List<ConsistencyConflictField> conflicts)
         {
             if (dbValue != gmdValue)

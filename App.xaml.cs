@@ -80,7 +80,57 @@ namespace GameLauncher
                 System.Diagnostics.Debug.WriteLine($"内部异常堆栈: {e.Exception.InnerException.StackTrace}");
             }
 
+            LogCrashToFile(e.Exception);
+
             e.Handled = true; // 阻止应用程序崩溃
+        }
+
+        private static void LogCrashToFile(Exception exception)
+        {
+            try
+            {
+                var dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GameLauncher");
+                if (!System.IO.Directory.Exists(dir))
+                    System.IO.Directory.CreateDirectory(dir);
+
+                var logPath = System.IO.Path.Combine(dir, "crash_log.txt");
+
+                // 简单轮转：超过 1MB 时改名保留旧日志
+                var fileInfo = new System.IO.FileInfo(logPath);
+                if (fileInfo.Exists && fileInfo.Length > 1024 * 1024)
+                {
+                    try
+                    {
+                        var oldPath = System.IO.Path.Combine(dir, "crash_log.old.txt");
+                        if (System.IO.File.Exists(oldPath))
+                            System.IO.File.Delete(oldPath);
+                        System.IO.File.Move(logPath, oldPath);
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"=== {DateTime.Now:yyyy-MM-dd HH:mm:ss} ===");
+                sb.AppendLine($"版本: {GameLauncher.Services.AppInfo.Version}");
+                sb.AppendLine($"操作系统: {Environment.OSVersion}");
+                sb.AppendLine($"类型: {exception.GetType().FullName}");
+                sb.AppendLine($"消息: {exception.Message}");
+                sb.AppendLine($"堆栈: {exception.StackTrace}");
+                if (exception.InnerException != null)
+                {
+                    sb.AppendLine($"内部异常: {exception.InnerException.Message}");
+                    sb.AppendLine($"内部异常堆栈: {exception.InnerException.StackTrace}");
+                }
+                sb.AppendLine();
+
+                System.IO.File.AppendAllText(logPath, sb.ToString());
+            }
+            catch
+            {
+                // 日志写入失败不影响程序继续运行
+            }
         }
 
         /// <summary>

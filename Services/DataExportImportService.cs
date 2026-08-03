@@ -41,7 +41,7 @@ namespace GameLauncher.Services
 
     public class GameDataExport
     {
-        public string Version { get; set; } = "3.4.1";
+        public string Version { get; set; } = AppInfo.Version;
         public DateTime ExportDate { get; set; }
         public int GameCount { get; set; }
         public List<GameExportEntry> Games { get; set; } = new List<GameExportEntry>();
@@ -80,7 +80,7 @@ namespace GameLauncher.Services
                 var games = await _gameRepository.GetAllGamesAsync();
                 var export = new GameDataExport
                 {
-                    Version = "3.4.2",
+                    Version = AppInfo.Version,
                     ExportDate = DateTime.UtcNow,
                     GameCount = games.Count,
                     Games = games.Select(g => new GameExportEntry
@@ -167,8 +167,9 @@ namespace GameLauncher.Services
                 if (!File.Exists(filePath))
                     return false;
 
-                // 1. 解压 ZIP
-                ZipFile.ExtractToDirectory(filePath, tempDir);
+                // 1. 解压 ZIP（逐条目校验路径，防 ZipSlip）
+                if (!TryExtractArchiveSafely(filePath, tempDir))
+                    return false;
 
                 // 2. 读取游戏数据
                 var dataJsonPath = Path.Combine(tempDir, "data.json");
@@ -396,6 +397,41 @@ namespace GameLauncher.Services
             }
             catch
             {
+                return false;
+            }
+        }
+
+        private static bool TryExtractArchiveSafely(string zipPath, string destDir)
+        {
+            var fullDestDir = Path.GetFullPath(destDir);
+            try
+            {
+                using var zip = ZipFile.OpenRead(zipPath);
+                foreach (var entry in zip.Entries)
+                {
+                    if (entry.FullName.EndsWith("/") || entry.FullName.EndsWith("\\"))
+                        continue;
+
+                    var targetPath = Path.GetFullPath(Path.Combine(destDir, entry.FullName.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar)));
+
+                    // 防 ZipSlip：条目名含 ..\ 等逃逸路径时跳过该条目，不影响其余合法条目
+                    if (!targetPath.StartsWith(fullDestDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Debug.WriteLine($"DataExportImportService: 跳过不安全条目: {entry.FullName}");
+                        continue;
+                    }
+
+                    var targetDir = Path.GetDirectoryName(targetPath);
+                    if (!string.IsNullOrEmpty(targetDir) && !Directory.Exists(targetDir))
+                        Directory.CreateDirectory(targetDir);
+
+                    entry.ExtractToFile(targetPath, overwrite: true);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"DataExportImportService.TryExtractArchiveSafely failed: {ex.Message}");
                 return false;
             }
         }

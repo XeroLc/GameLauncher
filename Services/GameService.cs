@@ -277,37 +277,26 @@ namespace GameLauncher.Services
             }
         }
 
-        public async Task<bool> UpdateGamePlayTimeAsync(int gameId, long additionalTime)
+        public async Task<bool> UpdateGamePlayTimeAsync(int gameId, long delta)
         {
-            var game = await _repository.GetGameByIdAsync(gameId);
-            if (game == null)
+            try
             {
+                var result = await _repository.UpdateGamePlayTimeAsync(gameId, delta);
+
+                // 同步 .gmd 元数据（仅重写 metadata.json，不重建整个 zip），
+                // 保证 DB 与 GMD 的 LastRunTime/时长一致，避免下次启动触发一致性冲突刷新
+                if (result)
+                {
+                    _ = SyncGmdAsync(gameId);
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"结算游戏时长失败: {ex.Message}");
                 return false;
             }
-
-            game.TotalPlayTime += additionalTime;
-            game.IsRunning = false;
-
-            EnsureGmdFilePath(game);
-
-            var result = await _repository.UpdateGameAsync(game);
-            return result;
-        }
-
-        public async Task<bool> UpdateGameRunningStatusAsync(int gameId, bool isRunning)
-        {
-            var game = await _repository.GetGameByIdAsync(gameId);
-            if (game == null)
-            {
-                return false;
-            }
-
-            game.IsRunning = isRunning;
-
-            EnsureGmdFilePath(game);
-
-            var result = await _repository.UpdateGameAsync(game);
-            return result;
         }
 
         public async Task<bool> StopGameAsync(Game game, DateTime? startTime = null)
@@ -413,11 +402,6 @@ namespace GameLauncher.Services
         public async Task<List<GameCollection>> GetCollectionsForGameAsync(int gameId)
         {
             return await _collectionRepo.GetCollectionsForGameAsync(gameId);
-        }
-
-        public async Task<int> GetCollectionGameCountAsync(int collectionId)
-        {
-            return await _collectionRepo.GetCollectionGameCountAsync(collectionId);
         }
 
         public async Task<Dictionary<int, int>> GetCollectionGameCountsAsync()

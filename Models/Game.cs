@@ -211,31 +211,6 @@ namespace GameLauncher.Models
             }
         }
 
-        public bool IsInCollection(int collectionId)
-        {
-            return _collections.Any(c => c.Id == collectionId);
-        }
-
-        public void AddToCollection(GameCollection collection)
-        {
-            if (collection != null && !_collections.Any(c => c.Id == collection.Id))
-            {
-                _collections.Add(collection);
-            }
-        }
-
-        public void RemoveFromCollection(GameCollection collection)
-        {
-            if (collection != null)
-            {
-                var existing = _collections.FirstOrDefault(c => c.Id == collection.Id);
-                if (existing != null)
-                {
-                    _collections.Remove(existing);
-                }
-            }
-        }
-
         public bool IsGmdFileReady
         {
             get => _isGmdFileReady;

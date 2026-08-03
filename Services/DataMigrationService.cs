@@ -201,60 +201,6 @@ namespace GameLauncher.Services
             return status;
         }
 
-        public async Task<MigrationStatus> GetMigrationStatusAsync(IEnumerable<Game> games)
-        {
-            if (games == null)
-                throw new ArgumentNullException(nameof(games));
-
-            var gamesList = games.ToList();
-            var status = new MigrationStatus
-            {
-                TotalGames = gamesList.Count
-            };
-
-            foreach (var game in gamesList)
-            {
-                if (game == null)
-                    continue;
-
-                var detail = new MigrationDetail
-                {
-                    GameId = game.Id,
-                    GameName = game.Name ?? string.Empty,
-                    Timestamp = DateTime.Now
-                };
-
-                if (string.IsNullOrWhiteSpace(game.ExecutablePath) || string.IsNullOrWhiteSpace(game.Name) || string.IsNullOrWhiteSpace(game.GameId))
-                {
-                    detail.Result = MigrationResult.Failed;
-                    detail.Message = "游戏数据无效";
-                    status.FailedGames++;
-                }
-                else
-                {
-                    var gmdFilePath = _gmdFileService.GetGmdFilePath(game.ExecutablePath, game.GameId);
-                    if (_gmdFileService.GmdFileExists(gmdFilePath))
-                    {
-                        detail.Result = MigrationResult.Success;
-                        detail.Message = "已迁移";
-                        status.MigratedGames++;
-                    }
-                    else
-                    {
-                        detail.Result = MigrationResult.Pending;
-                        detail.Message = "待迁移";
-                        status.PendingGames++;
-                    }
-                }
-
-                status.MigrationDetails.Add(detail);
-            }
-
-            Debug.WriteLine($"[DataMigrationService] 迁移状态查询: 总计 {status.TotalGames} 个游戏, 已迁移 {status.MigratedGames} 个, 待迁移 {status.PendingGames} 个, 失败 {status.FailedGames} 个");
-
-            return await Task.FromResult(status);
-        }
-
         private bool ValidateGameData(Game game)
         {
             if (string.IsNullOrWhiteSpace(game.ExecutablePath))
