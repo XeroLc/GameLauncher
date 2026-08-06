@@ -1,0 +1,17 @@
+name: Sync Release Assets to Gitee
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  sync-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync Release to Gitee
+        uses: ffishh/release-sync@v1[reference:12][reference:13]
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}  # GitHub 默认提供的 token
+          gitee_token: ${{ secrets.GITEE_TOKEN }}
+          # 如果只同步特定文件，可以取消下面注释并指定
+          # asset_names: "my-app-linux.zip,my-app-mac.zip" 
