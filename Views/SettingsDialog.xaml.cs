@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.Storage;
@@ -19,11 +20,18 @@ namespace GameLauncher.Views
     {
         private ObservableCollection<string> _scanPaths;
         private bool _isLoaded;
+        private bool _syncUiLoaded;
+        private readonly IncrementalSyncService _syncService;
 
         public SettingsDialog()
         {
             this.InitializeComponent();
+            _syncService = App.Services.GetRequiredService<IncrementalSyncService>();
+            _syncService.ProgressChanged += OnSyncProgressChanged;
+            _syncService.SyncCompleted += OnSyncCompleted;
+            Closed += OnSettingsDialogClosed;
             LoadSettings();
+            LoadSyncSettings();
         }
 
         private void LoadSettings()
@@ -132,6 +140,271 @@ namespace GameLauncher.Views
             var settings = UserSettings.Instance;
             settings.DebugModeEnabled = DebugModeToggle.IsOn;
             settings.Save();
+        }
+
+        private void LoadSyncSettings()
+        {
+            var settings = UserSettings.Instance;
+
+            CloudSyncToggle.IsOn = settings.CloudSyncEnabled;
+            SyncBackendCombo.SelectedIndex =
+                string.Equals(settings.CloudSyncBackend, "CloudflareR2", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+            SyncFolderPathBox.Text = settings.SyncFolderPath;
+            R2EndpointBox.Text = settings.R2Endpoint;
+            R2BucketBox.Text = settings.R2Bucket;
+            R2AccessKeyIdBox.Text = settings.R2AccessKeyId;
+            if (!string.IsNullOrEmpty(settings.R2SecretAccessKey) &&
+                !settings.R2SecretAccessKey.StartsWith("DPAPI:", StringComparison.Ordinal))
+            {
+                // 旧版明文密钥自动升级为 DPAPI 加密存储
+                settings.R2SecretAccessKey = SecretProtector.Encrypt(settings.R2SecretAccessKey);
+                settings.Save();
+            }
+            R2SecretBox.Password = SecretProtector.Decrypt(settings.R2SecretAccessKey);
+            SyncDirectionCombo.SelectedIndex = settings.CloudSyncDirection switch
+            {
+                "UploadOnly" => 1,
+                "DownloadOnly" => 2,
+                _ => 0
+            };
+            SyncIntervalCombo.SelectedIndex = settings.CloudSyncIntervalMinutes switch
+            {
+                5 => 1,
+                15 => 2,
+                30 => 3,
+                60 => 4,
+                _ => 0
+            };
+
+            _syncUiLoaded = true;
+            UpdateCloudSyncPanels();
+            UpdateSyncStatus();
+        }
+
+        private void CloudSyncToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (!_syncUiLoaded) return;
+            var settings = UserSettings.Instance;
+            settings.CloudSyncEnabled = CloudSyncToggle.IsOn;
+            settings.Save();
+            UpdateCloudSyncPanels();
+            _syncService.RestartTimer();
+        }
+
+        private void SyncCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_syncUiLoaded) return;
+            var settings = UserSettings.Instance;
+
+            if (ReferenceEquals(sender, SyncBackendCombo))
+            {
+                settings.CloudSyncBackend = SyncBackendCombo.SelectedIndex == 1 ? "CloudflareR2" : "Folder";
+            }
+            else if (ReferenceEquals(sender, SyncDirectionCombo))
+            {
+                settings.CloudSyncDirection = SyncDirectionCombo.SelectedIndex switch
+                {
+                    1 => "UploadOnly",
+                    2 => "DownloadOnly",
+                    _ => "TwoWay"
+                };
+            }
+            else if (ReferenceEquals(sender, SyncIntervalCombo))
+            {
+                settings.CloudSyncIntervalMinutes = SyncIntervalCombo.SelectedIndex switch
+                {
+                    1 => 5,
+                    2 => 15,
+                    3 => 30,
+                    4 => 60,
+                    _ => 0
+                };
+            }
+
+            settings.Save();
+            UpdateCloudSyncPanels();
+            _syncService.RestartTimer();
+        }
+
+        private void SyncField_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (!_syncUiLoaded) return;
+            var settings = UserSettings.Instance;
+
+            if (ReferenceEquals(sender, SyncFolderPathBox))
+                settings.SyncFolderPath = SyncFolderPathBox.Text.Trim();
+            else if (ReferenceEquals(sender, R2EndpointBox))
+                settings.R2Endpoint = R2EndpointBox.Text.Trim();
+            else if (ReferenceEquals(sender, R2BucketBox))
+                settings.R2Bucket = R2BucketBox.Text.Trim();
+            else if (ReferenceEquals(sender, R2AccessKeyIdBox))
+                settings.R2AccessKeyId = R2AccessKeyIdBox.Text.Trim();
+            else if (ReferenceEquals(sender, R2SecretBox))
+                settings.R2SecretAccessKey = SecretProtector.Encrypt(R2SecretBox.Password);
+
+            settings.Save();
+            UpdateCloudSyncPanels();
+        }
+
+        private async void BrowseSyncFolderButton_Click(object sender, RoutedEventArgs e)
+        {
+            var folderPicker = new FolderPicker
+            {
+                SuggestedStartLocation = PickerLocationId.Desktop
+            };
+            folderPicker.FileTypeFilter.Add("*");
+            WinRT.Interop.InitializeWithWindow.Initialize(folderPicker,
+                WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow));
+
+            var folder = await folderPicker.PickSingleFolderAsync();
+            if (folder == null) return;
+
+            SyncFolderPathBox.Text = folder.Path;
+            var settings = UserSettings.Instance;
+            settings.SyncFolderPath = folder.Path;
+            settings.Save();
+            UpdateCloudSyncPanels();
+        }
+
+        private async void SyncNowButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_syncService.IsSyncing) return;
+
+            SyncNowButton.IsEnabled = false;
+            SyncStatusText.Text = "正在同步...";
+            try
+            {
+                var result = await _syncService.SyncNowAsync();
+                UpdateSyncStatus();
+                if (App.MainWindow is MainWindow mainWindow)
+                {
+                    mainWindow.ShowToast(result.Success ? "同步完成" : "同步失败", result.Summary,
+                        result.Success ? ToastType.Success : ToastType.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                SyncStatusText.Text = $"同步异常: {ex.Message}";
+                System.Diagnostics.Debug.WriteLine($"同步异常: {ex}");
+            }
+            finally
+            {
+                UpdateCloudSyncPanels();
+            }
+        }
+
+        private async void TestSyncButton_Click(object sender, RoutedEventArgs e)
+        {
+            TestSyncButton.IsEnabled = false;
+            SyncStatusText.Text = "正在测试连接...";
+            try
+            {
+                var error = await _syncService.TestConnectionAsync();
+                SyncStatusText.Text = error == null ? "连接成功，配置可用。" : error;
+                if (App.MainWindow is MainWindow mainWindow)
+                {
+                    mainWindow.ShowToast(error == null ? "连接成功" : "连接失败",
+                        error ?? "同步后端连接正常",
+                        error == null ? ToastType.Success : ToastType.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                SyncStatusText.Text = $"测试异常: {ex.Message}";
+                System.Diagnostics.Debug.WriteLine($"测试连接异常: {ex}");
+            }
+            finally
+            {
+                UpdateCloudSyncPanels();
+            }
+        }
+
+        private void UpdateCloudSyncPanels()
+        {
+            CloudSyncSettingsPanel.Visibility = CloudSyncToggle.IsOn
+                ? Microsoft.UI.Xaml.Visibility.Visible
+                : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+            var useR2 = SyncBackendCombo.SelectedIndex == 1;
+            SyncFolderPanel.Visibility = useR2
+                ? Microsoft.UI.Xaml.Visibility.Collapsed
+                : Microsoft.UI.Xaml.Visibility.Visible;
+            R2Panel.Visibility = useR2
+                ? Microsoft.UI.Xaml.Visibility.Visible
+                : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+            var configured = IsSyncConfigured();
+            SyncNowButton.IsEnabled = CloudSyncToggle.IsOn && configured && !_syncService.IsSyncing;
+            TestSyncButton.IsEnabled = CloudSyncToggle.IsOn && configured;
+        }
+
+        private bool IsSyncConfigured()
+        {
+            var settings = UserSettings.Instance;
+            if (string.Equals(settings.CloudSyncBackend, "CloudflareR2", StringComparison.OrdinalIgnoreCase))
+            {
+                return !string.IsNullOrWhiteSpace(settings.R2Endpoint) &&
+                       !string.IsNullOrWhiteSpace(settings.R2Bucket) &&
+                       !string.IsNullOrWhiteSpace(settings.R2AccessKeyId) &&
+                       !string.IsNullOrWhiteSpace(SecretProtector.Decrypt(settings.R2SecretAccessKey));
+            }
+            return !string.IsNullOrWhiteSpace(settings.SyncFolderPath) &&
+                   Directory.Exists(settings.SyncFolderPath);
+        }
+
+        private void UpdateSyncStatus()
+        {
+            if (_syncService.IsSyncing)
+            {
+                SyncStatusText.Text = "正在同步...";
+            }
+            else
+            {
+                var settings = UserSettings.Instance;
+                if (settings.LastCloudSyncTime != null)
+                {
+                    SyncStatusText.Text = $"上次同步: {settings.LastCloudSyncTime:yyyy-MM-dd HH:mm:ss}" +
+                                          (string.IsNullOrEmpty(settings.LastCloudSyncSummary)
+                                              ? string.Empty
+                                              : $"\n{settings.LastCloudSyncSummary}");
+                }
+                else
+                {
+                    SyncStatusText.Text = "尚未执行过同步。";
+                }
+            }
+
+            var history = _syncService.GetHistory();
+            SyncHistoryText.Text = history.Count == 0
+                ? string.Empty
+                : string.Join("\n", history.Take(3).Select(h =>
+                    $"[{h.TimeUtc.ToLocalTime():MM-dd HH:mm}] {h.Summary}"));
+        }
+
+        private void OnSyncProgressChanged(SyncProgress progress)
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (!_syncUiLoaded) return;
+                SyncStatusText.Text = $"正在同步 ({progress.CompletedActions}/{progress.TotalActions}): {progress.CurrentFile}";
+            });
+        }
+
+        private void OnSyncCompleted(SyncResult result)
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (!_syncUiLoaded) return;
+                UpdateSyncStatus();
+                UpdateCloudSyncPanels();
+            });
+        }
+
+        private void OnSettingsDialogClosed(ContentDialog sender, ContentDialogClosedEventArgs args)
+        {
+            _syncService.ProgressChanged -= OnSyncProgressChanged;
+            _syncService.SyncCompleted -= OnSyncCompleted;
+            _syncUiLoaded = false;
         }
 
         private async void ExportDataButton_Click(object sender, RoutedEventArgs e)

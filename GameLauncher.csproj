@@ -42,6 +42,8 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7463" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260101001" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
+    <PackageReference Include="AWSSDK.S3" Version="3.7.511.8" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup>
     <Compile Update="Properties\Resources.Designer.cs">
@@ -50,6 +52,15 @@
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
   </ItemGroup>
+
+  <!-- Temp 目录仅用于临时调试，不参与主项目编译 -->
+  <ItemGroup>
+    <Compile Remove="Temp\**\*.cs" />
+    <None Remove="Temp\**" />
+    <Content Remove="Temp\**" />
+    <EmbeddedResource Remove="Temp\**" />
+  </ItemGroup>
+
   <ItemGroup>
     <EmbeddedResource Update="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>

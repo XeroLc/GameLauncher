@@ -51,6 +51,7 @@ namespace GameLauncher
             services.AddSingleton<ImageService>();
             services.AddSingleton<GameImageLoader>();
             services.AddSingleton<DataSyncService>();
+            services.AddSingleton<IncrementalSyncService>();
             services.AddSingleton<UpdateCheckerService>();
             services.AddSingleton<DebugLogService>();
             services.AddSingleton<DataExportImportService>();
@@ -141,6 +142,7 @@ namespace GameLauncher
         {
             _window = new MainWindow();
             MainWindow = _window;
+            Services.GetRequiredService<IncrementalSyncService>().Start();
             _window.Activate();
         }
     }

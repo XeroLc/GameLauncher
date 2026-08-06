@@ -132,6 +132,123 @@
 
             <Border Height="1" Background="{ThemeResource CardStrokeColorDefault}" Margin="0,-8,0,-8"/>
 
+            <TextBlock Text="增量云同步"
+                       Style="{StaticResource SubtitleTextBlockStyle}"
+                       Margin="0,0,0,0"/>
+
+            <ToggleSwitch x:Name="CloudSyncToggle"
+                          Header="启用云同步"
+                          OffContent="关闭"
+                          OnContent="开启"
+                          Toggled="CloudSyncToggle_Toggled"/>
+
+            <StackPanel x:Name="CloudSyncSettingsPanel" Spacing="12" Visibility="Collapsed">
+                <ComboBox x:Name="SyncBackendCombo"
+                          Header="同步方式"
+                          HorizontalAlignment="Stretch"
+                          SelectionChanged="SyncCombo_SelectionChanged">
+                    <ComboBoxItem Content="本地同步文件夹"/>
+                    <ComboBoxItem Content="Cloudflare R2"/>
+                </ComboBox>
+
+                <StackPanel x:Name="SyncFolderPanel" Spacing="8">
+                    <TextBlock Text="同步文件夹（建议使用 OneDrive / Dropbox / Syncthing 目录）"
+                               Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBox x:Name="SyncFolderPathBox"
+                                 Width="300"
+                                 VerticalAlignment="Center"
+                                 PlaceholderText="选择要同步的文件夹..."
+                                 LostFocus="SyncField_LostFocus"/>
+                        <Button x:Name="BrowseSyncFolderButton"
+                                Click="BrowseSyncFolderButton_Click"
+                                Style="{StaticResource FrostedDefaultButtonStyle}"
+                                Padding="12,6">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE838;" FontSize="14"/>
+                                <TextBlock Text="浏览"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel x:Name="R2Panel" Spacing="10" Visibility="Collapsed">
+                    <TextBox x:Name="R2EndpointBox"
+                             Header="R2 Endpoint"
+                             PlaceholderText="https://&lt;ACCOUNT_ID&gt;.r2.cloudflarestorage.com"
+                             LostFocus="SyncField_LostFocus"/>
+                    <TextBox x:Name="R2BucketBox"
+                             Header="Bucket 名称"
+                             LostFocus="SyncField_LostFocus"/>
+                    <TextBox x:Name="R2AccessKeyIdBox"
+                             Header="Access Key ID"
+                             LostFocus="SyncField_LostFocus"/>
+                    <PasswordBox x:Name="R2SecretBox"
+                                 Header="Secret Access Key"
+                                 LostFocus="SyncField_LostFocus"/>
+                    <TextBlock Text="密钥使用 Windows DPAPI 加密后保存在本机 settings.json；同步内容不包含 settings.json。"
+                               Style="{StaticResource CaptionTextBlockStyle}"
+                               TextWrapping="Wrap"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+
+                <ComboBox x:Name="SyncDirectionCombo"
+                          Header="同步方向"
+                          HorizontalAlignment="Stretch"
+                          SelectionChanged="SyncCombo_SelectionChanged">
+                    <ComboBoxItem Content="双向同步（默认）"/>
+                    <ComboBoxItem Content="仅上传备份"/>
+                    <ComboBoxItem Content="仅下载恢复"/>
+                </ComboBox>
+
+                <ComboBox x:Name="SyncIntervalCombo"
+                          Header="自动同步间隔"
+                          HorizontalAlignment="Stretch"
+                          SelectionChanged="SyncCombo_SelectionChanged">
+                    <ComboBoxItem Content="手动（不自动同步）"/>
+                    <ComboBoxItem Content="每 5 分钟"/>
+                    <ComboBoxItem Content="每 15 分钟"/>
+                    <ComboBoxItem Content="每 30 分钟"/>
+                    <ComboBoxItem Content="每 60 分钟"/>
+                </ComboBox>
+
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <Button x:Name="SyncNowButton"
+                            Click="SyncNowButton_Click"
+                            Style="{StaticResource FrostedAccentButtonStyle}"
+                            Padding="16,8"
+                            IsEnabled="False">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE895;" FontSize="14"/>
+                            <TextBlock Text="立即同步"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="TestSyncButton"
+                            Click="TestSyncButton_Click"
+                            Style="{StaticResource FrostedDefaultButtonStyle}"
+                            Padding="16,8"
+                            IsEnabled="False">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE7FC;" FontSize="14"/>
+                            <TextBlock Text="测试连接"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <TextBlock x:Name="SyncStatusText"
+                           TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock x:Name="SyncHistoryText"
+                           TextWrapping="Wrap"
+                           FontSize="12"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                <TextBlock Text="同步范围：%LOCALAPPDATA%\GameLauncher 下的游戏数据库与游戏图片。settings.json、crash 日志、SQLite WAL 文件不会同步；删除的文件会先移入回收站（本地 .sync/trash、远端 .trash / _trash/）。"
+                           Style="{StaticResource CaptionTextBlockStyle}"
+                           TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+
             <TextBlock Text="调试"
                        Style="{StaticResource SubtitleTextBlockStyle}"
                        Margin="0,0,0,0"/>

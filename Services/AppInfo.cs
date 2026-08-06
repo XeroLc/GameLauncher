@@ -5,6 +5,6 @@ namespace GameLauncher.Services
         /// <summary>
         /// 应用版本号 — 所有版本相关逻辑的唯一来源
         /// </summary>
-        public const string Version = "3.4.3";
+        public const string Version = "3.5.0";
     }
 }

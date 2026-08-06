@@ -20,6 +20,19 @@ namespace GameLauncher.Models
         public List<int> PrivateKeySequence { get; set; } = new List<int>();
         public bool DebugModeEnabled { get; set; } = false;
 
+        // ---- 增量云同步 ----
+        public bool CloudSyncEnabled { get; set; } = false;
+        public string CloudSyncBackend { get; set; } = "Folder";
+        public string SyncFolderPath { get; set; } = string.Empty;
+        public string R2Endpoint { get; set; } = "https://<ACCOUNT_ID>.r2.cloudflarestorage.com";
+        public string R2Bucket { get; set; } = string.Empty;
+        public string R2AccessKeyId { get; set; } = string.Empty;
+        public string R2SecretAccessKey { get; set; } = string.Empty;
+        public string CloudSyncDirection { get; set; } = "TwoWay";
+        public int CloudSyncIntervalMinutes { get; set; } = 0;
+        public DateTime? LastCloudSyncTime { get; set; }
+        public string? LastCloudSyncSummary { get; set; }
+
         [System.Text.Json.Serialization.JsonIgnore]
         public bool HasPrivatePassword
         {

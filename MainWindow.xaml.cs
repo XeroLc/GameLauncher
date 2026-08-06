@@ -1409,6 +1409,22 @@ namespace GameLauncher
         {
             var sb = new System.Text.StringBuilder();
             var sep = "----------------------------------";
+            sb.AppendLine("v3.5.0 (2026-08-06)");
+            sb.AppendLine(sep);
+            sb.AppendLine("  功能新增");
+            sb.AppendLine("    增量云同步（本地同步文件夹 / Cloudflare R2）");
+            sb.AppendLine("      三种方向：双向同步 / 仅上传备份 / 仅下载恢复");
+            sb.AppendLine("      基于同步清单增量传输，支持定时自动同步");
+            sb.AppendLine("      删除保护：本地 .sync/trash、远端 .trash / _trash/");
+            sb.AppendLine("      R2 密钥使用 Windows DPAPI 加密保存在本机");
+            sb.AppendLine("  性能优化");
+            sb.AppendLine("    上传并发提升至 32 路，连接池放宽至 128");
+            sb.AppendLine("    以 ETag 作为内容身份，免除逐文件 HEAD 请求");
+            sb.AppendLine("  修复");
+            sb.AppendLine("    修复 R2 不支持 AWS SDK 流式签名导致上传失败");
+            sb.AppendLine("    修复 R2 元数据时间解析异常导致同步失败");
+            sb.AppendLine("    修复 games.db 被占用导致的上传失败");
+            sb.AppendLine();
             sb.AppendLine("v3.4.3 (2026-08-03)");
             sb.AppendLine(sep);
             sb.AppendLine("  性能优化");
