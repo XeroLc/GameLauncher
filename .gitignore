@@ -1,0 +1,18 @@
+# IDE & build artifacts (kept out of gh-pages branch)
+.trae/
+.vs/
+.vscode/
+Debug/
+Release/
+Temp/
+bin/
+obj/
+Properties/
+
+# User-specific & build logs
+*.user
+*.pfx
+*.binlog
+msbuild.log
+GameLauncher.csproj.user
+GameLauncher_TemporaryKey.pfx

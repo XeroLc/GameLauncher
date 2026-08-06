@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GameLauncher — 极简游戏启动器</title>
+    <meta name="description" content="一款简洁、高效的游戏启动器，帮助您轻松管理本地游戏。">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230a0a0a'/%3E%3Ctext x='8' y='12' font-family='monospace' font-size='12' fill='%23ffffff' text-anchor='middle'%3EG%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+    <!-- 顶部装饰线 -->
+    <div class="grid-lines" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+    </div>
+
+    <!-- 顶部导航 -->
+    <header class="nav">
+        <div class="nav__brand">
+            <span class="nav__prompt">&gt;</span>
+            <span class="scramble" data-text="GameLauncher">GameLauncher</span>
+        </div>
+        <div class="nav__meta">
+            <span class="nav__version">v3.4.3</span>
+            <span class="nav__sep">/</span>
+            <span class="nav__status">
+                <span class="dot"></span>stable
+            </span>
+        </div>
+    </header>
+
+    <!-- 主体 -->
+    <main class="main">
+        <!-- Hero -->
+        <section class="hero">
+            <p class="hero__label scramble" data-text="// minimalist game launcher">// minimalist game launcher</p>
+            <h1 class="hero__title">
+                <span class="scramble" data-text="GameLauncher">GameLauncher</span>
+            </h1>
+            <p class="hero__subtitle scramble" data-text="一款简洁、高效的游戏启动器">一款简洁、高效的游戏启动器</p>
+            <p class="hero__desc">
+                本地存储 · 无需联网 · 磨砂玻璃 UI · 私密模式<br>
+                为你的本地游戏库提供最纯粹的整理方式。
+            </p>
+            <div class="hero__cta">
+                <a class="btn btn--primary" href="https://github.com/XeroLc/GameLauncher/releases/latest" target="_blank" rel="noopener">
+                    <span class="scramble" data-text="Download">Download</span>
+                    <span class="btn__arrow">→</span>
+                </a>
+                <a class="btn btn--ghost" href="https://github.com/XeroLc/GameLauncher" target="_blank" rel="noopener">
+                    <span class="scramble" data-text="View on GitHub">View on GitHub</span>
+                </a>
+            </div>
+        </section>
+
+        <!-- 分隔线 -->
+        <div class="divider" aria-hidden="true">
+            <span></span><span></span><span></span>
+        </div>
+
+        <!-- 功能特性 -->
+        <section class="section" id="features">
+            <h2 class="section__title">
+                <span class="section__index">01</span>
+                <span class="scramble" data-text="Features">Features</span>
+            </h2>
+            <ul class="feature-list">
+                <li>
+                    <span class="feature-list__bullet">[ + ]</span>
+                    <div>
+                        <h3 class="scramble" data-text="游戏管理">游戏管理</h3>
+                        <p>添加 · 编辑 · 删除本地游戏，GID 唯一标识符支持跨数据库识别。</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="feature-list__bullet">[ + ]</span>
+                    <div>
+                        <h3 class="scramble" data-text="标签与收藏">标签与收藏</h3>
+                        <p>自定义标签分类，收藏夹快速访问喜爱的游戏。</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="feature-list__bullet">[ + ]</span>
+                    <div>
+                        <h3 class="scramble" data-text="私密模式">私密模式</h3>
+                        <p>键盘序列密码保护，隐藏私密游戏与设置入口。</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="feature-list__bullet">[ + ]</span>
+                    <div>
+                        <h3 class="scramble" data-text="磨砂玻璃 UI">磨砂玻璃 UI</h3>
+                        <p>云雾磨砂玻璃设计语言，深色 / 浅色主题完美适配。</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="feature-list__bullet">[ + ]</span>
+                    <div>
+                        <h3 class="scramble" data-text="数据导入导出">数据导入导出</h3>
+                        <p>.gldata 备份文件一键迁移，含私密模式数据。</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="feature-list__bullet">[ + ]</span>
+                    <div>
+                        <h3 class="scramble" data-text="托盘与统计">托盘与统计</h3>
+                        <p>游戏启动时缩入托盘，记录启动次数与游戏时长。</p>
+                    </div>
+                </li>
+            </ul>
+        </section>
+
+        <!-- 技术栈 -->
+        <section class="section" id="stack">
+            <h2 class="section__title">
+                <span class="section__index">02</span>
+                <span class="scramble" data-text="Stack">Stack</span>
+            </h2>
+            <div class="stack">
+                <span class="chip scramble" data-text=".NET 8.0">.NET 8.0</span>
+                <span class="chip scramble" data-text="WinUI 3">WinUI 3</span>
+                <span class="chip scramble" data-text="Windows App SDK 1.8">Windows App SDK 1.8</span>
+                <span class="chip scramble" data-text="SQLite">SQLite</span>
+                <span class="chip scramble" data-text="Windows 10 1809+">Windows 10 1809+</span>
+            </div>
+        </section>
+
+        <!-- 安装 -->
+        <section class="section" id="install">
+            <h2 class="section__title">
+                <span class="section__index">03</span>
+                <span class="scramble" data-text="Install">Install</span>
+            </h2>
+            <ol class="steps">
+                <li>
+                    <span class="steps__num">01</span>
+                    <div>
+                        <p>安装 <a href="https://aka.ms/windowsappsdk/1.8/windowsappruntimeinstall-x64.exe" target="_blank" rel="noopener">Windows App SDK 1.8 运行时</a></p>
+                        <code>windowsappruntimeinstall-x64.exe</code>
+                    </div>
+                </li>
+                <li>
+                    <span class="steps__num">02</span>
+                    <div>
+                        <p>从 GitHub Releases 下载并解压发行包</p>
+                        <code>GameLauncher_v3.4.3_Windows_x64.zip</code>
+                    </div>
+                </li>
+                <li>
+                    <span class="steps__num">03</span>
+                    <div>
+                        <p>双击运行 <code>GameLauncher.exe</code> 启动程序</p>
+                    </div>
+                </li>
+            </ol>
+        </section>
+
+        <!-- 页脚 -->
+        <footer class="footer">
+            <div class="footer__line"></div>
+            <div class="footer__content">
+                <div class="footer__col">
+                    <p class="footer__label scramble" data-text="// author">// author</p>
+                    <p class="footer__value">@XeroLc</p>
+                </div>
+                <div class="footer__col">
+                    <p class="footer__label scramble" data-text="// version">// version</p>
+                    <p class="footer__value">3.4.3 · 2026-08-03</p>
+                </div>
+                <div class="footer__col">
+                    <p class="footer__label scramble" data-text="// links">// links</p>
+                    <p class="footer__value">
+                        <a href="https://github.com/XeroLc/GameLauncher" target="_blank" rel="noopener">GitHub</a> ·
+                        <a href="https://github.com/XeroLc/GameLauncher/releases" target="_blank" rel="noopener">Releases</a>
+                    </p>
+                </div>
+            </div>
+            <p class="footer__copy">
+                <span class="scramble" data-text="GameLauncher // minimalist by design">GameLauncher // minimalist by design</span>
+            </p>
+        </footer>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
