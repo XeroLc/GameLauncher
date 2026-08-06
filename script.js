@@ -94,8 +94,20 @@
 
         targets.forEach((el) => {
             const text = el.getAttribute('data-text') || el.textContent;
-            el.textContent = text; // 移除 HTML 转义，保留纯文本作为初始
-            const scrambler = new TextScramble(el);
+            el.setAttribute('aria-label', text);
+            // 占位层内包含动画层：占位文字撑住布局，动画层精确叠加在其上
+            const ghost = document.createElement('span');
+            ghost.className = 'scramble__ghost';
+            ghost.setAttribute('aria-hidden', 'true');
+            ghost.textContent = text;
+            const active = document.createElement('span');
+            active.className = 'scramble__active';
+            active.setAttribute('aria-hidden', 'true');
+            active.textContent = text; // 初始即显示最终文字，避免空白闪烁
+            ghost.appendChild(active);
+            el.innerHTML = '';
+            el.appendChild(ghost);
+            const scrambler = new TextScramble(active);
             map.set(el, { scrambler, text, played: false });
 
             // 鼠标悬停时重新触发

@@ -21,7 +21,7 @@
             <span class="scramble" data-text="GameLauncher">GameLauncher</span>
         </div>
         <div class="nav__meta">
-            <span class="nav__version">v3.4.3</span>
+            <span class="nav__version">v3.5.0</span>
             <span class="nav__sep">/</span>
             <span class="nav__status">
                 <span class="dot"></span>stable
@@ -39,7 +39,7 @@
             </h1>
             <p class="hero__subtitle scramble" data-text="一款简洁、高效的游戏启动器">一款简洁、高效的游戏启动器</p>
             <p class="hero__desc">
-                本地存储 · 无需联网 · 磨砂玻璃 UI · 私密模式<br>
+                本地优先 · 增量云同步 · 磨砂玻璃 UI · 私密模式<br>
                 为你的本地游戏库提供最纯粹的整理方式。
             </p>
             <div class="hero__cta">
@@ -96,6 +96,20 @@
                 <li>
                     <span class="feature-list__bullet">[ + ]</span>
                     <div>
+                        <h3 class="scramble" data-text="增量云同步">增量云同步</h3>
+                        <p>基于同步清单只传输变化文件，支持双向 / 仅上传 / 仅下载三种模式。</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="feature-list__bullet">[ + ]</span>
+                    <div>
+                        <h3 class="scramble" data-text="Cloudflare R2">Cloudflare R2</h3>
+                        <p>本地同步文件夹与 S3 兼容对象存储双后端，可定时自动同步。</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="feature-list__bullet">[ + ]</span>
+                    <div>
                         <h3 class="scramble" data-text="数据导入导出">数据导入导出</h3>
                         <p>.gldata 备份文件一键迁移，含私密模式数据。</p>
                     </div>
@@ -110,10 +124,37 @@
             </ul>
         </section>
 
+        <!-- 云同步介绍 -->
+        <section class="section" id="sync">
+            <h2 class="section__title">
+                <span class="section__index">02</span>
+                <span class="scramble" data-text="Cloud Sync">Cloud Sync</span>
+            </h2>
+            <p class="sync__intro">
+                GameLauncher 3.5 新增增量云同步：游戏数据库与图片可以安全地备份到云端，
+                或在多台设备之间保持一致。通过本地同步清单，每次只传输真正变化的文件，
+                上千乃至上万个文件的同步也能保持轻量。
+            </p>
+            <div class="sync__grid">
+                <div class="sync__card">
+                    <h3 class="scramble" data-text="双后端">双后端</h3>
+                    <p>本地同步文件夹（OneDrive / Dropbox / Syncthing 等）或 Cloudflare R2 对象存储。</p>
+                </div>
+                <div class="sync__card">
+                    <h3 class="scramble" data-text="增量传输">增量传输</h3>
+                    <p>按大小、修改时间与 ETag 判定变化，只上传 / 下载发生变更的文件。</p>
+                </div>
+                <div class="sync__card">
+                    <h3 class="scramble" data-text="安全删除">安全删除</h3>
+                    <p>同步导致的删除先进入本地或远端回收站，密钥使用 Windows DPAPI 加密保存。</p>
+                </div>
+            </div>
+        </section>
+
         <!-- 技术栈 -->
         <section class="section" id="stack">
             <h2 class="section__title">
-                <span class="section__index">02</span>
+                <span class="section__index">03</span>
                 <span class="scramble" data-text="Stack">Stack</span>
             </h2>
             <div class="stack">
@@ -128,7 +169,7 @@
         <!-- 安装 -->
         <section class="section" id="install">
             <h2 class="section__title">
-                <span class="section__index">03</span>
+                <span class="section__index">04</span>
                 <span class="scramble" data-text="Install">Install</span>
             </h2>
             <ol class="steps">
@@ -143,7 +184,7 @@
                     <span class="steps__num">02</span>
                     <div>
                         <p>从 GitHub Releases 下载并解压发行包</p>
-                        <code>GameLauncher_v3.4.3_Windows_x64.zip</code>
+                        <code>GameLauncher_v3.5.0_Windows_x64.zip</code>
                     </div>
                 </li>
                 <li>
@@ -161,11 +202,13 @@
             <div class="footer__content">
                 <div class="footer__col">
                     <p class="footer__label scramble" data-text="// author">// author</p>
-                    <p class="footer__value">@XeroLc</p>
+                    <p class="footer__value">
+                        <a href="https://github.com/XeroLc" target="_blank" rel="noopener">@XeroLc</a>
+                    </p>
                 </div>
                 <div class="footer__col">
                     <p class="footer__label scramble" data-text="// version">// version</p>
-                    <p class="footer__value">3.4.3 · 2026-08-03</p>
+                    <p class="footer__value">3.5.0 · 2026-08-06</p>
                 </div>
                 <div class="footer__col">
                     <p class="footer__label scramble" data-text="// links">// links</p>

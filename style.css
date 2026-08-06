@@ -12,6 +12,9 @@
     --accent: #ffffff;
     --line: #1f1f1f;
     --line-strong: #2a2a2a;
+    --sans: "Segoe UI", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB",
+            "Source Han Sans CN", "Noto Sans CJK SC", system-ui, -apple-system,
+            sans-serif;
     --mono: "JetBrains Mono", "Cascadia Code", "SF Mono", "Fira Code",
             "Consolas", "Courier New", monospace;
     --cjk: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB",
@@ -32,7 +35,7 @@ html {
 body {
     background: var(--bg);
     color: var(--fg);
-    font-family: var(--mono), var(--cjk);
+    font-family: var(--sans);
     font-size: 15px;
     line-height: 1.7;
     letter-spacing: 0.01em;
@@ -201,7 +204,7 @@ a:hover {
     align-items: center;
     gap: 10px;
     padding: 14px 28px;
-    font-family: var(--mono);
+    font-family: var(--sans);
     font-size: 13px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -330,6 +333,45 @@ a:hover {
     line-height: 1.7;
 }
 
+/* 云同步介绍 */
+.sync__intro {
+    color: var(--fg-muted);
+    font-size: 14px;
+    line-height: 1.9;
+    max-width: 640px;
+    margin-bottom: 40px;
+}
+
+.sync__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+}
+
+.sync__card {
+    background: var(--bg);
+    padding: 28px;
+    transition: background .25s ease;
+}
+
+.sync__card:hover {
+    background: var(--bg-soft);
+}
+
+.sync__card h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.sync__card p {
+    color: var(--fg-muted);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
 /* 技术栈 */
 .stack {
     display: flex;
@@ -388,6 +430,7 @@ a:hover {
     background: var(--bg-soft);
     padding: 2px 8px;
     border: 1px solid var(--line);
+    font-family: var(--sans);
 }
 
 /* ============================================
@@ -440,6 +483,22 @@ a:hover {
     display: inline-block;
 }
 
+/* 占位层：始终渲染最终文字，撑住布局，避免动画字符宽度变化导致抖动 */
+.scramble__ghost {
+    display: inline-block;
+    visibility: hidden;
+    position: relative;
+    white-space: nowrap;
+}
+
+/* 动画层：放在占位层内部并绝对定位，与最终文字精确对齐，不影响布局 */
+.scramble__active {
+    position: absolute;
+    inset: 0;
+    visibility: visible;
+    white-space: nowrap;
+}
+
 .scramble .dud {
     color: var(--fg-muted);
     opacity: 0.7;
@@ -488,6 +547,10 @@ a:hover {
 
     .feature-list li {
         padding: 24px 20px;
+    }
+
+    .sync__grid {
+        grid-template-columns: 1fr;
     }
 
     .footer__content {
