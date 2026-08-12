@@ -21,7 +21,7 @@
             <span class="scramble" data-text="GameLauncher">GameLauncher</span>
         </div>
         <div class="nav__meta">
-            <span class="nav__version">v3.5.0</span>
+            <span class="nav__version">v3.5.1</span>
             <span class="nav__sep">/</span>
             <span class="nav__status">
                 <span class="dot"></span>stable
@@ -39,7 +39,7 @@
             </h1>
             <p class="hero__subtitle scramble" data-text="一款简洁、高效的游戏启动器">一款简洁、高效的游戏启动器</p>
             <p class="hero__desc typewriter">
-                本地优先 · 增量云同步 · 磨砂玻璃 UI · 私密模式<br>
+                本地优先 · 游戏云备份 · 增量云同步 · 磨砂玻璃 UI<br>
                 为你的本地游戏库提供最纯粹的整理方式。
             </p>
             <div class="hero__cta">
@@ -91,6 +91,13 @@
                     <div>
                         <h3 class="scramble" data-text="磨砂玻璃 UI">磨砂玻璃 UI</h3>
                         <p class="typewriter">云雾磨砂玻璃设计语言，深色 / 浅色主题完美适配。</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="feature-list__bullet">[ + ]</span>
+                    <div>
+                        <h3 class="scramble" data-text="游戏云备份">游戏云备份</h3>
+                        <p class="typewriter">一键归档到 123 云盘，5GB 自动分卷，随时下载恢复。</p>
                     </div>
                 </li>
                 <li>
@@ -151,10 +158,37 @@
             </div>
         </section>
 
+        <!-- 云备份介绍 -->
+        <section class="section" id="backup">
+            <h2 class="section__title">
+                <span class="section__index">03</span>
+                <span class="scramble" data-text="Cloud Backup">Cloud Backup</span>
+            </h2>
+            <p class="sync__intro typewriter">
+                GameLauncher 3.5.1 新增游戏云备份：将游戏文件打包为 .vault 分卷上传到 123 云盘。
+                本地游戏更新后重新归档即可替换云端备份，删除本地文件后一键下载恢复，
+                游戏目录机制（Steam 式）让恢复的游戏自动入库。
+            </p>
+            <div class="sync__grid">
+                <div class="sync__card">
+                    <h3 class="scramble" data-text=".vault 归档">.vault 归档</h3>
+                    <p class="typewriter">游戏打包为 {gid}.vault，超过 5GB 自动分卷，带魔数头与完整性校验。</p>
+                </div>
+                <div class="sync__card">
+                    <h3 class="scramble" data-text="重新归档即更新">重新归档即更新</h3>
+                    <p class="typewriter">先上传新档确认成功，再删除云端旧档，备份永不丢失。</p>
+                </div>
+                <div class="sync__card">
+                    <h3 class="scramble" data-text="一键恢复">一键恢复</h3>
+                    <p class="typewriter">卡片一键下载，自动解压到游戏目录并入库，不产生重复卡片。</p>
+                </div>
+            </div>
+        </section>
+
         <!-- 技术栈 -->
         <section class="section" id="stack">
             <h2 class="section__title">
-                <span class="section__index">03</span>
+                <span class="section__index">04</span>
                 <span class="scramble" data-text="Stack">Stack</span>
             </h2>
             <div class="stack">
@@ -169,22 +203,22 @@
         <!-- 安装 -->
         <section class="section" id="install">
             <h2 class="section__title">
-                <span class="section__index">04</span>
+                <span class="section__index">05</span>
                 <span class="scramble" data-text="Install">Install</span>
             </h2>
             <ol class="steps">
                 <li>
                     <span class="steps__num">01</span>
                     <div>
-                        <p class="typewriter">安装 <a href="https://aka.ms/windowsappsdk/1.8/windowsappruntimeinstall-x64.exe" target="_blank" rel="noopener">Windows App SDK 1.8 运行时</a></p>
-                        <code class="typewriter">windowsappruntimeinstall-x64.exe</code>
+                        <p class="typewriter">安装 <a href="https://aka.ms/windowsappsdk/1.8/windowsappruntimeinstall-x64.exe" target="_blank" rel="noopener">Windows App SDK 1.8 运行时</a>（x86 / x64 / ARM64 按架构选择）</p>
+                        <code class="typewriter">windowsappruntimeinstall-&lt;x64|x86|arm64&gt;.exe</code>
                     </div>
                 </li>
                 <li>
                     <span class="steps__num">02</span>
                     <div>
-                        <p class="typewriter">从 GitHub Releases 下载并解压发行包</p>
-                        <code class="typewriter">GameLauncher_v3.5.0_Windows_x64.zip</code>
+                        <p class="typewriter">从 GitHub Releases 下载并解压对应架构的发行包</p>
+                        <code class="typewriter">GameLauncher_v3.5.1_Windows_&lt;x64|x86|arm64&gt;.zip</code>
                     </div>
                 </li>
                 <li>
@@ -208,13 +242,14 @@
                 </div>
                 <div class="footer__col">
                     <p class="footer__label scramble" data-text="// version">// version</p>
-                    <p class="footer__value typewriter">3.5.0 · 2026-08-06</p>
+                    <p class="footer__value typewriter">3.5.1 · 2026-08-12</p>
                 </div>
                 <div class="footer__col">
                     <p class="footer__label scramble" data-text="// links">// links</p>
                     <p class="footer__value typewriter">
                         <a href="https://github.com/XeroLc/GameLauncher" target="_blank" rel="noopener">GitHub</a> ·
-                        <a href="https://github.com/XeroLc/GameLauncher/releases" target="_blank" rel="noopener">Releases</a>
+                        <a href="https://github.com/XeroLc/GameLauncher/releases" target="_blank" rel="noopener">Releases</a> ·
+                        <a href="LICENSE" rel="noopener">License</a>
                     </p>
                 </div>
             </div>
