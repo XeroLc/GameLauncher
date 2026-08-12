@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using GameLauncher.Data;
+using GameLauncher.Models;
 using GameLauncher.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
@@ -43,6 +44,7 @@ namespace GameLauncher
         {
             var services = new ServiceCollection();
 
+            services.AddSingleton(UserSettings.Instance);
             services.AddSingleton<DatabaseContext>();
             services.AddSingleton<GameRepository>();
             services.AddSingleton<CollectionRepository>();
@@ -55,6 +57,8 @@ namespace GameLauncher
             services.AddSingleton<UpdateCheckerService>();
             services.AddSingleton<DebugLogService>();
             services.AddSingleton<DataExportImportService>();
+            services.AddSingleton<Pan123Client>();
+            services.AddSingleton<GameArchiveService>();
 
             services.AddTransient<DiskScanService>();
             services.AddTransient<AutoScanService>();

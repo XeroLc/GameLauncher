@@ -59,6 +59,8 @@
     <None Remove="Temp\**" />
     <Content Remove="Temp\**" />
     <EmbeddedResource Remove="Temp\**" />
+    <Page Remove="Temp\**\*.xaml" />
+    <ApplicationDefinition Remove="Temp\**\*.xaml" />
   </ItemGroup>
 
   <ItemGroup>

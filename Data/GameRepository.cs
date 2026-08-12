@@ -43,6 +43,13 @@ namespace GameLauncher.Data
             catch { return string.Empty; }
         }
 
+        private string SerializeCloudBackupParts(List<CloudBackupPart> parts)
+        {
+            if (parts == null || parts.Count == 0) return string.Empty;
+            try { return JsonSerializer.Serialize(parts); }
+            catch { return string.Empty; }
+        }
+
         public async Task<List<Game>> GetAllGamesAsync()
         {
             try
@@ -85,6 +92,9 @@ namespace GameLauncher.Data
             if (columnMap.ContainsKey("ImagePaths")) selectList.Add("ImagePaths");
             if (columnMap.ContainsKey("Tags")) selectList.Add("Tags");
             if (columnMap.ContainsKey("IsPrivate")) selectList.Add("IsPrivate");
+            if (columnMap.ContainsKey("CloudArchivedAt")) selectList.Add("CloudArchivedAt");
+            if (columnMap.ContainsKey("CloudBackupParts")) selectList.Add("CloudBackupParts");
+            if (columnMap.ContainsKey("CloudOriginalFolderName")) selectList.Add("CloudOriginalFolderName");
 
             using var command = connection.CreateCommand();
             command.CommandText = $"SELECT {string.Join(", ", selectList)} FROM Games ORDER BY CreatedAt DESC";
@@ -184,6 +194,34 @@ namespace GameLauncher.Data
                     game.IsPrivate = reader.GetInt32(idx) == 1;
                 }
                 if (columnMap.ContainsKey("IsPrivate")) idx++;
+
+                if (columnMap.ContainsKey("CloudArchivedAt") && !reader.IsDBNull(idx))
+                {
+                    try { game.CloudArchivedAt = reader.GetDateTime(idx); }
+                    catch { game.CloudArchivedAt = null; }
+                }
+                if (columnMap.ContainsKey("CloudArchivedAt")) idx++;
+
+                if (columnMap.ContainsKey("CloudBackupParts") && !reader.IsDBNull(idx))
+                {
+                    try
+                    {
+                        var partsJson = reader.GetString(idx);
+                        var parts = JsonSerializer.Deserialize<List<CloudBackupPart>>(partsJson);
+                        if (parts != null) game.CloudBackupParts = parts;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"反序列化 CloudBackupParts 失败: {ex.Message}");
+                    }
+                }
+                if (columnMap.ContainsKey("CloudBackupParts")) idx++;
+
+                if (columnMap.ContainsKey("CloudOriginalFolderName") && !reader.IsDBNull(idx))
+                {
+                    game.CloudOriginalFolderName = reader.GetString(idx);
+                }
+                if (columnMap.ContainsKey("CloudOriginalFolderName")) idx++;
 
                 // 设置.gmd文件路径信息（仅用于备份/锚点标记）
                 try
@@ -424,8 +462,8 @@ namespace GameLauncher.Data
 
             using var command = connection.CreateCommand();
             command.CommandText = @"
-                INSERT INTO Games (GameId, Name, ExecutablePath, IconPath, Description, CreatedAt, ImagePaths, Tags, IsPrivate)
-                VALUES (@GameId, @Name, @ExecutablePath, @IconPath, @Description, @CreatedAt, @ImagePaths, @Tags, @IsPrivate);
+                INSERT INTO Games (GameId, Name, ExecutablePath, IconPath, Description, CreatedAt, ImagePaths, Tags, IsPrivate, CloudArchivedAt, CloudBackupParts, CloudOriginalFolderName)
+                VALUES (@GameId, @Name, @ExecutablePath, @IconPath, @Description, @CreatedAt, @ImagePaths, @Tags, @IsPrivate, @CloudArchivedAt, @CloudBackupParts, @CloudOriginalFolderName);
                 SELECT last_insert_rowid();";
 
             command.Parameters.AddWithValue("@GameId", game.GameId ?? (object)DBNull.Value);
@@ -442,6 +480,10 @@ namespace GameLauncher.Data
             command.Parameters.AddWithValue("@Tags", string.IsNullOrEmpty(tagsJson) ? (object)DBNull.Value : tagsJson);
 
             command.Parameters.AddWithValue("@IsPrivate", game.IsPrivate ? 1 : 0);
+            command.Parameters.AddWithValue("@CloudArchivedAt", game.CloudArchivedAt.HasValue ? (object)game.CloudArchivedAt.Value.ToString("o") : DBNull.Value);
+            var partsJson = SerializeCloudBackupParts(game.CloudBackupParts);
+            command.Parameters.AddWithValue("@CloudBackupParts", string.IsNullOrEmpty(partsJson) ? (object)DBNull.Value : partsJson);
+            command.Parameters.AddWithValue("@CloudOriginalFolderName", string.IsNullOrEmpty(game.CloudOriginalFolderName) ? (object)DBNull.Value : game.CloudOriginalFolderName);
 
             var result = await command.ExecuteScalarAsync();
             int gameId = Convert.ToInt32(result);
@@ -483,7 +525,10 @@ namespace GameLauncher.Data
                     IsRunning = @IsRunning,
                     ImagePaths = @ImagePaths,
                     Tags = @Tags,
-                    IsPrivate = @IsPrivate
+                    IsPrivate = @IsPrivate,
+                    CloudArchivedAt = @CloudArchivedAt,
+                    CloudBackupParts = @CloudBackupParts,
+                    CloudOriginalFolderName = @CloudOriginalFolderName
                 WHERE Id = @Id";
 
             command.Parameters.AddWithValue("@GameId", game.GameId ?? (object)DBNull.Value);
@@ -496,6 +541,9 @@ namespace GameLauncher.Data
             command.Parameters.AddWithValue("@LastRunTime", game.LastRunTime ?? (object)DBNull.Value);
             command.Parameters.AddWithValue("@IsRunning", game.IsRunning ? 1 : 0);
             command.Parameters.AddWithValue("@IsPrivate", game.IsPrivate ? 1 : 0);
+            command.Parameters.AddWithValue("@CloudArchivedAt", game.CloudArchivedAt.HasValue ? (object)game.CloudArchivedAt.Value.ToString("o") : DBNull.Value);
+            command.Parameters.AddWithValue("@CloudBackupParts", string.IsNullOrEmpty(SerializeCloudBackupParts(game.CloudBackupParts)) ? (object)DBNull.Value : SerializeCloudBackupParts(game.CloudBackupParts));
+            command.Parameters.AddWithValue("@CloudOriginalFolderName", string.IsNullOrEmpty(game.CloudOriginalFolderName) ? (object)DBNull.Value : game.CloudOriginalFolderName);
             command.Parameters.AddWithValue("@Id", game.Id);
 
             var imagePathsJson = SerializeImagePaths(game.ImagePaths);
@@ -694,6 +742,28 @@ namespace GameLauncher.Data
             }
         }
 
+        public async Task<bool> UpdateCloudBackupAsync(Game game)
+        {
+            using var connection = _context.GetConnection();
+            await connection.OpenAsync();
+
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+                UPDATE Games
+                SET CloudArchivedAt = @CloudArchivedAt,
+                    CloudBackupParts = @CloudBackupParts,
+                    CloudOriginalFolderName = @CloudOriginalFolderName
+                WHERE Id = @Id";
+
+            command.Parameters.AddWithValue("@CloudArchivedAt", game.CloudArchivedAt.HasValue ? (object)game.CloudArchivedAt.Value.ToString("o") : DBNull.Value);
+            var partsJson = SerializeCloudBackupParts(game.CloudBackupParts);
+            command.Parameters.AddWithValue("@CloudBackupParts", string.IsNullOrEmpty(partsJson) ? (object)DBNull.Value : partsJson);
+            command.Parameters.AddWithValue("@CloudOriginalFolderName", string.IsNullOrEmpty(game.CloudOriginalFolderName) ? (object)DBNull.Value : game.CloudOriginalFolderName);
+            command.Parameters.AddWithValue("@Id", game.Id);
+
+            return await command.ExecuteNonQueryAsync() > 0;
+        }
+
         public async Task<bool> GameIdExistsAsync(string gameId)
         {
             using var connection = _context.GetConnection();
@@ -705,6 +775,15 @@ namespace GameLauncher.Data
 
             var result = await command.ExecuteScalarAsync();
             return result != null && Convert.ToInt64(result) > 0;
+        }
+
+        public async Task<Game?> GetGameByGameIdAsync(string gameId)
+        {
+            if (string.IsNullOrWhiteSpace(gameId))
+                return null;
+
+            var games = await GetAllGamesAsync();
+            return games.FirstOrDefault(g => string.Equals(g.GameId, gameId, StringComparison.OrdinalIgnoreCase));
         }
 
         private string GenerateUniqueGameId(Microsoft.Data.Sqlite.SqliteConnection connection)

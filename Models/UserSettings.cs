@@ -17,8 +17,18 @@ namespace GameLauncher.Models
         public bool HideUnavailableGames { get; set; } = false;
         public bool AutoScanEnabled { get; set; } = false;
         public List<string> ScanPaths { get; set; } = new List<string>();
+        /// <summary>游戏目录（Steam 式：启动时识别该目录下的游戏，下载的游戏解压到此）</summary>
+        public string GameLibraryPath { get; set; } = string.Empty;
         public List<int> PrivateKeySequence { get; set; } = new List<int>();
         public bool DebugModeEnabled { get; set; } = false;
+
+        // ---- 游戏云备份（123 云盘）----
+        public string Pan123ClientId { get; set; } = string.Empty;
+        public string Pan123ClientSecret { get; set; } = string.Empty;
+        public string Pan123AccessToken { get; set; } = string.Empty;
+        public DateTime? Pan123TokenExpiry { get; set; }
+        /// <summary>云端归档根目录 ID（首次归档自动创建并记住，0=根目录）</summary>
+        public long Pan123ParentFolderId { get; set; } = 0;
 
         // ---- 增量云同步 ----
         public bool CloudSyncEnabled { get; set; } = false;
@@ -80,6 +90,11 @@ namespace GameLauncher.Models
                         {
                             settings.PrivateKeySequence = new List<int>();
                         }
+                        // 旧版本自动扫描多路径 → 单游戏目录迁移：取第一个存在的路径
+                        if (string.IsNullOrWhiteSpace(settings.GameLibraryPath) && settings.ScanPaths.Count > 0)
+                        {
+                            settings.GameLibraryPath = settings.ScanPaths[0];
+                        }
                         return settings;
                     }
                 }
@@ -107,12 +122,24 @@ namespace GameLauncher.Models
                 };
                 var json = JsonSerializer.Serialize(this, options);
                 File.WriteAllText(SettingsFilePath, json);
-                System.Diagnostics.Debug.WriteLine($"设置已保存: {json}");
+                AppendSaveLog($"Save() 成功: GameLibraryPath='{GameLibraryPath}' AutoScan={AutoScanEnabled}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"保存设置失败: {ex.Message}");
+                AppendSaveLog($"Save() 失败: {ex.GetType().Name}: {ex.Message}");
             }
+        }
+
+        private static void AppendSaveLog(string message)
+        {
+            try
+            {
+                var logPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "GameLauncher", "settings_log.txt");
+                File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+            }
+            catch { }
         }
     }
 }

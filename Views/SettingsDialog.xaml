@@ -11,298 +11,331 @@
     DefaultButton="Primary"
     Style="{StaticResource DefaultContentDialogStyle}">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500">
-        <StackPanel Spacing="24" Width="420">
-            <TextBlock Text="显示设置"
-                       Style="{StaticResource SubtitleTextBlockStyle}"
-                       Margin="0,0,0,8"/>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-            <ToggleSwitch x:Name="HideUnavailableGamesToggle"
-                          Header="隐藏不可用游戏"
-                          OffContent="显示所有游戏（包括路径不存在）"
-                          OnContent="隐藏路径不存在的游戏卡片"
-                          Toggled="HideUnavailableGamesToggle_Toggled"/>
+        <!-- 分类导航 -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12" HorizontalAlignment="Center">
+            <RadioButton x:Name="GeneralTab" GroupName="SettingsTabs" Content="通用" IsChecked="True" Checked="SettingsTab_Checked" MinWidth="64"/>
+            <RadioButton x:Name="SyncTab" GroupName="SettingsTabs" Content="云同步" Checked="SettingsTab_Checked" MinWidth="64"/>
+            <RadioButton x:Name="ArchiveTab" GroupName="SettingsTabs" Content="云备份" Checked="SettingsTab_Checked" MinWidth="64"/>
+            <RadioButton x:Name="DataTab" GroupName="SettingsTabs" Content="数据管理" Checked="SettingsTab_Checked" MinWidth="64"/>
+            <RadioButton x:Name="AdvancedTab" GroupName="SettingsTabs" Content="高级" Checked="SettingsTab_Checked" MinWidth="64"/>
+        </StackPanel>
 
-            <TextBlock Text="当开启此选项时，如果游戏可执行文件路径不存在（例如外接硬盘未插入），对应的游戏卡片将不会显示。"
-                       Style="{StaticResource CaptionTextBlockStyle}"
-                       TextWrapping="Wrap"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       Margin="0,-16,0,0"/>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="480">
+            <StackPanel Spacing="20" Width="440">
 
-            <Border Height="1" Background="{ThemeResource CardStrokeColorDefault}" Margin="0,-8,0,-8"/>
-
-            <TextBlock Text="自动扫描"
-                       Style="{StaticResource SubtitleTextBlockStyle}"
-                       Margin="0,0,0,0"/>
-
-            <ToggleSwitch x:Name="AutoScanToggle"
-                          Header="启动时自动扫描新游戏"
-                          OffContent="关闭"
-                          OnContent="开启"
-                          Toggled="AutoScanToggle_Toggled"/>
-
-            <Border x:Name="ScanPathsPanel"
-                    BorderBrush="{ThemeResource CardStrokeColorDefault}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="12"
-                    Background="{ThemeResource CardBackgroundFillColorDefault}"
-                    Visibility="Collapsed">
-                <StackPanel Spacing="12">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="扫描路径"
-                                   Style="{StaticResource BodyStrongTextBlockStyle}"
-                                   VerticalAlignment="Center"/>
-                        <Button x:Name="AddScanPathButton"
-                                Click="AddScanPathButton_Click"
-                                Style="{StaticResource FrostedAccentButtonStyle}"
-                                Width="32" Height="32"
-                                Padding="4">
-                            <FontIcon Glyph="&#xE710;" FontSize="14"/>
-                        </Button>
+                <!-- ========== 通用：显示 + 游戏目录 ========== -->
+                <StackPanel x:Name="GeneralPanel" Spacing="20">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="显示设置"
+                                   Style="{StaticResource SubtitleTextBlockStyle}"/>
+                        <ToggleSwitch x:Name="HideUnavailableGamesToggle"
+                                      Header="隐藏不可用游戏"
+                                      OffContent="显示所有游戏（包括路径不存在）"
+                                      OnContent="隐藏路径不存在的游戏卡片"
+                                      Toggled="HideUnavailableGamesToggle_Toggled"/>
+                        <TextBlock Text="当开启此选项时，如果游戏可执行文件路径不存在（例如外接硬盘未插入），对应的游戏卡片将不会显示。"
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
-                    <ListView x:Name="ScanPathListView"
-                              ItemsSource="{x:Bind _scanPaths}"
-                              SelectionMode="None"
-                              MaxHeight="200">
-                        <ListView.ItemTemplate>
-                            <DataTemplate>
-                                <Grid ColumnSpacing="8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="{Binding}"
-                                               TextTrimming="CharacterEllipsis"
-                                               VerticalAlignment="Center"
-                                               FontSize="13"/>
-                                    <Button Grid.Column="1"
-                                            Click="RemoveScanPathButton_Click"
-                                            Style="{StaticResource FrostedDefaultButtonStyle}"
-                                            Width="28" Height="28"
-                                            Padding="2"
-                                            Tag="{Binding}">
-                                        <FontIcon Glyph="&#xE74D;" FontSize="12"/>
-                                    </Button>
-                                </Grid>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
+
+                    <Border Height="1" Background="{ThemeResource CardStrokeColorDefault}"/>
+
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="游戏目录"
+                                   Style="{StaticResource SubtitleTextBlockStyle}"/>
+                        <ToggleSwitch x:Name="AutoScanToggle"
+                                      Header="启动时自动识别游戏目录中的新游戏"
+                                      OffContent="关闭"
+                                      OnContent="开启"
+                                      Toggled="AutoScanToggle_Toggled"/>
+                        <StackPanel x:Name="ScanPathsPanel" Spacing="8" Visibility="Collapsed">
+                            <TextBlock Text="游戏目录（Steam 式：该目录下的游戏将被自动识别，云备份下载的游戏也会解压到此目录）"
+                                       Style="{StaticResource BodyStrongTextBlockStyle}"
+                                       TextWrapping="Wrap"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBox x:Name="GameLibraryPathBox"
+                                         Width="320"
+                                         VerticalAlignment="Center"
+                                         PlaceholderText="选择游戏目录..."
+                                         LostFocus="GameLibraryPath_LostFocus"/>
+                                <Button x:Name="BrowseGameLibraryButton"
+                                        Click="BrowseGameLibraryButton_Click"
+                                        Style="{StaticResource FrostedDefaultButtonStyle}"
+                                        Padding="12,6">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE838;" FontSize="14"/>
+                                        <TextBlock Text="浏览"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                        <TextBlock Text="启动时将在游戏目录中静默扫描 .gmd 文件，发现新游戏时将弹出通知。下载云备份时游戏将解压到该目录。"
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
                 </StackPanel>
-            </Border>
 
-            <TextBlock Text="启动时将在设定的路径中静默扫描 .gmd 文件，发现新游戏时将弹出通知。"
-                       Style="{StaticResource CaptionTextBlockStyle}"
-                       TextWrapping="Wrap"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       Margin="0,-16,0,0"/>
+                <!-- ========== 云同步：增量同步 ========== -->
+                <StackPanel x:Name="SyncPanel" Spacing="12" Visibility="Collapsed">
+                    <TextBlock Text="增量云同步（数据库与游戏图片）"
+                               Style="{StaticResource SubtitleTextBlockStyle}"/>
+                    <TextBlock Text="将游戏数据库与图片同步到本地文件夹或 Cloudflare R2，用于多设备间同步游戏库。"
+                               Style="{StaticResource CaptionTextBlockStyle}"
+                               TextWrapping="Wrap"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
-            <Border Height="1" Background="{ThemeResource CardStrokeColorDefault}" Margin="0,-8,0,-8"/>
+                    <ToggleSwitch x:Name="CloudSyncToggle"
+                                  Header="启用云同步"
+                                  OffContent="关闭"
+                                  OnContent="开启"
+                                  Toggled="CloudSyncToggle_Toggled"/>
 
-            <TextBlock Text="数据管理"
-                       Style="{StaticResource SubtitleTextBlockStyle}"
-                       Margin="0,0,0,0"/>
+                    <StackPanel x:Name="CloudSyncSettingsPanel" Spacing="12" Visibility="Collapsed">
+                        <ComboBox x:Name="SyncBackendCombo"
+                                  Header="同步方式"
+                                  HorizontalAlignment="Stretch"
+                                  SelectionChanged="SyncCombo_SelectionChanged">
+                            <ComboBoxItem Content="本地同步文件夹"/>
+                            <ComboBoxItem Content="Cloudflare R2"/>
+                        </ComboBox>
 
-            <StackPanel Orientation="Horizontal" Spacing="12">
-                <Button x:Name="ExportDataButton"
-                        Click="ExportDataButton_Click"
-                        Style="{StaticResource FrostedAccentButtonStyle}"
-                        Padding="16,8">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <FontIcon Glyph="&#xE792;" FontSize="14"/>
-                        <TextBlock Text="导出数据"/>
+                        <StackPanel x:Name="SyncFolderPanel" Spacing="8">
+                            <TextBlock Text="同步文件夹（建议使用 OneDrive / Dropbox / Syncthing 目录）"
+                                       Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBox x:Name="SyncFolderPathBox"
+                                         Width="320"
+                                         VerticalAlignment="Center"
+                                         PlaceholderText="选择要同步的文件夹..."
+                                         LostFocus="SyncField_LostFocus"/>
+                                <Button x:Name="BrowseSyncFolderButton"
+                                        Click="BrowseSyncFolderButton_Click"
+                                        Style="{StaticResource FrostedDefaultButtonStyle}"
+                                        Padding="12,6">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE838;" FontSize="14"/>
+                                        <TextBlock Text="浏览"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel x:Name="R2Panel" Spacing="10" Visibility="Collapsed">
+                            <TextBox x:Name="R2EndpointBox"
+                                     Header="R2 Endpoint"
+                                     PlaceholderText="https://&lt;ACCOUNT_ID&gt;.r2.cloudflarestorage.com"
+                                     LostFocus="SyncField_LostFocus"/>
+                            <TextBox x:Name="R2BucketBox"
+                                     Header="Bucket 名称"
+                                     LostFocus="SyncField_LostFocus"/>
+                            <TextBox x:Name="R2AccessKeyIdBox"
+                                     Header="Access Key ID"
+                                     LostFocus="SyncField_LostFocus"/>
+                            <PasswordBox x:Name="R2SecretBox"
+                                         Header="Secret Access Key"
+                                         LostFocus="SyncField_LostFocus"/>
+                            <TextBlock Text="密钥使用 Windows DPAPI 加密后保存在本机 settings.json；同步内容不包含 settings.json。"
+                                       Style="{StaticResource CaptionTextBlockStyle}"
+                                       TextWrapping="Wrap"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+
+                        <ComboBox x:Name="SyncDirectionCombo"
+                                  Header="同步方向"
+                                  HorizontalAlignment="Stretch"
+                                  SelectionChanged="SyncCombo_SelectionChanged">
+                            <ComboBoxItem Content="双向同步（默认）"/>
+                            <ComboBoxItem Content="仅上传备份"/>
+                            <ComboBoxItem Content="仅下载恢复"/>
+                        </ComboBox>
+
+                        <ComboBox x:Name="SyncIntervalCombo"
+                                  Header="自动同步间隔"
+                                  HorizontalAlignment="Stretch"
+                                  SelectionChanged="SyncCombo_SelectionChanged">
+                            <ComboBoxItem Content="手动（不自动同步）"/>
+                            <ComboBoxItem Content="每 5 分钟"/>
+                            <ComboBoxItem Content="每 15 分钟"/>
+                            <ComboBoxItem Content="每 30 分钟"/>
+                            <ComboBoxItem Content="每 60 分钟"/>
+                        </ComboBox>
+
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Button x:Name="SyncNowButton"
+                                    Click="SyncNowButton_Click"
+                                    Style="{StaticResource FrostedAccentButtonStyle}"
+                                    Padding="16,8"
+                                    IsEnabled="False">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE895;" FontSize="14"/>
+                                    <TextBlock Text="立即同步"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="TestSyncButton"
+                                    Click="TestSyncButton_Click"
+                                    Style="{StaticResource FrostedDefaultButtonStyle}"
+                                    Padding="16,8"
+                                    IsEnabled="False">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE7FC;" FontSize="14"/>
+                                    <TextBlock Text="测试连接"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+
+                        <TextBlock x:Name="SyncStatusText"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock x:Name="SyncHistoryText"
+                                   TextWrapping="Wrap"
+                                   FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                        <TextBlock Text="同步范围：%LOCALAPPDATA%\GameLauncher 下的游戏数据库与游戏图片。settings.json、crash 日志、SQLite WAL 文件不会同步；删除的文件会先移入回收站（本地 .sync/trash、远端 .trash / _trash/）。"
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
-                </Button>
-                <Button x:Name="ImportDataButton"
-                        Click="ImportDataButton_Click"
-                        Style="{StaticResource FrostedDefaultButtonStyle}"
-                        Padding="16,8">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <FontIcon Glyph="&#xE793;" FontSize="14"/>
-                        <TextBlock Text="导入数据"/>
+                </StackPanel>
+
+                <!-- ========== 云备份：123 云盘归档 ========== -->
+                <StackPanel x:Name="ArchivePanel" Spacing="12" Visibility="Collapsed">
+                    <TextBlock Text="游戏云备份（123云盘）"
+                               Style="{StaticResource SubtitleTextBlockStyle}"/>
+                    <TextBlock Text="将游戏打包归档到 123 云盘，随时可下载恢复。需在 123 开放平台购买开发者权益包并创建应用，获取 clientID / clientSecret。"
+                               Style="{StaticResource CaptionTextBlockStyle}"
+                               TextWrapping="Wrap"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                    <StackPanel x:Name="Pan123Panel" Spacing="10">
+                        <TextBox x:Name="Pan123ClientIdBox"
+                                 Header="Client ID（app_id）"
+                                 PlaceholderText="开放平台创建应用后获得"
+                                 LostFocus="Pan123Field_LostFocus"/>
+                        <PasswordBox x:Name="Pan123ClientSecretBox"
+                                     Header="Client Secret（secret_id）"
+                                     LostFocus="Pan123Field_LostFocus"/>
+
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Button x:Name="Pan123FetchTokenButton"
+                                    Click="Pan123FetchTokenButton_Click"
+                                    Style="{StaticResource FrostedAccentButtonStyle}"
+                                    Padding="16,8"
+                                    IsEnabled="False">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE73E;" FontSize="14"/>
+                                    <TextBlock Text="获取访问令牌"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="Pan123TestButton"
+                                    Click="Pan123TestButton_Click"
+                                    Style="{StaticResource FrostedDefaultButtonStyle}"
+                                    Padding="16,8"
+                                    IsEnabled="False">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE7FC;" FontSize="14"/>
+                                    <TextBlock Text="测试连接"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+
+                        <TextBlock x:Name="Pan123StatusText"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="凭据使用 Windows DPAPI 加密保存在本机 settings.json；访问令牌过期前应用会自动用凭据重新获取。"
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
-                </Button>
-            </StackPanel>
+                </StackPanel>
 
-            <TextBlock Text="将游戏数据导出为 .gldata 备份文件，或从备份文件导入恢复数据。导入将覆盖现有数据。"
-                       Style="{StaticResource CaptionTextBlockStyle}"
-                       TextWrapping="Wrap"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       Margin="0,-16,0,0"/>
-
-            <Border Height="1" Background="{ThemeResource CardStrokeColorDefault}" Margin="0,-8,0,-8"/>
-
-            <TextBlock Text="增量云同步"
-                       Style="{StaticResource SubtitleTextBlockStyle}"
-                       Margin="0,0,0,0"/>
-
-            <ToggleSwitch x:Name="CloudSyncToggle"
-                          Header="启用云同步"
-                          OffContent="关闭"
-                          OnContent="开启"
-                          Toggled="CloudSyncToggle_Toggled"/>
-
-            <StackPanel x:Name="CloudSyncSettingsPanel" Spacing="12" Visibility="Collapsed">
-                <ComboBox x:Name="SyncBackendCombo"
-                          Header="同步方式"
-                          HorizontalAlignment="Stretch"
-                          SelectionChanged="SyncCombo_SelectionChanged">
-                    <ComboBoxItem Content="本地同步文件夹"/>
-                    <ComboBoxItem Content="Cloudflare R2"/>
-                </ComboBox>
-
-                <StackPanel x:Name="SyncFolderPanel" Spacing="8">
-                    <TextBlock Text="同步文件夹（建议使用 OneDrive / Dropbox / Syncthing 目录）"
-                               Style="{StaticResource BodyStrongTextBlockStyle}"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBox x:Name="SyncFolderPathBox"
-                                 Width="300"
-                                 VerticalAlignment="Center"
-                                 PlaceholderText="选择要同步的文件夹..."
-                                 LostFocus="SyncField_LostFocus"/>
-                        <Button x:Name="BrowseSyncFolderButton"
-                                Click="BrowseSyncFolderButton_Click"
-                                Style="{StaticResource FrostedDefaultButtonStyle}"
-                                Padding="12,6">
+                <!-- ========== 数据管理 ========== -->
+                <StackPanel x:Name="DataPanel" Spacing="12" Visibility="Collapsed">
+                    <TextBlock Text="数据管理"
+                               Style="{StaticResource SubtitleTextBlockStyle}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button x:Name="ExportDataButton"
+                                Click="ExportDataButton_Click"
+                                Style="{StaticResource FrostedAccentButtonStyle}"
+                                Padding="16,8">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <FontIcon Glyph="&#xE838;" FontSize="14"/>
-                                <TextBlock Text="浏览"/>
+                                <FontIcon Glyph="&#xE792;" FontSize="14"/>
+                                <TextBlock Text="导出数据"/>
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="ImportDataButton"
+                                Click="ImportDataButton_Click"
+                                Style="{StaticResource FrostedDefaultButtonStyle}"
+                                Padding="16,8">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE793;" FontSize="14"/>
+                                <TextBlock Text="导入数据"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>
-                </StackPanel>
-
-                <StackPanel x:Name="R2Panel" Spacing="10" Visibility="Collapsed">
-                    <TextBox x:Name="R2EndpointBox"
-                             Header="R2 Endpoint"
-                             PlaceholderText="https://&lt;ACCOUNT_ID&gt;.r2.cloudflarestorage.com"
-                             LostFocus="SyncField_LostFocus"/>
-                    <TextBox x:Name="R2BucketBox"
-                             Header="Bucket 名称"
-                             LostFocus="SyncField_LostFocus"/>
-                    <TextBox x:Name="R2AccessKeyIdBox"
-                             Header="Access Key ID"
-                             LostFocus="SyncField_LostFocus"/>
-                    <PasswordBox x:Name="R2SecretBox"
-                                 Header="Secret Access Key"
-                                 LostFocus="SyncField_LostFocus"/>
-                    <TextBlock Text="密钥使用 Windows DPAPI 加密后保存在本机 settings.json；同步内容不包含 settings.json。"
+                    <TextBlock Text="将游戏数据导出为 .gldata 备份文件，或从备份文件导入恢复数据。导入将覆盖现有数据。"
                                Style="{StaticResource CaptionTextBlockStyle}"
                                TextWrapping="Wrap"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                 </StackPanel>
 
-                <ComboBox x:Name="SyncDirectionCombo"
-                          Header="同步方向"
-                          HorizontalAlignment="Stretch"
-                          SelectionChanged="SyncCombo_SelectionChanged">
-                    <ComboBoxItem Content="双向同步（默认）"/>
-                    <ComboBoxItem Content="仅上传备份"/>
-                    <ComboBoxItem Content="仅下载恢复"/>
-                </ComboBox>
+                <!-- ========== 高级：调试 + 私密模式 ========== -->
+                <StackPanel x:Name="AdvancedPanel" Spacing="16" Visibility="Collapsed">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="调试"
+                                   Style="{StaticResource SubtitleTextBlockStyle}"/>
+                        <ToggleSwitch x:Name="DebugModeToggle"
+                                      Header="调试模式"
+                                      OffContent="关闭"
+                                      OnContent="开启"
+                                      Toggled="DebugModeToggle_Toggled"/>
+                        <TextBlock Text="开启后主界面右下角将显示调试信息面板，包含数据库统计和操作日志。"
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
 
-                <ComboBox x:Name="SyncIntervalCombo"
-                          Header="自动同步间隔"
-                          HorizontalAlignment="Stretch"
-                          SelectionChanged="SyncCombo_SelectionChanged">
-                    <ComboBoxItem Content="手动（不自动同步）"/>
-                    <ComboBoxItem Content="每 5 分钟"/>
-                    <ComboBoxItem Content="每 15 分钟"/>
-                    <ComboBoxItem Content="每 30 分钟"/>
-                    <ComboBoxItem Content="每 60 分钟"/>
-                </ComboBox>
+                    <Border Height="1" Background="{ThemeResource CardStrokeColorDefault}"/>
 
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Button x:Name="SyncNowButton"
-                            Click="SyncNowButton_Click"
-                            Style="{StaticResource FrostedAccentButtonStyle}"
-                            Padding="16,8"
-                            IsEnabled="False">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon Glyph="&#xE895;" FontSize="14"/>
-                            <TextBlock Text="立即同步"/>
-                        </StackPanel>
-                    </Button>
-                    <Button x:Name="TestSyncButton"
-                            Click="TestSyncButton_Click"
-                            Style="{StaticResource FrostedDefaultButtonStyle}"
-                            Padding="16,8"
-                            IsEnabled="False">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon Glyph="&#xE7FC;" FontSize="14"/>
-                            <TextBlock Text="测试连接"/>
-                        </StackPanel>
-                    </Button>
+                    <!-- 私密模式设置（仅在私密模式下可见） -->
+                    <StackPanel x:Name="PrivateModeSettingsPanel" Spacing="12" Visibility="Collapsed">
+                        <TextBlock Text="私密模式"
+                                   Style="{StaticResource SubtitleTextBlockStyle}"/>
+                        <Button x:Name="SetPrivatePasswordButton"
+                                Click="SetPrivatePasswordButton_Click"
+                                Style="{StaticResource FrostedAccentButtonStyle}"
+                                Padding="16,8"
+                                HorizontalAlignment="Stretch">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE72E;" FontSize="14"/>
+                                <TextBlock x:Name="PrivatePasswordButtonText" Text="设置密码"/>
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="ResetPrivatePasswordButton"
+                                Click="ResetPrivatePasswordButton_Click"
+                                Style="{StaticResource FrostedDefaultButtonStyle}"
+                                Padding="16,8"
+                                HorizontalAlignment="Stretch">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE777;" FontSize="14"/>
+                                <TextBlock Text="重置为默认密码"/>
+                            </StackPanel>
+                        </Button>
+                        <TextBlock Text="设置键盘序列密码后，在主界面按下密码序列即可进入/退出私密模式。默认密码：↑↑↓↓←←→→aabb"
+                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
                 </StackPanel>
-
-                <TextBlock x:Name="SyncStatusText"
-                           TextWrapping="Wrap"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <TextBlock x:Name="SyncHistoryText"
-                           TextWrapping="Wrap"
-                           FontSize="12"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-
-                <TextBlock Text="同步范围：%LOCALAPPDATA%\GameLauncher 下的游戏数据库与游戏图片。settings.json、crash 日志、SQLite WAL 文件不会同步；删除的文件会先移入回收站（本地 .sync/trash、远端 .trash / _trash/）。"
-                           Style="{StaticResource CaptionTextBlockStyle}"
-                           TextWrapping="Wrap"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </StackPanel>
-
-            <TextBlock Text="调试"
-                       Style="{StaticResource SubtitleTextBlockStyle}"
-                       Margin="0,0,0,0"/>
-
-            <ToggleSwitch x:Name="DebugModeToggle"
-                          Header="调试模式"
-                          OffContent="关闭"
-                          OnContent="开启"
-                          Toggled="DebugModeToggle_Toggled"/>
-
-            <TextBlock Text="开启后主界面右下角将显示调试信息面板，包含数据库统计和操作日志。"
-                       Style="{StaticResource CaptionTextBlockStyle}"
-                       TextWrapping="Wrap"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       Margin="0,-16,0,0"/>
-
-            <Border Height="1" Background="{ThemeResource CardStrokeColorDefault}" Margin="0,-8,0,-8"/>
-
-            <!-- 私密模式设置（仅在私密模式下可见） -->
-            <StackPanel x:Name="PrivateModeSettingsPanel"
-                        Spacing="16"
-                        Visibility="Collapsed">
-                <TextBlock Text="私密模式"
-                           Style="{StaticResource SubtitleTextBlockStyle}"
-                           Margin="0,0,0,0"/>
-
-                <Button x:Name="SetPrivatePasswordButton"
-                        Click="SetPrivatePasswordButton_Click"
-                        Style="{StaticResource FrostedAccentButtonStyle}"
-                        Padding="16,8"
-                        HorizontalAlignment="Stretch">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <FontIcon Glyph="&#xE72E;" FontSize="14"/>
-                        <TextBlock x:Name="PrivatePasswordButtonText" Text="设置密码"/>
-                    </StackPanel>
-                </Button>
-
-                <Button x:Name="ResetPrivatePasswordButton"
-                        Click="ResetPrivatePasswordButton_Click"
-                        Style="{StaticResource FrostedDefaultButtonStyle}"
-                        Padding="16,8"
-                        HorizontalAlignment="Stretch">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <FontIcon Glyph="&#xE777;" FontSize="14"/>
-                        <TextBlock Text="重置为默认密码"/>
-                    </StackPanel>
-                </Button>
-
-                <TextBlock Text="设置键盘序列密码后，在主界面按下密码序列即可进入/退出私密模式。默认密码：↑↑↓↓←←→→aabb"
-                           Style="{StaticResource CaptionTextBlockStyle}"
-                           TextWrapping="Wrap"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                           Margin="0,-4,0,0"/>
-            </StackPanel>
-        </StackPanel>
-    </ScrollViewer>
+        </ScrollViewer>
+    </Grid>
 </ContentDialog>

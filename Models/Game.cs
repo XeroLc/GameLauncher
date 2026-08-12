@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Media;
@@ -245,6 +247,63 @@ namespace GameLauncher.Models
             get => _needsGmdFallback;
             set { if (_needsGmdFallback != value) { _needsGmdFallback = value; OnPropertyChanged(nameof(NeedsGmdFallback)); } }
         }
+
+        private DateTime? _cloudArchivedAt;
+        /// <summary>云归档成功时间，非空表示该游戏在 123 云盘有备份</summary>
+        public DateTime? CloudArchivedAt
+        {
+            get => _cloudArchivedAt;
+            set
+            {
+                if (_cloudArchivedAt != value)
+                {
+                    _cloudArchivedAt = value;
+                    OnPropertyChanged(nameof(CloudArchivedAt));
+                    OnPropertyChanged(nameof(HasCloudBackup));
+                }
+            }
+        }
+
+        private List<CloudBackupPart> _cloudBackupParts = new();
+        /// <summary>云备份分卷清单（fileID/文件名/大小/MD5）</summary>
+        public List<CloudBackupPart> CloudBackupParts
+        {
+            get => _cloudBackupParts;
+            set
+            {
+                if (_cloudBackupParts != value)
+                {
+                    _cloudBackupParts = value ?? new List<CloudBackupPart>();
+                    OnPropertyChanged(nameof(CloudBackupParts));
+                }
+            }
+        }
+
+        private string _cloudOriginalFolderName = string.Empty;
+        /// <summary>归档时的游戏目录名（下载恢复时用它作为解压目录，保持原目录结构）</summary>
+        public string CloudOriginalFolderName
+        {
+            get => _cloudOriginalFolderName;
+            set
+            {
+                if (_cloudOriginalFolderName != value)
+                {
+                    _cloudOriginalFolderName = value ?? string.Empty;
+                    OnPropertyChanged(nameof(CloudOriginalFolderName));
+                }
+            }
+        }
+
+        /// <summary>云端是否存在归档备份</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public bool HasCloudBackup => _cloudArchivedAt != null;
+
+        /// <summary>本地是否已安装（可执行文件与所在目录均存在）</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public bool IsInstalled =>
+            !string.IsNullOrWhiteSpace(_executablePath) &&
+            File.Exists(_executablePath) &&
+            Directory.Exists(Path.GetDirectoryName(_executablePath));
 
         public ObservableCollection<string> ImagePaths
         {

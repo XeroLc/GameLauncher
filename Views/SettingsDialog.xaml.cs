@@ -13,37 +13,57 @@ using System.Linq;
 using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.Pickers;
+using Windows.System;
 
 namespace GameLauncher.Views
 {
     public sealed partial class SettingsDialog : ContentDialog
     {
-        private ObservableCollection<string> _scanPaths;
         private bool _isLoaded;
         private bool _syncUiLoaded;
+        private bool _pan123UiLoaded;
         private readonly IncrementalSyncService _syncService;
+        private readonly Pan123Client _pan123Client;
 
         public SettingsDialog()
         {
             this.InitializeComponent();
             _syncService = App.Services.GetRequiredService<IncrementalSyncService>();
+            _pan123Client = App.Services.GetRequiredService<Pan123Client>();
             _syncService.ProgressChanged += OnSyncProgressChanged;
             _syncService.SyncCompleted += OnSyncCompleted;
             Closed += OnSettingsDialogClosed;
             LoadSettings();
             LoadSyncSettings();
+            LoadPan123Settings();
+            UpdateTabVisibility();
+        }
+
+        /// <summary>分类导航切换：只显示当前选中分类的面板</summary>
+        private void SettingsTab_Checked(object sender, RoutedEventArgs e)
+        {
+            UpdateTabVisibility();
+        }
+
+        private void UpdateTabVisibility()
+        {
+            if (GeneralPanel == null) return;
+            GeneralPanel.Visibility = (GeneralTab?.IsChecked ?? false) ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+            SyncPanel.Visibility = (SyncTab?.IsChecked ?? false) ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+            ArchivePanel.Visibility = (ArchiveTab?.IsChecked ?? false) ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+            DataPanel.Visibility = (DataTab?.IsChecked ?? false) ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+            AdvancedPanel.Visibility = (AdvancedTab?.IsChecked ?? false) ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
         }
 
         private void LoadSettings()
         {
             var settings = UserSettings.Instance;
-            _scanPaths = new ObservableCollection<string>(settings.ScanPaths ?? new System.Collections.Generic.List<string>());
-            ScanPathListView.ItemsSource = _scanPaths;
             _isLoaded = true;
 
             HideUnavailableGamesToggle.IsOn = settings.HideUnavailableGames;
             AutoScanToggle.IsOn = settings.AutoScanEnabled;
             DebugModeToggle.IsOn = settings.DebugModeEnabled;
+            GameLibraryPathBox.Text = settings.GameLibraryPath;
 
             UpdateScanPanelVisibility();
 
@@ -72,10 +92,17 @@ namespace GameLauncher.Views
             var settings = UserSettings.Instance;
             settings.AutoScanEnabled = AutoScanToggle.IsOn;
             UpdateScanPanelVisibility();
-            SaveScanPaths();
+            // 只保存开关状态，不在这里保存游戏目录（控件可能处于未初始化/销毁状态）
+            settings.Save();
         }
 
-        private async void AddScanPathButton_Click(object sender, RoutedEventArgs e)
+        private void GameLibraryPath_LostFocus(object sender, RoutedEventArgs e)
+        {
+            // 不在此处保存：对话框关闭/控件销毁时 LostFocus 会带空值触发，覆盖已保存的路径
+            // 保存统一走 SaveScanPaths（浏览按钮、关闭对话框时调用）
+        }
+
+        private async void BrowseGameLibraryButton_Click(object sender, RoutedEventArgs e)
         {
             var folderPicker = new FolderPicker();
             folderPicker.SuggestedStartLocation = PickerLocationId.Desktop;
@@ -84,28 +111,41 @@ namespace GameLauncher.Views
                 WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow));
 
             var folder = await folderPicker.PickSingleFolderAsync();
-            if (folder != null && !_scanPaths.Contains(folder.Path))
+            if (folder != null)
             {
-                _scanPaths.Add(folder.Path);
-                SaveScanPaths();
-            }
-        }
-
-        private void RemoveScanPathButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button button && button.Tag is string path)
-            {
-                _scanPaths.Remove(path);
+                GameLibraryPathBox.Text = folder.Path;
                 SaveScanPaths();
             }
         }
 
         private void SaveScanPaths()
         {
-            if (_scanPaths == null) return;
-            var settings = UserSettings.Instance;
-            settings.ScanPaths = _scanPaths.ToList();
-            settings.Save();
+            try
+            {
+                var settings = UserSettings.Instance;
+                settings.GameLibraryPath = GameLibraryPathBox.Text.Trim();
+                settings.ScanPaths = string.IsNullOrWhiteSpace(settings.GameLibraryPath)
+                    ? new List<string>()
+                    : new List<string> { settings.GameLibraryPath };
+                settings.Save();
+                AppendSettingsLog($"[Settings] SaveScanPaths 保存成功: '{settings.GameLibraryPath}'");
+            }
+            catch (Exception ex)
+            {
+                AppendSettingsLog($"[Settings] SaveScanPaths 异常: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        private static void AppendSettingsLog(string message)
+        {
+            try
+            {
+                var logPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "GameLauncher", "settings_log.txt");
+                File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+            }
+            catch { }
         }
 
         private void UpdatePrivateModePanelVisibility()
@@ -405,6 +445,16 @@ namespace GameLauncher.Views
             _syncService.ProgressChanged -= OnSyncProgressChanged;
             _syncService.SyncCompleted -= OnSyncCompleted;
             _syncUiLoaded = false;
+
+            // 关闭对话框时保存游戏目录（此时控件仍有效）
+            try
+            {
+                if (GameLibraryPathBox != null && !string.IsNullOrWhiteSpace(GameLibraryPathBox.Text))
+                {
+                    SaveScanPaths();
+                }
+            }
+            catch { }
         }
 
         private async void ExportDataButton_Click(object sender, RoutedEventArgs e)
@@ -629,6 +679,104 @@ namespace GameLauncher.Views
             if (App.MainWindow is MainWindow mainWindow)
             {
                 mainWindow.ShowToast("密码已重置", "私密模式密码已重置为默认密码", ToastType.Success);
+            }
+        }
+
+        // ---------- 123 云盘（游戏云备份）----------
+
+        private void LoadPan123Settings()
+        {
+            var settings = UserSettings.Instance;
+            Pan123ClientIdBox.Text = settings.Pan123ClientId;
+            Pan123ClientSecretBox.Password = SecretProtector.Decrypt(settings.Pan123ClientSecret);
+
+            _pan123UiLoaded = true;
+            UpdatePan123Status();
+        }
+
+        private void Pan123Field_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (!_pan123UiLoaded) return;
+            var settings = UserSettings.Instance;
+
+            if (ReferenceEquals(sender, Pan123ClientIdBox))
+                settings.Pan123ClientId = Pan123ClientIdBox.Text.Trim();
+            else if (ReferenceEquals(sender, Pan123ClientSecretBox))
+                settings.Pan123ClientSecret = SecretProtector.Encrypt(Pan123ClientSecretBox.Password);
+
+            settings.Save();
+            UpdatePan123Status();
+        }
+
+        private void UpdatePan123Status()
+        {
+            var settings = UserSettings.Instance;
+            bool hasCredentials = !string.IsNullOrWhiteSpace(settings.Pan123ClientId) &&
+                                  !string.IsNullOrWhiteSpace(SecretProtector.Decrypt(settings.Pan123ClientSecret));
+            Pan123FetchTokenButton.IsEnabled = hasCredentials;
+
+            bool hasToken = !string.IsNullOrWhiteSpace(SecretProtector.Decrypt(settings.Pan123AccessToken));
+            Pan123TestButton.IsEnabled = hasToken;
+
+            if (hasToken && settings.Pan123TokenExpiry.HasValue)
+            {
+                var expiresLocal = settings.Pan123TokenExpiry.Value.ToLocalTime();
+                var expired = expiresLocal < DateTime.Now;
+                Pan123StatusText.Text = expired
+                    ? "已获取令牌，但已过期（点击「获取访问令牌」重新获取）"
+                    : $"已获取访问令牌，有效期至 {expiresLocal:yyyy-MM-dd HH:mm}";
+            }
+            else if (hasToken)
+            {
+                Pan123StatusText.Text = "已获取访问令牌（有效期未知，点击「测试连接」验证）";
+            }
+            else if (hasCredentials)
+            {
+                Pan123StatusText.Text = "已填写凭据，点击「获取访问令牌」完成连接。";
+            }
+            else
+            {
+                Pan123StatusText.Text = "未配置：请先在 123 开放平台创建应用并填写 Client ID / Client Secret。";
+            }
+        }
+
+        private async void Pan123FetchTokenButton_Click(object sender, RoutedEventArgs e)
+        {
+            Pan123FetchTokenButton.IsEnabled = false;
+            Pan123StatusText.Text = "正在获取访问令牌...";
+            try
+            {
+                var (success, error) = await _pan123Client.FetchAccessTokenAsync();
+                if (success)
+                {
+                    Pan123StatusText.Text = "获取成功！访问令牌已保存。";
+                    UpdatePan123Status(); // 刷新按钮状态与有效期显示
+                }
+                else
+                {
+                    Pan123StatusText.Text = $"获取失败：{error}";
+                }
+            }
+            finally
+            {
+                Pan123FetchTokenButton.IsEnabled = true;
+            }
+        }
+
+        private async void Pan123TestButton_Click(object sender, RoutedEventArgs e)
+        {
+            Pan123TestButton.IsEnabled = false;
+            Pan123StatusText.Text = "正在测试连接...";
+            try
+            {
+                var (success, error) = await _pan123Client.TestConnectionAsync();
+                Pan123StatusText.Text = success
+                    ? "连接成功！123 云盘 API 可用。"
+                    : $"连接失败：{error}";
+            }
+            finally
+            {
+                Pan123TestButton.IsEnabled = true;
             }
         }
     }

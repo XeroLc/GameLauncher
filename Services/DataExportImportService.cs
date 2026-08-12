@@ -36,6 +36,7 @@ namespace GameLauncher.Services
         public bool AutoScanEnabled { get; set; }
         public bool DebugModeEnabled { get; set; }
         public List<string> ScanPaths { get; set; } = new List<string>();
+        public string? GameLibraryPath { get; set; }
         public List<int> PrivateKeySequence { get; set; } = new List<int>();
     }
 
@@ -115,6 +116,7 @@ namespace GameLauncher.Services
                     AutoScanEnabled = settings.AutoScanEnabled,
                     DebugModeEnabled = settings.DebugModeEnabled,
                     ScanPaths = settings.ScanPaths?.ToList() ?? new List<string>(),
+                    GameLibraryPath = settings.GameLibraryPath,
                     PrivateKeySequence = settings.PrivateKeySequence?.ToList() ?? new List<int>()
                 };
                 var settingsJson = JsonSerializer.Serialize(settingsExport, _jsonOptions);
@@ -331,6 +333,11 @@ namespace GameLauncher.Services
                             settings.AutoScanEnabled = settingsExport.AutoScanEnabled;
                             settings.DebugModeEnabled = settingsExport.DebugModeEnabled;
                             settings.ScanPaths = settingsExport.ScanPaths ?? new List<string>();
+                            // 旧备份只有 ScanPaths 时迁移到游戏目录
+                            if (string.IsNullOrWhiteSpace(settingsExport.GameLibraryPath) && settingsExport.ScanPaths != null && settingsExport.ScanPaths.Count > 0)
+                                settings.GameLibraryPath = settingsExport.ScanPaths[0];
+                            else
+                                settings.GameLibraryPath = settingsExport.GameLibraryPath ?? string.Empty;
                             settings.PrivateKeySequence = settingsExport.PrivateKeySequence ?? new List<int>();
                             settings.Save();
                             PrivateModeService.Instance.ReloadFromSettings();

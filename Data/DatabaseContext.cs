@@ -65,7 +65,10 @@ namespace GameLauncher.Data
                         IsFavorite INTEGER DEFAULT 0,
                         ImagePaths TEXT,
                         Tags TEXT,
-                        IsPrivate INTEGER DEFAULT 0
+                        IsPrivate INTEGER DEFAULT 0,
+                        CloudArchivedAt TEXT,
+                        CloudBackupParts TEXT,
+                        CloudOriginalFolderName TEXT
                     );
 
                     CREATE TABLE IF NOT EXISTS GameCollections (
@@ -204,7 +207,10 @@ namespace GameLauncher.Data
                 ("IsFavorite", "INTEGER DEFAULT 0"),
                 ("ImagePaths", "TEXT"),
                 ("Tags", "TEXT"),
-                ("IsPrivate", "INTEGER DEFAULT 0")
+                ("IsPrivate", "INTEGER DEFAULT 0"),
+                ("CloudArchivedAt", "TEXT"),
+                ("CloudBackupParts", "TEXT"),
+                ("CloudOriginalFolderName", "TEXT")
             };
 
             foreach (var (columnName, columnDefinition) in columnsToAdd)

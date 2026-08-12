@@ -56,6 +56,9 @@ namespace GameLauncher
         public ObservableCollection<Game> Games => _games;
         public ObservableCollection<Game> FilteredGames => _filteredGames;
 
+        /// <summary>右下角版本水印，跟随 AppInfo.Version 自动更新</summary>
+        public string VersionDisplay => $"v{GameLauncher.Services.AppInfo.Version}";
+
         public MainWindow()
         {
             InitializeComponent();
@@ -281,11 +284,11 @@ namespace GameLauncher
                             try
                             {
                                 var settings = UserSettings.Instance;
-                                if (settings.AutoScanEnabled && settings.ScanPaths.Count > 0)
+                                if (settings.AutoScanEnabled && !string.IsNullOrWhiteSpace(settings.GameLibraryPath))
                                 {
-                                    Debug.WriteLine("[AutoScan] 开始静默扫描...");
+                                    Debug.WriteLine("[AutoScan] 开始静默扫描游戏目录...");
                                     var scanService = App.Services.GetRequiredService<AutoScanService>();
-                                    var result = await scanService.ScanAsync(settings.ScanPaths);
+                                    var result = await scanService.ScanAsync(new List<string> { settings.GameLibraryPath });
                                     if (result.NewGamesFound > 0)
                                     {
                                         int imported = await _gameService.ImportGamesAsync(result.DiscoveredGames);
@@ -1291,7 +1294,7 @@ namespace GameLauncher
                     startTime = _runningGames[game.Id];
                 }
 
-                var detailDialog = new Views.GameDetailDialog(game, _gameService, _gameImageLoader, _allTags.ToList(), startTime)
+                var detailDialog = new Views.GameDetailDialogView(game, _gameService, _gameImageLoader, _allTags.ToList(), startTime)
                 {
                     XamlRoot = Content.XamlRoot
                 };
@@ -1315,11 +1318,39 @@ namespace GameLauncher
                 {
                     RunOnUi(() => ShowToast(title, message, ToastType.Error));
                 };
+                detailDialog.ShowTypedToastRequested += (title, message, type) =>
+                {
+                    RunOnUi(() => ShowToast(title, message, type));
+                };
 
                 detailDialog.DataChanged += () =>
                 {
                     RunOnUi(() => ApplyFilters());
                     RunOnUi(async () => await RefreshCollectionFilterAsync());
+                    RunOnUi(() => UpdateGameCardAvailability());
+                };
+
+                // 详情页发起的归档/下载：同步卡片进度条
+                detailDialog.TransferStateChanged += (transferGame, started) =>
+                {
+                    if (started)
+                    {
+                        _transferTasks[transferGame.Id] = new ArchiveProgress { Stage = ArchiveProgress.TransferStage.Packaging, OverallPercent = 0 };
+                    }
+                    else
+                    {
+                        _transferTasks.TryRemove(transferGame.Id, out _);
+                    }
+                    RunOnUi(() => UpdateTransferProgress());
+                    RunOnUi(() => UpdateGameCardAvailability());
+                };
+                detailDialog.TransferProgressChanged += (transferGame, p) =>
+                {
+                    // Done 阶段不写入（避免在 TransferStateChanged(false) 移除后重新写入导致进度条卡住）
+                    if (p.Stage == ArchiveProgress.TransferStage.Done)
+                        return;
+                    _transferTasks[transferGame.Id] = p;
+                    RunOnUi(() => UpdateTransferProgress());
                 };
 
                 await detailDialog.ShowAsync();
@@ -1346,6 +1377,7 @@ namespace GameLauncher
                 }
 
                 RunOnUi(() => UpdateGameCardStatistics());
+                RunOnUi(() => UpdateGameCardAvailability());
             }
         }
         catch (Exception ex)
@@ -1409,6 +1441,32 @@ namespace GameLauncher
         {
             var sb = new System.Text.StringBuilder();
             var sep = "----------------------------------";
+            sb.AppendLine("v3.5.1 (2026-08-12)");
+            sb.AppendLine(sep);
+            sb.AppendLine("  功能新增");
+            sb.AppendLine("    游戏云备份（123 云盘）：详情页「归档」按钮将游戏打包为");
+            sb.AppendLine("      .vault 分卷上传，随时可下载恢复");
+            sb.AppendLine("      超过 5GB 自动分卷，带魔数头与完整性校验");
+            sb.AppendLine("      重新归档自动更新云端备份（先传新档再删旧档）");
+            sb.AppendLine("      上传/下载时按钮变为进度条（白色底 + 绿色填充 + 转圈）");
+            sb.AppendLine("    游戏目录机制（Steam 式）：设置中指定游戏目录，启动时");
+            sb.AppendLine("      自动识别新游戏，下载的云备份解压到该目录");
+            sb.AppendLine("    设置页重新分类布局（通用 / 云同步 / 云备份 / 数据管理 / 高级）");
+            sb.AppendLine("    详情页按钮重排为两行布局，新增归档按钮");
+            sb.AppendLine("    Toast 分级配色：成功绿色 / 警告橙色 / 错误红色");
+            sb.AppendLine("  Bug 修复与安全");
+            sb.AppendLine("    修复归档上传确认接口「文件校验中」异步轮询");
+            sb.AppendLine("    修复分片上传并发闭包导致的 MD5 缺失");
+            sb.AppendLine("    修复下载文件占用导致的校验失败");
+            sb.AppendLine("    修复下载后卡片按钮状态不刷新");
+            sb.AppendLine("    修复归档进度条卡住（Done 阶段重复写入传输状态）");
+            sb.AppendLine("    修复游戏目录保存被关闭事件覆盖的问题");
+            sb.AppendLine("    修复云端旧归档在相同目录下重复创建失败");
+            sb.AppendLine("    修复下载解压路径穿越删除任意目录的安全隐患");
+            sb.AppendLine("    修复 access_token 明文存储（改为 DPAPI 加密）");
+            sb.AppendLine("    修复 HTTP 重试时复用已发送请求导致失败");
+            sb.AppendLine("    修复空目录归档产生无效备份、恢复入库丢失原目录名");
+            sb.AppendLine();
             sb.AppendLine("v3.5.0 (2026-08-06)");
             sb.AppendLine(sep);
             sb.AppendLine("  功能新增");

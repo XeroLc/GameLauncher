@@ -2,7 +2,7 @@
 
 一款简洁、高效的游戏启动器，帮助您轻松管理本地游戏。
 
-![Version](https://img.shields.io/badge/version-3.5-blue)
+![Version](https://img.shields.io/badge/version-3.5.1-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![.NET](https://img.shields.io/badge/.NET-8.0-purple)
 
@@ -35,7 +35,7 @@
 
 - Windows 10 1809 (10.0.17763.0) 或更高版本
 - Windows 11
-- 64 位系统 (x64)
+- 支持 x86 / x64 / ARM64 架构
 
 ## 安装步骤
 
@@ -43,17 +43,20 @@
 
 GameLauncher 使用 WinUI 3 框架，需要先安装 Windows App SDK 运行时。
 
-**下载地址：** https://aka.ms/windowsappsdk/1.8/windowsappruntimeinstall-x64.exe
+**下载地址（按架构选择）：**
+- x64：https://aka.ms/windowsappsdk/1.8/windowsappruntimeinstall-x64.exe
+- x86：https://aka.ms/windowsappsdk/1.8/windowsappruntimeinstall-x86.exe
+- ARM64：https://aka.ms/windowsappsdk/1.8/windowsappruntimeinstall-arm64.exe
 
 安装步骤：
-1. 下载 `windowsappruntimeinstall-x64.exe`
+1. 下载对应架构的 `windowsappruntimeinstall-*.exe`
 2. 双击运行安装程序
 3. 按照提示完成安装
 4. 安装完成后重启计算机（推荐）
 
 ### 2. 运行 GameLauncher
 
-1. 解压 `GameLauncher_v1.7_Windows_x64.zip`
+1. 解压对应架构的 `GameLauncher_v3.5.1_Windows_<x64|x86|arm64>.zip`
 2. 双击 `GameLauncher.exe` 启动程序
 3. （可选）创建快捷方式到桌面
 
@@ -155,9 +158,9 @@ A: 所有游戏数据存储在本地数据库中，位于程序目录下的 Data
 
 ## 项目信息
 
-- **版本**：3.5.0
+- **版本**：3.5.1
 - **作者**：@XeroLc
-- **发布日期**：2026-08-06
+- **发布日期**：2026-08-12
 - **开发框架**：.NET 8.0 + WinUI 3 + Windows App SDK 1.8
 - **数据库**：SQLite
 
@@ -166,6 +169,15 @@ A: 所有游戏数据存储在本地数据库中，位于程序目录下的 Data
 本项目仅供学习交流使用。
 
 ## 更新日志
+
+### v3.5.1 (2026-08-12) - 游戏云备份
+- 🗄️ **游戏云备份** - 详情页「归档」将游戏打包为 .vault 分卷上传 123 云盘，随时下载恢复
+- 🔄 **重新归档即更新** - 先传新档再删旧档，云端始终保留最新版本
+- 📦 **5GB 分卷** - 超大游戏自动分卷，带魔数头与完整性校验
+- 📂 **游戏目录机制** - 设置改为 Steam 式游戏目录，自动识别新游戏，云备份解压到该目录
+- 🎨 **界面优化** - 设置页分类布局、详情页按钮重排、传输进度条（白色底+绿色填充+转圈）
+- 🎨 **Toast 分级配色** - 成功绿 / 警告橙 / 错误红
+- 🔐 **安全加固** - access_token DPAPI 加密、解压路径穿越防护、HTTP 重试修复
 
 ### v3.5.0 (2026-08-06) - 增量云同步
 - ☁️ **增量云同步** - 新增本地同步文件夹与 Cloudflare R2 双后端，配置入口位于设置页

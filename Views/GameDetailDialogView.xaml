@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ContentDialog
-    x:Class="GameLauncher.Views.GameDetailDialog"
+    x:Class="GameLauncher.Views.GameDetailDialogView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:GameLauncher.Views"
@@ -175,82 +175,139 @@
                 </Border>
             </Grid>
 
-            <Grid Margin="0,8,0,0" ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+            <StackPanel Margin="0,8,0,0" Spacing="10">
+                <!-- 第一行：删除 | 打开路径 | 编辑 -->
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                <Button x:Name="DeleteButton"
-                        Grid.Column="0"
-                        Click="DeleteButton_Click"
-                        Style="{StaticResource FrostedStopButtonStyle}"
-                        HorizontalAlignment="Stretch"
-                        Height="40">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <FontIcon Glyph="&#xE107;" FontSize="14"/>
-                        <TextBlock Text="删除"/>
-                    </StackPanel>
-                </Button>
-
-                <Button x:Name="OpenPathButton"
-                        Grid.Column="1"
-                        Click="OpenPathButton_Click"
-                        Style="{StaticResource FrostedDefaultButtonStyle}"
-                        HorizontalAlignment="Stretch"
-                        Height="40">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <FontIcon Glyph="&#xE838;" FontSize="14"/>
-                        <TextBlock Text="打开路径"/>
-                    </StackPanel>
-                </Button>
-
-                <Button x:Name="EditButton"
-                        Grid.Column="2"
-                        Click="EditButton_Click"
-                        Style="{StaticResource FrostedDefaultButtonStyle}"
-                        HorizontalAlignment="Stretch"
-                        Height="40">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <FontIcon Glyph="&#xE70F;" FontSize="14"/>
-                        <TextBlock Text="编辑"/>
-                    </StackPanel>
-                </Button>
-
-                <Grid Grid.Column="3" HorizontalAlignment="Stretch" Height="40">
-                    <Button x:Name="LaunchButton"
-                            Click="LaunchButton_Click"
-                            Style="{StaticResource FrostedAccentButtonStyle}"
-                            HorizontalAlignment="Stretch"
-                            RenderTransformOrigin="0.5,0.5"
-                            HorizontalContentAlignment="Center">
-                        <Button.RenderTransform>
-                            <ScaleTransform x:Name="LaunchScaleTransform" ScaleX="1" ScaleY="1"/>
-                        </Button.RenderTransform>
-                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                            <FontIcon Glyph="&#xE768;" FontSize="14"/>
-                            <TextBlock Text="启动游戏"/>
-                        </StackPanel>
-                    </Button>
-                    <Button x:Name="StopButton"
-                            Click="StopButton_Click"
+                    <Button x:Name="DeleteButton"
+                            Grid.Column="0"
+                            Click="DeleteButton_Click"
                             Style="{StaticResource FrostedStopButtonStyle}"
                             HorizontalAlignment="Stretch"
-                            Visibility="Collapsed"
-                            RenderTransformOrigin="0.5,0.5"
-                            HorizontalContentAlignment="Center">
-                        <Button.RenderTransform>
-                            <ScaleTransform x:Name="StopScaleTransform" ScaleX="0.5" ScaleY="0.5"/>
-                        </Button.RenderTransform>
-                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                            <FontIcon Glyph="&#xE71A;" FontSize="14"/>
-                            <TextBlock Text="终止游戏"/>
+                            Height="40">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE107;" FontSize="14"/>
+                            <TextBlock Text="删除"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="OpenPathButton"
+                            Grid.Column="1"
+                            Click="OpenPathButton_Click"
+                            Style="{StaticResource FrostedDefaultButtonStyle}"
+                            HorizontalAlignment="Stretch"
+                            Height="40">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE838;" FontSize="14"/>
+                            <TextBlock Text="打开路径"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="EditButton"
+                            Grid.Column="2"
+                            Click="EditButton_Click"
+                            Style="{StaticResource FrostedDefaultButtonStyle}"
+                            HorizontalAlignment="Stretch"
+                            Height="40">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE70F;" FontSize="14"/>
+                            <TextBlock Text="编辑"/>
                         </StackPanel>
                     </Button>
                 </Grid>
-            </Grid>
+
+                <!-- 第二行：归档（含进度） | 启动/下载/终止（含进度） -->
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Grid.Column="0" HorizontalAlignment="Stretch" Height="40">
+                        <Button x:Name="ArchiveButton"
+                                Click="ArchiveButton_Click"
+                                Style="{StaticResource FrostedDefaultButtonStyle}"
+                                HorizontalAlignment="Stretch"
+                                IsEnabled="False">
+                            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                <FontIcon Glyph="&#xE8B7;" FontSize="14"/>
+                                <TextBlock Text="归档"/>
+                            </StackPanel>
+                        </Button>
+                        <Grid x:Name="ArchiveProgressPanel" Visibility="Collapsed"
+                              HorizontalAlignment="Stretch" Height="40">
+                            <Border Background="White" Opacity="0.9" CornerRadius="4"/>
+                            <Border x:Name="ArchiveFillBar" Background="#4CAF50" CornerRadius="4"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                    RenderTransformOrigin="0,0">
+                                <Border.RenderTransform>
+                                    <ScaleTransform x:Name="ArchiveFillScale" ScaleX="0" ScaleY="1"/>
+                                </Border.RenderTransform>
+                            </Border>
+                            <StackPanel Orientation="Horizontal" Spacing="8"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <ProgressRing x:Name="ArchiveRing" IsActive="True" Width="14" Height="14"/>
+                                <TextBlock x:Name="ArchiveProgressText" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#333333" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+
+                    <Grid Grid.Column="1" HorizontalAlignment="Stretch" Height="40">
+                        <Button x:Name="LaunchButton"
+                                Click="LaunchButton_Click"
+                                Style="{StaticResource FrostedAccentButtonStyle}"
+                                HorizontalAlignment="Stretch"
+                                RenderTransformOrigin="0.5,0.5"
+                                HorizontalContentAlignment="Center">
+                            <Button.RenderTransform>
+                                <ScaleTransform x:Name="LaunchScaleTransform" ScaleX="1" ScaleY="1"/>
+                            </Button.RenderTransform>
+                            <StackPanel x:Name="LaunchButtonContent" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                <FontIcon x:Name="LaunchButtonIcon" Glyph="&#xE768;" FontSize="14"/>
+                                <TextBlock x:Name="LaunchButtonText" Text="启动游戏"/>
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="StopButton"
+                                Click="StopButton_Click"
+                                Style="{StaticResource FrostedStopButtonStyle}"
+                                HorizontalAlignment="Stretch"
+                                Visibility="Collapsed"
+                                RenderTransformOrigin="0.5,0.5"
+                                HorizontalContentAlignment="Center">
+                            <Button.RenderTransform>
+                                <ScaleTransform x:Name="StopScaleTransform" ScaleX="0.5" ScaleY="0.5"/>
+                            </Button.RenderTransform>
+                            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                <FontIcon Glyph="&#xE71A;" FontSize="14"/>
+                                <TextBlock Text="终止游戏"/>
+                            </StackPanel>
+                        </Button>
+                        <Grid x:Name="TransferProgressPanel2" Visibility="Collapsed"
+                              HorizontalAlignment="Stretch" Height="40">
+                            <Border Background="White" Opacity="0.9" CornerRadius="4"/>
+                            <Border x:Name="TransferFillBar2" Background="#4CAF50" CornerRadius="4"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                    RenderTransformOrigin="0,0">
+                                <Border.RenderTransform>
+                                    <ScaleTransform x:Name="TransferFillScale2" ScaleX="0" ScaleY="1"/>
+                                </Border.RenderTransform>
+                            </Border>
+                            <StackPanel Orientation="Horizontal" Spacing="8"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <ProgressRing x:Name="TransferRing2" IsActive="True" Width="14" Height="14"/>
+                                <TextBlock x:Name="TransferProgressText2" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#333333" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </StackPanel>
 
         </StackPanel>
     </ScrollViewer>

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using GameLauncher.Models;
 using GameLauncher.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -38,6 +39,8 @@ namespace GameLauncher
             }
             CheckRunningGames();
             UpdateGameCardStatistics();
+            UpdateTransferProgress();
+            UpdateGameCardAvailability();
         }
 
         private void CheckRunningGames()
@@ -123,6 +126,13 @@ namespace GameLauncher
         {
             if (sender is Button button && button.DataContext is Game game)
             {
+                // 本地文件不存在但有云备份 → 走下载恢复流程
+                if (!game.IsInstalled && game.HasCloudBackup)
+                {
+                    await DownloadGameFromCloudAsync(game);
+                    return;
+                }
+
                 var success = await _gameService.LaunchGameAsync(game);
                 if (success)
                 {
@@ -141,6 +151,41 @@ namespace GameLauncher
                 {
                     RunOnUi(() => ShowToast("启动失败", "无法启动游戏，请检查游戏路径是否正确", ToastType.Error));
                 }
+            }
+        }
+
+        private async Task DownloadGameFromCloudAsync(Game game)
+        {
+            var archiveService = App.Services.GetRequiredService<GameArchiveService>();
+            var progress = new Progress<ArchiveProgress>(p =>
+            {
+                // Done 阶段不写入（避免在 TryRemove 之后重新写入导致进度条卡住）
+                if (p.Stage == ArchiveProgress.TransferStage.Done)
+                    return;
+                _transferTasks[game.Id] = p;
+                UpdateTransferProgress();
+            });
+            _transferTasks[game.Id] = new ArchiveProgress { Stage = ArchiveProgress.TransferStage.Downloading, OverallPercent = 0 };
+            UpdateGameCardAvailability();
+            try
+            {
+                await archiveService.DownloadGameAsync(game, progress);
+                _transferTasks.TryRemove(game.Id, out _);
+                RunOnUi(async () =>
+                {
+                    ShowToast("恢复完成", $"{game.Name} 已恢复到本地", ToastType.Success);
+                    await SilentRefreshGamesAsync(forceUiUpdate: true);
+                    UpdateGameCardAvailability();
+                });
+            }
+            catch (Exception ex)
+            {
+                _transferTasks.TryRemove(game.Id, out _);
+                RunOnUi(() => ShowToast("下载失败", ex.Message, ToastType.Error));
+            }
+            finally
+            {
+                RunOnUi(UpdateGameCardAvailability);
             }
         }
     }
